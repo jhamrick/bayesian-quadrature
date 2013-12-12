@@ -1,2 +1,2 @@
-from gp import GP
-__all__ = ['GP']
+from bq import BQ
+__all__ = ['BQ']

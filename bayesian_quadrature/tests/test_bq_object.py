@@ -18,13 +18,13 @@ R_mean = 3.141592653589793
 R_var = 10.0
 
 
-def seed():
+def npseed():
     np.random.seed(87293)
 
 
 def make_1d_gaussian(x=None, seed=True, n=30):
     if seed:
-        seed()
+        npseed()
     if x is None:
         x = np.random.uniform(-8, 8, n)
     y = scipy.stats.norm.pdf(x, 0, 1)
@@ -127,7 +127,7 @@ def test_fit_S_same():
     for i in xrange(10):
         x, y = make_1d_gaussian(seed=True, n=10)
         bq = BQ(x, y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
-        seed()
+        npseed()
         bq.fit()
         if params is None:
             params = bq.gp_S.params.copy()
@@ -140,7 +140,7 @@ def test_fit_log_S_same():
     for i in xrange(10):
         x, y = make_1d_gaussian(seed=True, n=10)
         bq = BQ(x, y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
-        seed()
+        npseed()
         bq.fit()
         if params is None:
             params = bq.gp_log_S.params.copy()
@@ -154,7 +154,7 @@ def test_fit_Dc_same():
     for i in xrange(10):
         x, y = make_1d_gaussian(seed=True, n=10)
         bq = BQ(x, y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
-        seed()
+        npseed()
         bq.fit()
         if params is None:
             params = bq.gp_Dc.params.copy()
@@ -165,7 +165,7 @@ def test_fit_Dc_same():
 
 
 def test_S_mean():
-    seed()
+    npseed()
 
     x, y = make_1d_gaussian(np.linspace(-8, 8, 30))
     xo, yo = make_1d_gaussian(make_xo())
@@ -179,7 +179,7 @@ def test_S_mean():
 
 
 def test_mvn_logpdf():
-    seed()
+    npseed()
     x = np.random.uniform(-10, 10, 20)
     y = scipy.stats.norm.pdf(x, R_mean, np.sqrt(R_var))
     pdf = np.empty_like(y)
@@ -190,7 +190,7 @@ def test_mvn_logpdf():
 
 
 def test_mvn_logpdf_same():
-    seed()
+    npseed()
     x = np.random.uniform(-10, 10, 20)
     mu = np.array([R_mean])
     cov = np.array([[R_var]])
