@@ -1,0 +1,4 @@
+bayesian-quadrature
+===================
+
+Bayesian quadrature
