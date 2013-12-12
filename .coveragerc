@@ -1,0 +1,12 @@
+[run]
+branch = true
+source =
+    bayesian_quadrature/
+
+[report]
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    except KeyboardInterrupt
+show_missing = true
