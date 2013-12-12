@@ -1,0 +1,4 @@
+.coverage
+*.c
+*.so
+build
