@@ -6,13 +6,12 @@ pyximport.install(setup_args={'include_dirs': [np.get_include()]})
 import logging
 
 from gp import GP, GaussianKernel
-from .. import config
 
 import bq_c
 
-logger = logging.getLogger("mental_rotation.extra.bq")
+logger = logging.getLogger("bayesian_quadrature")
 
-DTYPE = np.dtype(config.get("global", "dtype"))
+DTYPE = np.dtype('float64')
 EPS = np.finfo(DTYPE).eps
 
 
