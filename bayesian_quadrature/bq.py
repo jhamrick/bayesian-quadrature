@@ -1,13 +1,8 @@
 import numpy as np
-
-import pyximport
-pyximport.install(setup_args={'include_dirs': [np.get_include()]})
-
 import logging
-
 from gp import GP, GaussianKernel
 
-import bq_c
+from . import bq_c
 
 logger = logging.getLogger("bayesian_quadrature")
 
