@@ -1,0 +1,109 @@
+
+Bayesian Quadrature: Mean Derivation
+====================================
+
+In Equation 5, use the approximation:
+
+.. math:: \exp(\log \ell(x)) \approx \exp(\log \ell_0(x))) + \exp(\log \ell_0(x)))(\log\ell(x) - \log\ell_0(x))
+
+In practice, they actually use the transform
+:math:`\log\left(\frac{\ell(x)}{\gamma} + 1\right)`, which changes this
+equation to:
+
+.. math::
+
+
+   \begin{align*}
+   \exp\left(\log\left(\frac{\ell(x)}{\gamma} + 1\right)\right) &\approx \exp\left(\log\left(\frac{\ell_0(x)}{\gamma} + 1\right)\right) + \exp\left(\log\left(\frac{\ell_0(x)}{\gamma} + 1\right)\right)\left(\log\left(\frac{\ell(x)}{\gamma} + 1\right) - \log\left(\frac{\ell_0(x)}{\gamma} + 1\right)\right)\\\\
+   \frac{\exp(\log\ell(x)) + \gamma}{\gamma} &\approx \frac{\exp(\log\ell_0(x)) + \gamma + (\exp(\log\ell_0(x)) + \gamma)\left(\log\left(\frac{\ell(x)}{\gamma} + 1\right) - \log\left(\frac{\ell_0(x)}{\gamma} + 1\right)\right)}{\gamma}\\\\
+   \exp(\log\ell(x)) &\approx \exp(\log\ell_0(x)) + (\exp(\log\ell_0(x)) + \gamma)\left(\log\left(\frac{\ell(x)}{\gamma} + 1\right) - \log\left(\frac{\ell_0(x)}{\gamma} + 1\right)\right)
+   \end{align*}
+
+From this, we obtain a new version of Equation 6:
+
+.. math:: m_Z\approx \int\ell_0(x)p(x)\ \mathrm{d}x + \int\ell_0(x)\Delta_{\log \ell|s}(x)p(x)\ \mathrm{d}x + \gamma\int\Delta_{\log\ell|s}(x)p(x)\ \mathrm{d}x,
+
+ where:
+
+.. math:: \Delta_{\log\ell|s}=m_{\log\left(\frac{\ell}{\gamma} + 1\right)|s} - \log\left(\frac{\ell_0}{\gamma} + 1\right).
+
+We approximate this as:
+
+.. math:: m_Z\approx E[m_\ell|x_s] + E[m_\ell m_\Delta|x_s, x_c] + \gamma E[m_\Delta|x_s, x_c] = \int m_\ell(x|x_s)p(x)\ \mathrm{d}x + \int m_\ell(x|x_s)m_\Delta(x|x_s, x_c)p(x)\ \mathrm{d}x + \gamma\int m_\Delta(x|x_s, x_c)p(x)\ \mathrm{d}x,
+
+where the functions :math:`m_\ell` and :math:`m_\Delta` are both means
+of Gaussian processes.
+
+We expand the first term to obtain:
+
+.. math::
+
+
+   \begin{align*}
+   E[m_\ell|x_s] &= \int K_\ell(x,x_s)K_\ell(x_s,x_s)^{-1}\ell(x_s)p(x)\ \mathrm{d}x\\\\
+   &= \left(\int K_\ell(x,x_s)p(x)\ \mathrm{d}x\right)\ K_\ell(x_s,x_s)^{-1}\ell(x_s)\\\\
+   &= \left(\int K_\ell(x, x_s)p(x)\ \mathrm{d}x\right)\ \alpha_\ell(x_s)
+   \end{align*}
+
+where :math:`\alpha_\ell(x_s) = K_\ell(x_s, x_s)^{-1}\ell(x_s)`.
+
+Assuming :math:`K_\ell` is a Gaussian kernel, and :math:`p(x)` is a
+Gaussian density with mean :math:`\mu` and covariance :math:`\Sigma`,
+the integral can be expressed analytically as follows, from :
+
+.. math::
+
+
+   \begin{align*}
+   \int K_\ell(x, x_s)p(x)\ \mathrm{d}x&=\int h_\ell^2 \mathcal{N}\left(x_s\ \big\vert\  x, W_\ell\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\\\\
+   &= h_\ell^2 \mathcal{N}\left(x_s\ \big\vert\  \mu, W_\ell + \Sigma\right)
+   \end{align*}
+
+We expand the second term to obtain:
+
+.. math::
+
+
+   \begin{align*}
+   E[m_\ell m_\Delta|x_s,x_c] &= \int \left(K_\ell(x,x_s)K_\ell(x_s,x_s)^{-1}\ell(x_s)\right)\left(K_\Delta(x,x_c)K_\Delta(x_c,x_c)^{-1}\Delta(x_c)\right)p(x)\ \mathrm{d}x\\\\
+   &= \int \left(K_\ell(x,x_s)\alpha_\ell(x_s)\right)\left(K_\Delta(x,x_c)\alpha_\Delta(x_c)\right)p(x)\ \mathrm{d}x\\\\
+   &= \int \left(K_\Delta(x,x_c)\alpha_\Delta(x_c)\right)\left(K_\ell(x,x_s)\alpha_\ell(x_s)\right)p(x)\ \mathrm{d}x\\\\
+   &= \left(\int \left(K_\Delta(x,x_c)\alpha_\Delta(x_c)\right)K_\ell(x,x_s)p(x)\ \mathrm{d}x\right) \alpha_\ell(x_s)\\\\
+   &= \alpha_\Delta(x_c)^\top\left(\int K_\Delta(x_c, x)K_\ell(x,x_s)p(x)\ \mathrm{d}x\right) \alpha_\ell(x_s).
+   \end{align*}
+
+Assuming :math:`K_\Delta` is a Gaussian kernel, and :math:`p(x)` is a
+Gaussian density with mean :math:`\mu` and covariance :math:`\Sigma`,
+the integral can be expressed analytically as follows, from :
+
+.. math::
+
+
+   \begin{align*}
+   \int K_\Delta(x_{c,i}, x)K_\ell(x,x_{s,j})p(x)\ \mathrm{d}x&=\int h_\Delta^2 h_\ell^2\mathcal{N}\left(x_{c,i}\ \big\vert\  x, W_\Delta\right)\mathcal{N}\left(x_{s,j}\ \big\vert\  x, W_\ell\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\\\\
+   &= h_\Delta^2 h_\ell^2\int\mathcal{N}\left([x_{c,i}, x_{s,j}]\ \big\vert\  [x, x], [W_\Delta, 0; 0, W_\ell]\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\\\\
+   &= h_\Delta^2 h_\ell^2 \mathcal{N}\left([x_{c,i}, x_{s,j}]\ \big\vert\  [\mu, \mu], [W_\Delta+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma]\right)
+   \end{align*}
+
+We expand the third term to obtain:
+
+.. math::
+
+
+   \begin{align*}
+   E[m_\Delta|x_c] &= \int K_\Delta(x,x_c)K_\Delta(x_c,x_c)^{-1}\Delta(x_c)p(x)\ \mathrm{d}x\\\\
+   &= \left(\int K_\Delta(x,x_c)p(x)\ \mathrm{d}x\right)\ \alpha_\Delta(x_c).
+   \end{align*}
+
+Again assuming :math:`K_\Delta` is a Gaussian kernel, and :math:`p(x)`
+is a Gaussian density with mean :math:`\mu` and covariance
+:math:`\Sigma`, the integral can be expressed analytically as follows,
+from :
+
+.. math::
+
+
+   \begin{align*}
+   \int K_\Delta(x, x_c)p(x)\ \mathrm{d}x&=\int h_\Delta^2 \mathcal{N}\left(x_c\ \big\vert\  x, W_\Delta\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\\\\
+   &= h_\Delta^2 \mathcal{N}\left(x_c\ \big\vert\  \mu, W_\Delta + \Sigma\right)
+   \end{align*}

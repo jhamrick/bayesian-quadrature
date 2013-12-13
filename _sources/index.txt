@@ -14,6 +14,15 @@ Derivations
 .. toctree::
    :maxdepth: 4
 
-   mean_derivation
-   variance_derivation
-   expected_variance_derivation
+   bq_mean
+   bq_var
+   bq_expected_variance
+
+Tests
+~~~~~
+
+.. toctree::
+   :maxdepth: 4
+
+   visual-tests
+   bayesian_quadrature.tests

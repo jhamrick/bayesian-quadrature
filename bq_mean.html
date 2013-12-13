@@ -1,0 +1,196 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Bayesian Quadrature: Mean Derivation &mdash; bayesian_quadrature 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="bayesian_quadrature 0.0.1 documentation" href="index.html" />
+    <link rel="next" title="Bayesian Quadrature: Variance Derivation" href="bq_var.html" />
+    <link rel="prev" title="Bayesian quadrature object" href="bayesian_quadrature.bq.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="bq_var.html" title="Bayesian Quadrature: Variance Derivation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="bayesian_quadrature.bq.html" title="Bayesian quadrature object"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">bayesian_quadrature 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="bayesian-quadrature-mean-derivation">
+<h1>Bayesian Quadrature: Mean Derivation<a class="headerlink" href="#bayesian-quadrature-mean-derivation" title="Permalink to this headline">¶</a></h1>
+<p>In Equation 5, use the approximation:</p>
+<div class="math">
+\[\exp(\log \ell(x)) \approx \exp(\log \ell_0(x))) + \exp(\log \ell_0(x)))(\log\ell(x) - \log\ell_0(x))\]</div>
+<p>In practice, they actually use the transform
+<span class="math">\(\log\left(\frac{\ell(x)}{\gamma} + 1\right)\)</span>, which changes this
+equation to:</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+\exp\left(\log\left(\frac{\ell(x)}{\gamma} + 1\right)\right) &amp;\approx \exp\left(\log\left(\frac{\ell_0(x)}{\gamma} + 1\right)\right) + \exp\left(\log\left(\frac{\ell_0(x)}{\gamma} + 1\right)\right)\left(\log\left(\frac{\ell(x)}{\gamma} + 1\right) - \log\left(\frac{\ell_0(x)}{\gamma} + 1\right)\right)\\\\
+\frac{\exp(\log\ell(x)) + \gamma}{\gamma} &amp;\approx \frac{\exp(\log\ell_0(x)) + \gamma + (\exp(\log\ell_0(x)) + \gamma)\left(\log\left(\frac{\ell(x)}{\gamma} + 1\right) - \log\left(\frac{\ell_0(x)}{\gamma} + 1\right)\right)}{\gamma}\\\\
+\exp(\log\ell(x)) &amp;\approx \exp(\log\ell_0(x)) + (\exp(\log\ell_0(x)) + \gamma)\left(\log\left(\frac{\ell(x)}{\gamma} + 1\right) - \log\left(\frac{\ell_0(x)}{\gamma} + 1\right)\right)
+\end{align*}\end{split}\]</div>
+<p>From this, we obtain a new version of Equation 6:</p>
+<div class="math">
+\[m_Z\approx \int\ell_0(x)p(x)\ \mathrm{d}x + \int\ell_0(x)\Delta_{\log \ell|s}(x)p(x)\ \mathrm{d}x + \gamma\int\Delta_{\log\ell|s}(x)p(x)\ \mathrm{d}x,\]\[where:\]</div>
+<div class="math">
+\[\Delta_{\log\ell|s}=m_{\log\left(\frac{\ell}{\gamma} + 1\right)|s} - \log\left(\frac{\ell_0}{\gamma} + 1\right).\]</div>
+<p>We approximate this as:</p>
+<div class="math">
+\[m_Z\approx E[m_\ell|x_s] + E[m_\ell m_\Delta|x_s, x_c] + \gamma E[m_\Delta|x_s, x_c] = \int m_\ell(x|x_s)p(x)\ \mathrm{d}x + \int m_\ell(x|x_s)m_\Delta(x|x_s, x_c)p(x)\ \mathrm{d}x + \gamma\int m_\Delta(x|x_s, x_c)p(x)\ \mathrm{d}x,\]</div>
+<p>where the functions <span class="math">\(m_\ell\)</span> and <span class="math">\(m_\Delta\)</span> are both means
+of Gaussian processes.</p>
+<p>We expand the first term to obtain:</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+E[m_\ell|x_s] &amp;= \int K_\ell(x,x_s)K_\ell(x_s,x_s)^{-1}\ell(x_s)p(x)\ \mathrm{d}x\\\\
+&amp;= \left(\int K_\ell(x,x_s)p(x)\ \mathrm{d}x\right)\ K_\ell(x_s,x_s)^{-1}\ell(x_s)\\\\
+&amp;= \left(\int K_\ell(x, x_s)p(x)\ \mathrm{d}x\right)\ \alpha_\ell(x_s)
+\end{align*}\end{split}\]</div>
+<p>where <span class="math">\(\alpha_\ell(x_s) = K_\ell(x_s, x_s)^{-1}\ell(x_s)\)</span>.</p>
+<p>Assuming <span class="math">\(K_\ell\)</span> is a Gaussian kernel, and <span class="math">\(p(x)\)</span> is a
+Gaussian density with mean <span class="math">\(\mu\)</span> and covariance <span class="math">\(\Sigma\)</span>,
+the integral can be expressed analytically as follows, from :</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+\int K_\ell(x, x_s)p(x)\ \mathrm{d}x&amp;=\int h_\ell^2 \mathcal{N}\left(x_s\ \big\vert\  x, W_\ell\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\\\\
+&amp;= h_\ell^2 \mathcal{N}\left(x_s\ \big\vert\  \mu, W_\ell + \Sigma\right)
+\end{align*}\end{split}\]</div>
+<p>We expand the second term to obtain:</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+E[m_\ell m_\Delta|x_s,x_c] &amp;= \int \left(K_\ell(x,x_s)K_\ell(x_s,x_s)^{-1}\ell(x_s)\right)\left(K_\Delta(x,x_c)K_\Delta(x_c,x_c)^{-1}\Delta(x_c)\right)p(x)\ \mathrm{d}x\\\\
+&amp;= \int \left(K_\ell(x,x_s)\alpha_\ell(x_s)\right)\left(K_\Delta(x,x_c)\alpha_\Delta(x_c)\right)p(x)\ \mathrm{d}x\\\\
+&amp;= \int \left(K_\Delta(x,x_c)\alpha_\Delta(x_c)\right)\left(K_\ell(x,x_s)\alpha_\ell(x_s)\right)p(x)\ \mathrm{d}x\\\\
+&amp;= \left(\int \left(K_\Delta(x,x_c)\alpha_\Delta(x_c)\right)K_\ell(x,x_s)p(x)\ \mathrm{d}x\right) \alpha_\ell(x_s)\\\\
+&amp;= \alpha_\Delta(x_c)^\top\left(\int K_\Delta(x_c, x)K_\ell(x,x_s)p(x)\ \mathrm{d}x\right) \alpha_\ell(x_s).
+\end{align*}\end{split}\]</div>
+<p>Assuming <span class="math">\(K_\Delta\)</span> is a Gaussian kernel, and <span class="math">\(p(x)\)</span> is a
+Gaussian density with mean <span class="math">\(\mu\)</span> and covariance <span class="math">\(\Sigma\)</span>,
+the integral can be expressed analytically as follows, from :</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+\int K_\Delta(x_{c,i}, x)K_\ell(x,x_{s,j})p(x)\ \mathrm{d}x&amp;=\int h_\Delta^2 h_\ell^2\mathcal{N}\left(x_{c,i}\ \big\vert\  x, W_\Delta\right)\mathcal{N}\left(x_{s,j}\ \big\vert\  x, W_\ell\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\\\\
+&amp;= h_\Delta^2 h_\ell^2\int\mathcal{N}\left([x_{c,i}, x_{s,j}]\ \big\vert\  [x, x], [W_\Delta, 0; 0, W_\ell]\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\\\\
+&amp;= h_\Delta^2 h_\ell^2 \mathcal{N}\left([x_{c,i}, x_{s,j}]\ \big\vert\  [\mu, \mu], [W_\Delta+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma]\right)
+\end{align*}\end{split}\]</div>
+<p>We expand the third term to obtain:</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+E[m_\Delta|x_c] &amp;= \int K_\Delta(x,x_c)K_\Delta(x_c,x_c)^{-1}\Delta(x_c)p(x)\ \mathrm{d}x\\\\
+&amp;= \left(\int K_\Delta(x,x_c)p(x)\ \mathrm{d}x\right)\ \alpha_\Delta(x_c).
+\end{align*}\end{split}\]</div>
+<p>Again assuming <span class="math">\(K_\Delta\)</span> is a Gaussian kernel, and <span class="math">\(p(x)\)</span>
+is a Gaussian density with mean <span class="math">\(\mu\)</span> and covariance
+<span class="math">\(\Sigma\)</span>, the integral can be expressed analytically as follows,
+from :</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+\int K_\Delta(x, x_c)p(x)\ \mathrm{d}x&amp;=\int h_\Delta^2 \mathcal{N}\left(x_c\ \big\vert\  x, W_\Delta\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\\\\
+&amp;= h_\Delta^2 \mathcal{N}\left(x_c\ \big\vert\  \mu, W_\Delta + \Sigma\right)
+\end{align*}\end{split}\]</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="bayesian_quadrature.bq.html"
+                        title="previous chapter">Bayesian quadrature object</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="bq_var.html"
+                        title="next chapter">Bayesian Quadrature: Variance Derivation</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/bq_mean.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="bq_var.html" title="Bayesian Quadrature: Variance Derivation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="bayesian_quadrature.bq.html" title="Bayesian quadrature object"
+             >previous</a> |</li>
+        <li><a href="index.html">bayesian_quadrature 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Jessica B. Hamrick.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
