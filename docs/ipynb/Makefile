@@ -3,13 +3,13 @@
 all: $(patsubst %.ipynb, %.rst, $(wildcard *.ipynb))
 
 clean:
-	rm *.rst || true
-	rm -r *_files/ || true
-	rm -r ../source/*_files/ || true
+	rm -f *.rst
+	rm -rf *_files/
+	rm -rf ../source/*_files/
 
 %.rst: %.ipynb
 	ipython nbconvert --to rst $<
-	rm ../source/$@ || true
-	rm -r ../source/$*_files || true
+	rm -f ../source/$@
+	rm -rf ../source/$*_files
 	cp $@ ../source/
 	cp -r $*_files ../source/ || true
