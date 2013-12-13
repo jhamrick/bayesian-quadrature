@@ -35,6 +35,7 @@ gh-pages:
 	git checkout master $(GH_PAGES_SOURCES)
 	git reset HEAD
 	pandoc --from markdown --to rst -o README.rst README.md
+	make -C docs/ipynb all
 	python setup.py build_ext --inplace
 	make -C docs html
 	mv -fv docs/_build/html/* .
