@@ -60,6 +60,9 @@ class BQ(object):
     def log_transform(self, x):
         return np.log((x / self.gamma) + 1)
 
+    def inv_log_transform(self, xt):
+        return (xt - 1.0) / self.gamma
+
     def _fit_gp(self, x, y, **kwargs):
         # figure out which parameters we are fitting and how to
         # generate them
@@ -104,7 +107,7 @@ class BQ(object):
         idx = np.random.randint(0, ns, nc)
 
         # compute the candidate points
-        eps = np.random.choice([-1, 1], nc) * self.gp_S.K.w
+        eps = np.random.choice([-1, 1], nc) * self.gp_log_S.K.w
         Rc = self.R[idx] + eps
 
         # make sure they don't overlap with points we already have
@@ -115,44 +118,20 @@ class BQ(object):
         Rsc = np.array(Rsc)
         return Rsc
 
-    def compute_delta(self, R):
-        # use a crude thresholding here as our tilde transformation
-        # will fail if the mean goes below zero
-        m_S = np.clip(self.gp_S.mean(R), EPS, np.inf)
-        mls = self.gp_log_S.mean(R)
-        lms = self.log_transform(m_S)
-        delta = mls - lms
-        return delta
+    def _fit_log_S(self):
+        logger.info("Fitting parameters for GP over log(S)")
+        self.gp_log_S = self._fit_gp(self.R, self.log_S)
 
     def _fit_S(self):
-        # first figure out some sane parameters for h and w
-        logger.info("Fitting parameters for GP over S")
-        self.gp_S = self._fit_gp(self.R, self.S)
-
-        # then refit just w using the h we found
-        logger.info("Fitting w parameter for GP over S")
-        self.gp_S = self._fit_gp(
-            self.R, self.S,
-            h=self.gp_S.K.h)
-
-    def _fit_log_S(self):
-        # use h based on the one we found for S
-        logger.info("Fitting parameters for GP over log(S)")
-        self.gp_log_S = self._fit_gp(
-            self.R, self.log_S,
-            h=np.log(self.gp_S.K.h + 1),
-            w0=self.gp_S.K.w)
-
-    def _fit_Dc(self):
-        # choose candidate locations and compute delta, the difference
-        # between S and log(S)
         self.Rc = self._choose_candidates()
-        self.Dc = self.compute_delta(self.Rc)
 
-        # fit gp parameters for delta
-        logger.info("Fitting parameters for GP over Delta_c")
-        self.gp_Dc = self._fit_gp(
-            self.Rc, self.Dc, h=None, s=0)
+        m_log_S = self.gp_log_S.mean(self.Rc)
+        v_log_S = np.diag(self.gp_log_S.cov(self.Rc))
+        self.Sc = self.inv_log_transform(
+            np.exp(self.gamma * m_log_S + 0.5 * v_log_S))
+
+        logger.info("Fitting parameters for GP over exp(log(S))")
+        self.gp_S = self._fit_gp(self.Rc, self.Sc)
 
     def fit(self):
         """Run the GP regressions to fit the likelihood function.
@@ -168,24 +147,20 @@ class BQ(object):
 
         logger.info("Fitting likelihood")
 
-        self._fit_S()
         self._fit_log_S()
-        self._fit_Dc()
+        self._fit_S()
 
     def S_mean(self, R):
         # the estimated mean of S
-        m_S = self.gp_S.mean(R)
-        m_Dc = self.gp_Dc.mean(R)
-        S_mean = np.clip(m_S, EPS, np.inf) + (m_S + self.gamma) * m_Dc
+        S_mean = self.gp_S.mean(R)
         return S_mean
 
-    def S_cov(self, R):
+    def S_var(self, R):
         # the estimated variance of S
-        C_log_S = self.gp_log_S.cov(R)
-        dm_dw, Cw = self.dm_dw(R), self.Cw(self.gp_log_S)
-        S_cov = C_log_S + np.dot(np.dot(dm_dw, Cw), dm_dw.T)
-        S_cov[np.abs(S_cov) < np.sqrt(EPS)] = EPS
-        return S_cov
+        v_log_S = np.diag(self.gp_log_S.cov(R))
+        m_S = self.gp_S.mean(R) + self.gamma
+        S_var = v_log_S * m_S ** 2
+        return S_var
 
     def Z_mean(self):
 
