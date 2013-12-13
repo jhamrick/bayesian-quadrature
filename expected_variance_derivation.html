@@ -1,0 +1,162 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Bayesian Quadrature: Expected Variance &mdash; bayesian_quadrature 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="bayesian_quadrature 0.0.1 documentation" href="index.html" />
+    <link rel="prev" title="Bayesian Quadrature: Variance Derivation" href="variance_derivation.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="variance_derivation.html" title="Bayesian Quadrature: Variance Derivation"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">bayesian_quadrature 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="bayesian-quadrature-expected-variance">
+<h1>Bayesian Quadrature: Expected Variance<a class="headerlink" href="#bayesian-quadrature-expected-variance" title="Permalink to this headline">¶</a></h1>
+<p>The equation for the expected variance is given by Equation 13 of :</p>
+<div class="math">
+\[\begin{align*}
+E[V_Z|\log\ell_{s,a}] = S(Z\ |\ \log\ell_{s}) - \int m(Z\ |\ \log\ell_{s,a})^2 \mathcal{N}\left( \log\ell_a \ \big\vert\ \hat{m}_a, \hat{C}_a + \frac{\partial \hat{m}_a}{\partial W} C_W \frac{\partial\hat{m}_a}{\partial W}\right)\ \mathrm{d}\log\ell_a
+\end{align*}\]</div>
+<p>From before, we have:</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+m(Z\ |\ \log\ell_{s,a})&amp;=E[m_\ell|x_{s,a}] + E[m_\ell m_\Delta|x_{s,a}, x_{c,a}] + \gamma E[m_\Delta|x_{s,a}, x_{c,a}]\\\\
+&amp;= h_\ell^2 \mathcal{N}\left(x_{s,a}\ \big\vert\  \mu, W_\ell + \Sigma\right)K_\ell(x_{s,a}, x_{s,a})^{-1}\ell_{s,a} +\\\\
+&amp;\ \ \ \ \ \ \Delta_{c,a}^\top K_\Delta(x_{c,a}, x_{c,a})^{-1}h_\Delta^2 h_\ell^2 \mathcal{N}\left([x_{c,a,i}, x_{s,a,j}]\ \big\vert\  [\mu, \mu], [W_\Delta+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma]\right) K_\ell(x_{s,a}, x_{s,a})^{-1}\ell_{s,a} +\\\\
+&amp;\ \ \ \ \ \ \gamma h_\Delta^2 \mathcal{N}\left(x_{c,a}\ \big\vert\  \mu, W_\Delta + \Sigma\right) K_\Delta(x_{c,a}, x_{c,a})^{-1}\Delta_{c,a}
+\end{align*}\end{split}\]</div>
+<p>For brevity, let:</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+A_{s,a} &amp;= h_\ell^2 \mathcal{N}\left(x_{s,a}\ \big\vert\  \mu, W_\ell + \Sigma\right)K_\ell(x_{s,a}, x_{s,a})^{-1} + \Delta_{c,a}^\top K_\Delta(x_{c,a}, x_{c,a})^{-1}h_\Delta^2 h_\ell^2 \mathcal{N}\left([x_{c,a,i}, x_{s,a,j}]\ \big\vert\  [\mu, \mu], [W_\Delta+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma]\right) K_\ell(x_{s,a}, x_{s,a})^{-1},\\\\
+B &amp;= h_\Delta^2 \mathcal{N}\left(x_{c,a}\ \big\vert\  \mu, W_\Delta + \Sigma\right) K_\Delta(x_{c,a}, x_{c,a})^{-1}\Delta_{c,a},
+\end{align*}\end{split}\]</div>
+<p>such that <span class="math">\(m(Z\ |\ \log\ell_{s,a})=A_{s,a}\ell_{s,a} + \gamma B\)</span>.</p>
+<p>We have that
+<span class="math">\(\int\exp(cy)\mathcal{N}\left( y \ \big\vert\ m, S \right)=\exp(cm + \frac{1}{2}c^2 S)\)</span>,
+which allows us to marginalize out <span class="math">\(\ell_a\)</span>. Thus, we need to
+break apart <span class="math">\(\ell_{s,a}=[\ell_s; \ell_a]\)</span>, giving:</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+m(Z\ |\ \log\ell_{s,a})^2 &amp;= \left([A_{s}, A_a][\ell_s; \ell_a] + \gamma B\right)^2\\\\
+&amp;= [A_s, A_a][\ell_s; \ell_a][A_s, A_a][\ell_s; \ell_a] + 2\gamma B [A_s, A_a][\ell_s; \ell_a] + \gamma^2 B^2\\\\
+&amp;= \left( A_s\ell_s + A_a\ell_a \right)\left( A_s\ell_s + A_a\ell_a \right) + 2\gamma B \left( A_s\ell_s + A_a\ell_a \right) + \gamma^2 B^2\\\\
+&amp;= A_s^2\ell_s^2 + 2A_sA_a\ell_s\ell_a + A_a^2\ell_a^2 + 2\gamma BA_s\ell_s + 2\gamma BA_a\ell_a + \gamma^2 B^2
+\end{align*}\end{split}\]</div>
+<p>Plugging this into the expected squared mean:</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+E[m_Z^2|\log\ell_{s,a}] &amp;= \int m(Z\ |\ \log\ell_{s,a})^2 \mathcal{N}\left( \log\ell_a \ \big\vert\ \hat{m}_a, \hat{C}_a + \frac{\partial \hat{m}_a}{\partial W} C_W \frac{\partial\hat{m}_a}{\partial W}\right)\ \mathrm{d}\log\ell_a\\\\
+&amp;= A_s^2\ell_s^2 + 2\gamma BA_s\ell_s + \gamma^2 B^2 + \int \left( 2A_sA_a\ell_s\ell_a + 2\gamma BA_a\ell_a + A_a^2\ell_a^2 \right)p(\log\ell_a) \ \mathrm{d}\log\ell_a
+\end{align*}\end{split}\]</div>
+<p>In practice, the log transform is actually
+<span class="math">\(\log\ell_a = \log\left(\frac{\ell_a}{\gamma} + 1\right)\)</span>, so we
+need to put <span class="math">\(\ell_a\)</span> in this form. This gives us:</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+&amp;= A_s^2\ell_s^2 + 2\gamma BA_s\ell_s + \gamma^2 B^2 + \int \left[ 2\gamma A_sA_a\ell_s\left(\exp(\log\ell_a)-1\right) + 2\gamma^2 BA_a\left(\exp(\log\ell_a)-1\right) + \gamma^2 A_a^2\left( \exp(2\log\ell_a) - 2\exp(\log\ell_a) + 1 \right) \right]p(\log\ell_a) \ \mathrm{d}\log\ell_a\\\\
+&amp;= A_s^2\ell_s^2 + 2\gamma BA_s\ell_s + \gamma^2 B^2 + 2\gamma A_sA_a\ell_s( E_1 - 1) + 2\gamma^2 BA_a(E_1 - 1) + \gamma^2 A_a^2(E_2 - 2E_1 + 1)\\\\
+&amp;= (A_s\ell_s + \gamma B)^2 + 2\gamma A_a(A_s\ell_s + \gamma B)(E_1 - 1) + \gamma^2 A_a^2 (E_2 - 2E_1 + 1)
+\end{align*}\end{split}\]</div>
+<p>where:</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+E_1&amp;=\exp\left(\hat{m}_a + \frac{1}{2}\left( \hat{C}_a + \frac{\partial \hat{m}_a}{W}C_W\frac{\partial \hat{m}_a}{W} \right)\right)\\\\
+E_2&amp;=\exp\left(2\hat{m}_a + 2\left( \hat{C}_a + \frac{\partial \hat{m}_a}{W}C_W\frac{\partial \hat{m}_a}{W} \right)\right)
+\end{align*}\end{split}\]</div>
+<p>Putting it all together, we obtain:</p>
+<div class="math">
+\[\begin{split}\begin{align*}
+E[V_Z|\log\ell_{s,a}] &amp;= S(Z\ |\ \log\ell_{s}) - \left( (A_s\ell_s + \gamma B)^2 + 2\gamma A_a(A_s\ell_s + \gamma B)(E_1 - 1) + \gamma^2 A_a^2 (E_2 - 2E_1 + 1)\right)\\\\
+&amp;= V_Z + m_Z^2 - \left( (A_s\ell_s + \gamma B)^2 + 2\gamma A_a(A_s\ell_s + \gamma B)(E_1 - 1) + \gamma^2 A_a^2 (E_2 - 2E_1 + 1)\right)
+\end{align*}\end{split}\]</div>
+<p>where <span class="math">\(S(Z\ |\ \log\ell_s) = V_Z + m_Z^2\)</span> from Equation 9 of .</p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="variance_derivation.html"
+                        title="previous chapter">Bayesian Quadrature: Variance Derivation</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/expected_variance_derivation.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="variance_derivation.html" title="Bayesian Quadrature: Variance Derivation"
+             >previous</a> |</li>
+        <li><a href="index.html">bayesian_quadrature 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Jessica B. Hamrick.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

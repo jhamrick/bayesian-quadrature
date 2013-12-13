@@ -1,0 +1,454 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bayesian_quadrature.bq &mdash; bayesian_quadrature 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="bayesian_quadrature 0.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li><a href="../../index.html">bayesian_quadrature 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for bayesian_quadrature.bq</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">gp</span> <span class="kn">import</span> <span class="n">GP</span><span class="p">,</span> <span class="n">GaussianKernel</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">bq_c</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&quot;bayesian_quadrature&quot;</span><span class="p">)</span>
+
+<span class="n">DTYPE</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="s">&#39;float64&#39;</span><span class="p">)</span>
+<span class="n">EPS</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">DTYPE</span><span class="p">)</span><span class="o">.</span><span class="n">eps</span>
+
+
+<div class="viewcode-block" id="BQ"><a class="viewcode-back" href="../../bayesian_quadrature.bq.html#bayesian_quadrature.bq.BQ">[docs]</a><span class="k">class</span> <span class="nc">BQ</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Estimate a likelihood function, S(y|x) using Gaussian Process</span>
+<span class="sd">    regressions, as in Osborne et al. (2012):</span>
+
+<span class="sd">    1) Estimate S using a GP</span>
+<span class="sd">    2) Estimate log(S) using second GP</span>
+<span class="sd">    3) Estimate delta_C using a third GP</span>
+
+<span class="sd">    References</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Osborne, M. A., Duvenaud, D., Garnett, R., Rasmussen, C. E.,</span>
+<span class="sd">        Roberts, S. J., &amp; Ghahramani, Z. (2012). Active Learning of</span>
+<span class="sd">        Model Evidence Using Bayesian Quadrature. *Advances in Neural</span>
+<span class="sd">        Information Processing Systems*, 25.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span>
+                 <span class="n">gamma</span><span class="p">,</span> <span class="n">ntry</span><span class="p">,</span> <span class="n">n_candidate</span><span class="p">,</span>
+                 <span class="n">R_mean</span><span class="p">,</span> <span class="n">R_var</span><span class="p">,</span>
+                 <span class="n">h</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">w</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+
+        <span class="c"># save the given parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">gamma</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ntry</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ntry</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_candidate</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_candidate</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">R_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">R_mean</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">DTYPE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">R_cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">R_var</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">DTYPE</span><span class="p">)</span>
+
+        <span class="c"># default kernel parameter values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">h</span><span class="o">=</span><span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="o">=</span><span class="n">w</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">R</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">DTYPE</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">S</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">S</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">DTYPE</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;invalid number of dimensions for R&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">S</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;invalid number of dimensions for S&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">S</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;shape mismatch for R and S&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_transform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">size</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">improve_covariance_conditioning</span> <span class="o">=</span> <span class="bp">False</span>
+
+<div class="viewcode-block" id="BQ.log_transform"><a class="viewcode-back" href="../../bayesian_quadrature.bq.html#bayesian_quadrature.bq.BQ.log_transform">[docs]</a>    <span class="k">def</span> <span class="nf">log_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="n">x</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_fit_gp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c"># figure out which parameters we are fitting and how to</span>
+        <span class="c"># generate them</span>
+        <span class="n">randf</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">fitmask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="s">&#39;h&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">,</span> <span class="s">&#39;s&#39;</span><span class="p">]):</span>
+            <span class="c"># are we fitting the parameter?</span>
+            <span class="n">p_v</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="bp">None</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">p_v</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">fitmask</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+
+            <span class="c"># what should we use as an initial parameter?</span>
+            <span class="n">p0</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">0&#39;</span> <span class="o">%</span> <span class="n">p</span><span class="p">,</span> <span class="n">p_v</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">p0</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">randf</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">()))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># need to use keyword argument, because python does</span>
+                <span class="c"># not assign new values to closure variables in loop</span>
+                <span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">p0</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="n">p</span>
+                <span class="n">randf</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+        <span class="c"># generate initial parameter values</span>
+        <span class="n">randf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">randf</span><span class="p">)</span>
+        <span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="p">()</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">randf</span><span class="p">]</span>
+
+        <span class="c"># number of restarts</span>
+        <span class="n">ntry</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;ntry&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ntry</span><span class="p">)</span>
+
+        <span class="c"># create the GP object</span>
+        <span class="n">gp</span> <span class="o">=</span> <span class="n">GP</span><span class="p">(</span><span class="n">GaussianKernel</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">),</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
+
+        <span class="c"># fit the parameters</span>
+        <span class="n">gp</span><span class="o">.</span><span class="n">fit_MLII</span><span class="p">(</span><span class="n">fitmask</span><span class="p">,</span> <span class="n">randf</span><span class="o">=</span><span class="n">randf</span><span class="p">[</span><span class="n">fitmask</span><span class="p">],</span> <span class="n">nrestart</span><span class="o">=</span><span class="n">ntry</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">gp</span>
+
+    <span class="k">def</span> <span class="nf">_choose_candidates</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_sample</span>
+        <span class="n">nc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_candidate</span>
+
+        <span class="c"># choose anchor points</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">ns</span><span class="p">,</span> <span class="n">nc</span><span class="p">)</span>
+
+        <span class="c"># compute the candidate points</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">nc</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">w</span>
+        <span class="n">Rc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">+</span> <span class="n">eps</span>
+
+        <span class="c"># make sure they don&#39;t overlap with points we already have</span>
+        <span class="n">Rsc</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">nc</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">Rc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Rsc</span><span class="p">))</span> <span class="o">&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                <span class="n">Rsc</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Rc</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="n">Rsc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Rsc</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Rsc</span>
+
+<div class="viewcode-block" id="BQ.compute_delta"><a class="viewcode-back" href="../../bayesian_quadrature.bq.html#bayesian_quadrature.bq.BQ.compute_delta">[docs]</a>    <span class="k">def</span> <span class="nf">compute_delta</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">R</span><span class="p">):</span>
+        <span class="c"># use a crude thresholding here as our tilde transformation</span>
+        <span class="c"># will fail if the mean goes below zero</span>
+        <span class="n">m_S</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">R</span><span class="p">),</span> <span class="n">EPS</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="n">mls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+        <span class="n">lms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_transform</span><span class="p">(</span><span class="n">m_S</span><span class="p">)</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">mls</span> <span class="o">-</span> <span class="n">lms</span>
+        <span class="k">return</span> <span class="n">delta</span>
+</div>
+    <span class="k">def</span> <span class="nf">_fit_S</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># first figure out some sane parameters for h and w</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Fitting parameters for GP over S&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_gp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">S</span><span class="p">)</span>
+
+        <span class="c"># then refit just w using the h we found</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Fitting w parameter for GP over S&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_gp</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">S</span><span class="p">,</span>
+            <span class="n">h</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">h</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_fit_log_S</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># use h based on the one we found for S</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Fitting parameters for GP over log(S)&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_gp</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_S</span><span class="p">,</span>
+            <span class="n">h</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">h</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="n">w0</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">w</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_fit_Dc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># choose candidate locations and compute delta, the difference</span>
+        <span class="c"># between S and log(S)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Rc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_choose_candidates</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Dc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Rc</span><span class="p">)</span>
+
+        <span class="c"># fit gp parameters for delta</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Fitting parameters for GP over Delta_c&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gp_Dc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_gp</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Rc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Dc</span><span class="p">,</span> <span class="n">h</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BQ.fit"><a class="viewcode-back" href="../../bayesian_quadrature.bq.html#bayesian_quadrature.bq.BQ.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Run the GP regressions to fit the likelihood function.</span>
+
+<span class="sd">        References</span>
+<span class="sd">        ----------</span>
+<span class="sd">        Osborne, M. A., Duvenaud, D., Garnett, R., Rasmussen, C. E.,</span>
+<span class="sd">            Roberts, S. J., &amp; Ghahramani, Z. (2012). Active Learning of</span>
+<span class="sd">            Model Evidence Using Bayesian Quadrature. *Advances in Neural</span>
+<span class="sd">            Information Processing Systems*, 25.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Fitting likelihood&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fit_S</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fit_log_S</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fit_Dc</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="BQ.S_mean"><a class="viewcode-back" href="../../bayesian_quadrature.bq.html#bayesian_quadrature.bq.BQ.S_mean">[docs]</a>    <span class="k">def</span> <span class="nf">S_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">R</span><span class="p">):</span>
+        <span class="c"># the estimated mean of S</span>
+        <span class="n">m_S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+        <span class="n">m_Dc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_Dc</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+        <span class="n">S_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">m_S</span><span class="p">,</span> <span class="n">EPS</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">m_S</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">)</span> <span class="o">*</span> <span class="n">m_Dc</span>
+        <span class="k">return</span> <span class="n">S_mean</span>
+</div>
+<div class="viewcode-block" id="BQ.S_cov"><a class="viewcode-back" href="../../bayesian_quadrature.bq.html#bayesian_quadrature.bq.BQ.S_cov">[docs]</a>    <span class="k">def</span> <span class="nf">S_cov</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">R</span><span class="p">):</span>
+        <span class="c"># the estimated variance of S</span>
+        <span class="n">C_log_S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+        <span class="n">dm_dw</span><span class="p">,</span> <span class="n">Cw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dm_dw</span><span class="p">(</span><span class="n">R</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">Cw</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="p">)</span>
+        <span class="n">S_cov</span> <span class="o">=</span> <span class="n">C_log_S</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">dm_dw</span><span class="p">,</span> <span class="n">Cw</span><span class="p">),</span> <span class="n">dm_dw</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+        <span class="n">S_cov</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">S_cov</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">EPS</span><span class="p">)]</span> <span class="o">=</span> <span class="n">EPS</span>
+        <span class="k">return</span> <span class="n">S_cov</span>
+</div>
+<div class="viewcode-block" id="BQ.Z_mean"><a class="viewcode-back" href="../../bayesian_quadrature.bq.html#bayesian_quadrature.bq.BQ.Z_mean">[docs]</a>    <span class="k">def</span> <span class="nf">Z_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c"># values for the GP over l(x)</span>
+        <span class="n">x_s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">]</span>
+        <span class="n">alpha_l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span><span class="o">.</span><span class="n">inv_Kxx_y</span>
+        <span class="n">h_s</span><span class="p">,</span> <span class="n">w_s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">params</span>
+        <span class="n">w_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">w_s</span><span class="p">])</span>
+
+        <span class="c"># values for the GP of Delta(x)</span>
+        <span class="n">x_sc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_Dc</span><span class="o">.</span><span class="n">x</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">]</span>
+        <span class="n">alpha_del</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_Dc</span><span class="o">.</span><span class="n">inv_Kxx_y</span>
+        <span class="n">h_dc</span><span class="p">,</span> <span class="n">w_dc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_Dc</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">params</span>
+        <span class="n">w_dc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">w_dc</span><span class="p">])</span>
+
+        <span class="n">m_Z</span> <span class="o">=</span> <span class="n">bq_c</span><span class="o">.</span><span class="n">Z_mean</span><span class="p">(</span>
+            <span class="n">x_s</span><span class="p">,</span> <span class="n">x_sc</span><span class="p">,</span> <span class="n">alpha_l</span><span class="p">,</span> <span class="n">alpha_del</span><span class="p">,</span>
+            <span class="n">h_s</span><span class="p">,</span> <span class="n">w_s</span><span class="p">,</span> <span class="n">h_dc</span><span class="p">,</span> <span class="n">w_dc</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">R_mean</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">R_cov</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">m_Z</span>
+</div>
+    <span class="k">def</span> <span class="nf">_Z_var_and_eps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># values for the GPs over l(x) and log(l(x))</span>
+        <span class="n">x_s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span>
+
+        <span class="n">alpha_l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span><span class="o">.</span><span class="n">inv_Kxx_y</span>
+        <span class="n">alpha_tl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="o">.</span><span class="n">inv_Kxx_y</span>
+        <span class="n">inv_L_tl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="o">.</span><span class="n">inv_Lxx</span>
+        <span class="n">inv_K_tl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="o">.</span><span class="n">inv_Kxx</span>
+
+        <span class="n">h_l</span><span class="p">,</span> <span class="n">w_l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">params</span>
+        <span class="n">w_l</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">w_l</span><span class="p">])</span>
+        <span class="n">h_tl</span><span class="p">,</span> <span class="n">w_tl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">params</span>
+        <span class="n">w_tl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">w_tl</span><span class="p">])</span>
+
+        <span class="n">dK_tl_dw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">dK_dw</span><span class="p">(</span><span class="n">x_s</span><span class="p">,</span> <span class="n">x_s</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="bp">None</span><span class="p">]</span>
+        <span class="n">Cw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="bp">self</span><span class="o">.</span><span class="n">Cw</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="p">)]])</span>
+
+        <span class="n">V_Z</span><span class="p">,</span> <span class="n">V_Z_eps</span> <span class="o">=</span> <span class="n">bq_c</span><span class="o">.</span><span class="n">Z_var</span><span class="p">(</span>
+            <span class="n">x_s</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">],</span> <span class="n">alpha_l</span><span class="p">,</span> <span class="n">alpha_tl</span><span class="p">,</span>
+            <span class="n">inv_L_tl</span><span class="p">,</span> <span class="n">inv_K_tl</span><span class="p">,</span> <span class="n">dK_tl_dw</span><span class="p">,</span> <span class="n">Cw</span><span class="p">,</span>
+            <span class="n">h_l</span><span class="p">,</span> <span class="n">w_l</span><span class="p">,</span> <span class="n">h_tl</span><span class="p">,</span> <span class="n">w_tl</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">R_mean</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">R_cov</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">V_Z</span><span class="p">,</span> <span class="n">V_Z_eps</span>
+
+<div class="viewcode-block" id="BQ.Z_var"><a class="viewcode-back" href="../../bayesian_quadrature.bq.html#bayesian_quadrature.bq.BQ.Z_var">[docs]</a>    <span class="k">def</span> <span class="nf">Z_var</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">V_Z</span><span class="p">,</span> <span class="n">V_Z_eps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Z_var_and_eps</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">V_Z</span> <span class="o">+</span> <span class="n">V_Z_eps</span>
+</div>
+<div class="viewcode-block" id="BQ.dm_dw"><a class="viewcode-back" href="../../bayesian_quadrature.bq.html#bayesian_quadrature.bq.BQ.dm_dw">[docs]</a>    <span class="k">def</span> <span class="nf">dm_dw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compute the partial derivative of a GP mean with respect to</span>
+<span class="sd">        w, the input scale parameter.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dm_dtheta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="o">.</span><span class="n">dm_dtheta</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="c"># XXX: fix this slicing</span>
+        <span class="n">dm_dw</span> <span class="o">=</span> <span class="n">dm_dtheta</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">dm_dw</span>
+</div>
+<div class="viewcode-block" id="BQ.Cw"><a class="viewcode-back" href="../../bayesian_quadrature.bq.html#bayesian_quadrature.bq.BQ.Cw">[docs]</a>    <span class="k">def</span> <span class="nf">Cw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gp</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The variances of our posteriors over our input scale. We assume the</span>
+<span class="sd">        covariance matrix has zero off-diagonal elements; the posterior</span>
+<span class="sd">        is spherical.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># H_theta is the diagonal of the hessian of the likelihood of</span>
+        <span class="c"># the GP over the log-likelihood with respect to its log input</span>
+        <span class="c"># scale.</span>
+        <span class="n">H_theta</span> <span class="o">=</span> <span class="n">gp</span><span class="o">.</span><span class="n">d2lh_dtheta2</span>
+        <span class="c"># XXX: fix this slicing</span>
+        <span class="n">Cw</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.</span> <span class="o">/</span> <span class="n">H_theta</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">Cw</span>
+</div>
+<div class="viewcode-block" id="BQ.expected_squared_mean"><a class="viewcode-back" href="../../bayesian_quadrature.bq.html#bayesian_quadrature.bq.BQ.expected_squared_mean">[docs]</a>    <span class="k">def</span> <span class="nf">expected_squared_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_a</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">((</span><span class="n">x_a</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">Rc</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-3</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Z_mean</span><span class="p">()</span> <span class="o">**</span> <span class="mi">2</span>
+
+        <span class="n">x_s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span>
+        <span class="n">x_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Rc</span>
+
+        <span class="n">ns</span><span class="p">,</span> <span class="o">=</span> <span class="n">x_s</span><span class="o">.</span><span class="n">shape</span>
+
+        <span class="c"># include new x_a</span>
+        <span class="n">x_sa</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">x_s</span><span class="p">,</span> <span class="n">x_a</span><span class="p">])</span>
+
+        <span class="n">l_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">x_a</span><span class="p">)</span>
+        <span class="n">l_s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">S</span>
+
+        <span class="n">tl_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">x_a</span><span class="p">)</span>
+        <span class="n">tl_s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_S</span>
+
+        <span class="c"># update gp over S</span>
+        <span class="n">gp_Sa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_S</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">gp_Sa</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x_sa</span>
+        <span class="n">gp_Sa</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">l_s</span><span class="p">,</span> <span class="n">l_a</span><span class="p">])</span>
+
+        <span class="c"># update gp over log(S)</span>
+        <span class="n">gp_log_Sa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">gp_log_Sa</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x_sa</span>
+        <span class="n">gp_log_Sa</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">tl_s</span><span class="p">,</span> <span class="n">tl_a</span><span class="p">])</span>
+
+        <span class="c"># add jitter to the covariance matrix where our new point is,</span>
+        <span class="c"># because if it&#39;s close to other x_s then it will cause problems</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">improve_covariance_conditioning</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ns</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">DTYPE</span><span class="p">)</span>
+
+            <span class="n">gp_Sa</span><span class="o">.</span><span class="n">_memoized</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">bq_c</span><span class="o">.</span><span class="n">improve_covariance_conditioning</span><span class="p">(</span><span class="n">gp_Sa</span><span class="o">.</span><span class="n">Kxx</span><span class="p">,</span> <span class="n">idx</span><span class="o">=</span><span class="n">idx</span><span class="p">)</span>
+
+            <span class="n">gp_log_Sa</span><span class="o">.</span><span class="n">_memoized</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">bq_c</span><span class="o">.</span><span class="n">improve_covariance_conditioning</span><span class="p">(</span><span class="n">gp_log_Sa</span><span class="o">.</span><span class="n">Kxx</span><span class="p">,</span> <span class="n">idx</span><span class="o">=</span><span class="n">idx</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">inv_K_l</span> <span class="o">=</span> <span class="n">gp_Sa</span><span class="o">.</span><span class="n">inv_Kxx</span>
+        <span class="k">except</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinAlgError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Z_mean</span><span class="p">()</span> <span class="o">**</span> <span class="mi">2</span>
+
+        <span class="c"># update gp over delta</span>
+        <span class="n">del_sc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Dc</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x_c</span> <span class="o">-</span> <span class="n">x_a</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-3</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="n">x_sca</span> <span class="o">=</span> <span class="n">x_c</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">del_sca</span> <span class="o">=</span> <span class="n">del_sc</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">gp_Dca</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_Dc</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">x_sca</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">x_c</span><span class="p">,</span> <span class="n">x_a</span><span class="p">])</span>
+            <span class="n">del_sca</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">del_sc</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+            <span class="n">gp_Dca</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gp_Dc</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">gp_Dca</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x_sca</span>
+            <span class="n">gp_Dca</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">del_sca</span>
+
+            <span class="c"># the delta_c (not delta_s) will probably change with</span>
+            <span class="c"># the addition of x_a. We can&#39;t recompute them</span>
+            <span class="c"># (because we don&#39;t know l_a) but we can add noise</span>
+            <span class="c"># to the diagonal of the covariance matrix to allow room</span>
+            <span class="c"># for error for the x_c closest to x_a</span>
+            <span class="n">gp_Dca</span><span class="o">.</span><span class="n">_memoized</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">K_del</span> <span class="o">=</span> <span class="n">gp_Dca</span><span class="o">.</span><span class="n">Kxx</span>
+            <span class="n">bq_c</span><span class="o">.</span><span class="n">improve_covariance_conditioning</span><span class="p">(</span>
+                <span class="n">K_del</span><span class="p">,</span> <span class="n">idx</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x_sca</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">DTYPE</span><span class="p">))</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">alpha_del</span> <span class="o">=</span> <span class="n">gp_Dca</span><span class="o">.</span><span class="n">inv_Kxx_y</span>
+        <span class="k">except</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinAlgError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">**</span> <span class="mi">2</span>
+
+        <span class="c"># compute expected transformed mean</span>
+        <span class="n">tm_a</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">x_a</span><span class="p">))</span>
+
+        <span class="c"># compute expected transformed covariance</span>
+        <span class="n">dm_dw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dm_dw</span><span class="p">(</span><span class="n">x_a</span><span class="p">)</span>
+        <span class="n">Cw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Cw</span><span class="p">(</span><span class="n">gp_log_Sa</span><span class="p">)</span>
+        <span class="n">C_a</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gp_log_S</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">x_a</span><span class="p">))</span>
+        <span class="n">tC_a</span> <span class="o">=</span> <span class="n">C_a</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">dm_dw</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">Cw</span><span class="p">)</span>
+
+        <span class="n">expected_sqd_mean</span> <span class="o">=</span> <span class="n">bq_c</span><span class="o">.</span><span class="n">expected_squared_mean</span><span class="p">(</span>
+            <span class="n">x_sa</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">],</span> <span class="n">x_sca</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">],</span> <span class="n">l_s</span><span class="p">,</span>
+            <span class="n">alpha_del</span><span class="p">,</span>
+            <span class="n">inv_K_l</span><span class="p">,</span>
+            <span class="n">tm_a</span><span class="p">,</span> <span class="n">tC_a</span><span class="p">,</span>
+            <span class="n">gp_Sa</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">h</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">gp_Sa</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">w</span><span class="p">]),</span>
+            <span class="n">gp_Dca</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">h</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">gp_Dca</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">w</span><span class="p">]),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">R_mean</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">R_cov</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">expected_sqd_mean</span><span class="p">)</span> <span class="ow">or</span> <span class="n">expected_sqd_mean</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s">&quot;invalid expected squared mean: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">expected_sqd_mean</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">expected_sqd_mean</span>
+</div>
+<div class="viewcode-block" id="BQ.expected_Z_var"><a class="viewcode-back" href="../../bayesian_quadrature.bq.html#bayesian_quadrature.bq.BQ.expected_Z_var">[docs]</a>    <span class="k">def</span> <span class="nf">expected_Z_var</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_a</span><span class="p">):</span>
+        <span class="n">mean_second_moment</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Z_mean</span><span class="p">()</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">Z_var</span><span class="p">()</span>
+        <span class="n">expected_sqd_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">expected_squared_mean</span><span class="p">(</span><span class="n">x_a</span><span class="p">)</span>
+        <span class="n">expected_var</span> <span class="o">=</span> <span class="n">mean_second_moment</span> <span class="o">-</span> <span class="n">expected_sqd_mean</span>
+        <span class="k">return</span> <span class="n">expected_var</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li><a href="../../index.html">bayesian_quadrature 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Jessica B. Hamrick.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
