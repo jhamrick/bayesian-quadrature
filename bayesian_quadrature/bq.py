@@ -18,7 +18,7 @@ class BQ(object):
 
     .. math::
 
-        Z = \int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma)\ \mathrm{d}x
+        Z = \int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x
 
     Parameters
     ----------
@@ -29,7 +29,7 @@ class BQ(object):
     x_mean : float
         prior mean, :math:`\mu`
     x_var : float
-        prior variance, :math:`\sigma`
+        prior variance, :math:`\sigma^2`
 
     Notes
     -----
@@ -218,7 +218,7 @@ class BQ(object):
 
     def Z_mean(self):
         r"""
-        Approximate mean of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma)\ \mathrm{d}x`.
+        Approximate mean of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x`.
 
         Returns
         -------
@@ -231,7 +231,7 @@ class BQ(object):
 
         .. math::
 
-            \mathbb{E}[Z]\approx \int\bar{\ell}(x)\mathcal{N}(x\ |\ \mu, \sigma)\ \mathrm{d}x = \left(\int K_{\exp(\log\ell)}(x, \mathbf{x}_c)\mathcal{N}(x\ |\ \mu, \sigma)\ \mathrm{d}x\right)K_{\exp(\log\ell)}(\mathbf{x}_c, \mathbf{x}_c)^{-1}\ell(\mathbf{x}_c)
+            \mathbb{E}[Z]\approx \int\bar{\ell}(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x = \left(\int K_{\exp(\log\ell)}(x, \mathbf{x}_c)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x\right)K_{\exp(\log\ell)}(\mathbf{x}_c, \mathbf{x}_c)^{-1}\ell(\mathbf{x}_c)
 
         """
 
@@ -248,7 +248,7 @@ class BQ(object):
 
     def Z_var(self):
         r"""
-        Approximate variance of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma)\ \mathrm{d}x`.
+        Approximate variance of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x`.
 
         Returns
         -------
@@ -261,7 +261,7 @@ class BQ(object):
 
         .. math::
 
-            \mathbb{V}(Z)\approx \int\int \mathrm{Cov}_{\log\ell}(x, x^\prime)\bar{\ell}(x)\bar{\ell}(x^\prime)\mathcal{N}(x\ |\ \mu, \sigma)\mathcal{N}(x^\prime\ |\ \mu, \sigma)\ \mathrm{d}x\ \mathrm{d}x^\prime
+            \mathbb{V}(Z)\approx \int\int \mathrm{Cov}_{\log\ell}(x, x^\prime)\bar{\ell}(x)\bar{\ell}(x^\prime)\mathcal{N}(x\ |\ \mu, \sigma^2)\mathcal{N}(x^\prime\ |\ \mu, \sigma^2)\ \mathrm{d}x\ \mathrm{d}x^\prime
 
         """
 
