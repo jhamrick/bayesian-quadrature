@@ -12,11 +12,11 @@ EPS = np.finfo(DTYPE).eps
 
 
 class BQ(object):
-    """Estimate a likelihood function, S(y|x) using Gaussian Process
+    """Estimate a likelihood function, l(y|x) using Gaussian Process
     regressions, as in Osborne et al. (2012):
 
-    1) Estimate S using a GP
-    2) Estimate log(S) using second GP
+    1) Estimate l using a GP
+    2) Estimate log(l) using second GP
     3) Estimate delta_C using a third GP
 
     References
@@ -28,33 +28,33 @@ class BQ(object):
 
     """
 
-    def __init__(self, R, S,
+    def __init__(self, x, l,
                  gamma, ntry, n_candidate,
-                 R_mean, R_var,
+                 x_mean, x_var,
                  h=None, w=None, s=None):
 
         # save the given parameters
         self.gamma = float(gamma)
         self.ntry = int(ntry)
         self.n_candidate = int(n_candidate)
-        self.R_mean = np.array([R_mean], dtype=DTYPE)
-        self.R_cov = np.array([[R_var]], dtype=DTYPE)
+        self.x_mean = np.array([x_mean], dtype=DTYPE)
+        self.x_cov = np.array([[x_var]], dtype=DTYPE)
 
         # default kernel parameter values
         self.default_params = dict(h=h, w=w, s=s)
 
-        self.R = np.array(R, dtype=DTYPE, copy=True)
-        self.S = np.array(S, dtype=DTYPE, copy=True)
+        self.x = np.array(x, dtype=DTYPE, copy=True)
+        self.l = np.array(l, dtype=DTYPE, copy=True)
 
-        if self.R.ndim > 1:
-            raise ValueError("invalid number of dimensions for R")
-        if self.S.ndim > 1:
-            raise ValueError("invalid number of dimensions for S")
-        if self.R.shape != self.S.shape:
-            raise ValueError("shape mismatch for R and S")
+        if self.x.ndim > 1:
+            raise ValueError("invalid number of dimensions for x")
+        if self.l.ndim > 1:
+            raise ValueError("invalid number of dimensions for l")
+        if self.x.shape != self.l.shape:
+            raise ValueError("shape mismatch for x and l")
 
-        self.log_S = self.log_transform(self.S)
-        self.n_sample = self.R.size
+        self.log_l = self.log_transform(self.l)
+        self.n_sample = self.x.size
 
         self.improve_covariance_conditioning = False
 
@@ -104,34 +104,34 @@ class BQ(object):
 
     def _choose_candidates(self):
         # compute the candidate points
-        w = self.gp_log_S.K.w
-        xmin = self.R.min() - w
-        xmax = self.R.max() + w
-        Rc_all = np.random.uniform(xmin, xmax, self.n_candidate)
+        w = self.gp_log_l.K.w
+        xmin = self.x.min() - w
+        xmax = self.x.max() + w
+        xc_all = np.random.uniform(xmin, xmax, self.n_candidate)
 
         # make sure they don't overlap with points we already have
-        Rc = []
+        xc = []
         for i in xrange(self.n_candidate):
-            if (np.abs(Rc_all[i] - np.array(Rc)) >= 1e-4).all():
-                if (np.abs(Rc_all[i] - self.R) >= 1e-4).all():
-                    Rc.append(Rc_all[i])
-        Rc = np.array(Rc)
-        return Rc
+            if (np.abs(xc_all[i] - np.array(xc)) >= 1e-4).all():
+                if (np.abs(xc_all[i] - self.x) >= 1e-4).all():
+                    xc.append(xc_all[i])
+        xc = np.array(xc)
+        return xc
 
-    def _fit_log_S(self):
-        logger.info("Fitting parameters for GP over log(S)")
-        self.gp_log_S = self._fit_gp(self.R, self.log_S)
+    def _fit_log_l(self):
+        logger.info("Fitting parameters for GP over log(l)")
+        self.gp_log_l = self._fit_gp(self.x, self.log_l)
 
-    def _fit_S(self):
-        self.Rc = self._choose_candidates()
-        self.Rsc = np.concatenate([self.R, self.Rc], axis=0)
+    def _fit_l(self):
+        self.xc = self._choose_candidates()
+        self.xsc = np.concatenate([self.x, self.xc], axis=0)
 
-        m_log_S = self.gp_log_S.mean(self.Rsc)
-        v_log_S = np.diag(self.gp_log_S.cov(self.Rsc))
-        self.Sc = self.inv_log_transform(m_log_S + 0.5 * v_log_S)
+        m_log_l = self.gp_log_l.mean(self.xsc)
+        v_log_l = np.diag(self.gp_log_l.cov(self.xsc))
+        self.lc = self.inv_log_transform(m_log_l + 0.5 * v_log_l)
 
-        logger.info("Fitting parameters for GP over exp(log(S))")
-        self.gp_S = self._fit_gp(self.Rsc, self.Sc)
+        logger.info("Fitting parameters for GP over exp(log(l))")
+        self.gp_l = self._fit_gp(self.xsc, self.lc)
 
     def fit(self):
         """Run the GP regressions to fit the likelihood function.
@@ -147,27 +147,27 @@ class BQ(object):
 
         logger.info("Fitting likelihood")
 
-        self._fit_log_S()
-        self._fit_S()
+        self._fit_log_l()
+        self._fit_l()
 
-    def S_mean(self, R):
-        # the estimated mean of S
-        S_mean = self.gp_S.mean(R)
-        return S_mean
+    def l_mean(self, x):
+        # the estimated mean of l
+        l_mean = self.gp_l.mean(x)
+        return l_mean
 
-    def S_var(self, R):
-        # the estimated variance of S
-        v_log_S = np.diag(self.gp_log_S.cov(R))
-        m_S = self.gp_S.mean(R)
-        S_var = v_log_S * m_S ** 2
-        return S_var
+    def l_var(self, x):
+        # the estimated variance of l
+        v_log_l = np.diag(self.gp_log_l.cov(x))
+        m_l = self.gp_l.mean(x)
+        l_var = v_log_l * m_l ** 2
+        return l_var
 
     def Z_mean(self):
 
         # values for the GP over l(x)
-        x_s = self.R[:, None]
-        alpha_l = self.gp_S.inv_Kxx_y
-        h_s, w_s = self.gp_S.K.params
+        x_s = self.x[:, None]
+        alpha_l = self.gp_l.inv_Kxx_y
+        h_s, w_s = self.gp_l.K.params
         w_s = np.array([w_s])
 
         # values for the GP of Delta(x)
@@ -179,32 +179,32 @@ class BQ(object):
         m_Z = bq_c.Z_mean(
             x_s, x_sc, alpha_l, alpha_del,
             h_s, w_s, h_dc, w_dc,
-            self.R_mean, self.R_cov, self.gamma)
+            self.x_mean, self.x_cov, self.gamma)
 
         return m_Z
 
     def _Z_var_and_eps(self):
         # values for the GPs over l(x) and log(l(x))
-        x_s = self.R
+        x_s = self.x
 
-        alpha_l = self.gp_S.inv_Kxx_y
-        alpha_tl = self.gp_log_S.inv_Kxx_y
-        inv_L_tl = self.gp_log_S.inv_Lxx
-        inv_K_tl = self.gp_log_S.inv_Kxx
+        alpha_l = self.gp_l.inv_Kxx_y
+        alpha_tl = self.gp_log_l.inv_Kxx_y
+        inv_L_tl = self.gp_log_l.inv_Lxx
+        inv_K_tl = self.gp_log_l.inv_Kxx
 
-        h_l, w_l = self.gp_S.K.params
+        h_l, w_l = self.gp_l.K.params
         w_l = np.array([w_l])
-        h_tl, w_tl = self.gp_log_S.K.params
+        h_tl, w_tl = self.gp_log_l.K.params
         w_tl = np.array([w_tl])
 
-        dK_tl_dw = self.gp_log_S.K.dK_dw(x_s, x_s)[..., None]
-        Cw = np.array([[self.Cw(self.gp_log_S)]])
+        dK_tl_dw = self.gp_log_l.K.dK_dw(x_s, x_s)[..., None]
+        Cw = np.array([[self.Cw(self.gp_log_l)]])
 
         V_Z, V_Z_eps = bq_c.Z_var(
             x_s[:, None], alpha_l, alpha_tl,
             inv_L_tl, inv_K_tl, dK_tl_dw, Cw,
             h_l, w_l, h_tl, w_tl,
-            self.R_mean, self.R_cov, self.gamma)
+            self.x_mean, self.x_cov, self.gamma)
 
         return V_Z, V_Z_eps
 
@@ -217,7 +217,7 @@ class BQ(object):
         w, the input scale parameter.
 
         """
-        dm_dtheta = self.gp_log_S.dm_dtheta(x)
+        dm_dtheta = self.gp_log_l.dm_dtheta(x)
         # XXX: fix this slicing
         dm_dw = dm_dtheta[1]
         return dm_dw
@@ -237,46 +237,46 @@ class BQ(object):
         return Cw
 
     def expected_squared_mean(self, x_a):
-        if np.abs((x_a - self.Rc) < 1e-3).any():
+        if np.abs((x_a - self.xc) < 1e-3).any():
             return self.Z_mean() ** 2
 
-        x_s = self.R
-        x_c = self.Rc
+        x_s = self.x
+        x_c = self.xc
 
         ns, = x_s.shape
 
         # include new x_a
         x_sa = np.concatenate([x_s, x_a])
 
-        l_a = self.gp_S.mean(x_a)
-        l_s = self.S
+        l_a = self.gp_l.mean(x_a)
+        l_s = self.l
 
-        tl_a = self.gp_log_S.mean(x_a)
-        tl_s = self.log_S
+        tl_a = self.gp_log_l.mean(x_a)
+        tl_s = self.log_l
 
-        # update gp over S
-        gp_Sa = self.gp_S.copy()
-        gp_Sa.x = x_sa
-        gp_Sa.y = np.concatenate([l_s, l_a])
+        # update gp over l
+        gp_la = self.gp_l.copy()
+        gp_la.x = x_sa
+        gp_la.y = np.concatenate([l_s, l_a])
 
-        # update gp over log(S)
-        gp_log_Sa = self.gp_log_S.copy()
-        gp_log_Sa.x = x_sa
-        gp_log_Sa.y = np.concatenate([tl_s, tl_a])
+        # update gp over log(l)
+        gp_log_la = self.gp_log_l.copy()
+        gp_log_la.x = x_sa
+        gp_log_la.y = np.concatenate([tl_s, tl_a])
 
         # add jitter to the covariance matrix where our new point is,
         # because if it's close to other x_s then it will cause problems
         if self.improve_covariance_conditioning:
             idx = np.array([ns], dtype=DTYPE)
 
-            gp_Sa._memoized = {}
-            bq_c.improve_covariance_conditioning(gp_Sa.Kxx, idx=idx)
+            gp_la._memoized = {}
+            bq_c.improve_covariance_conditioning(gp_la.Kxx, idx=idx)
 
-            gp_log_Sa._memoized = {}
-            bq_c.improve_covariance_conditioning(gp_log_Sa.Kxx, idx=idx)
+            gp_log_la._memoized = {}
+            bq_c.improve_covariance_conditioning(gp_log_la.Kxx, idx=idx)
 
         try:
-            inv_K_l = gp_Sa.inv_Kxx
+            inv_K_l = gp_la.inv_Kxx
         except np.linalg.LinAlgError:
             return self.Z_mean() ** 2
 
@@ -310,12 +310,12 @@ class BQ(object):
             return self.mean() ** 2
 
         # compute expected transformed mean
-        tm_a = float(self.gp_log_S.mean(x_a))
+        tm_a = float(self.gp_log_l.mean(x_a))
 
         # compute expected transformed covariance
         dm_dw = self.dm_dw(x_a)
-        Cw = self.Cw(gp_log_Sa)
-        C_a = float(self.gp_log_S.cov(x_a))
+        Cw = self.Cw(gp_log_la)
+        C_a = float(self.gp_log_l.cov(x_a))
         tC_a = C_a + float(dm_dw ** 2 * Cw)
 
         expected_sqd_mean = bq_c.expected_squared_mean(
@@ -323,9 +323,9 @@ class BQ(object):
             alpha_del,
             inv_K_l,
             tm_a, tC_a,
-            gp_Sa.K.h, np.array([gp_Sa.K.w]),
+            gp_la.K.h, np.array([gp_la.K.w]),
             gp_Dca.K.h, np.array([gp_Dca.K.w]),
-            self.R_mean, self.R_cov, self.gamma)
+            self.x_mean, self.x_cov, self.gamma)
 
         if np.isnan(expected_sqd_mean) or expected_sqd_mean < 0:
             raise RuntimeError(
@@ -339,107 +339,101 @@ class BQ(object):
         expected_var = mean_second_moment - expected_sqd_mean
         return expected_var
 
-    def plot_gp_log_S(self, ax, f_S=None, xmin=None, xmax=None):
-        Ri = self.R
-        Si = self.log_S
+    def plot_gp_log_l(self, ax, f_l=None, xmin=None, xmax=None):
+        x_s = self.x
+        l_s = self.log_l
 
         if xmin is None:
-            xmin = Ri.min()
+            xmin = x_s.min()
         if xmax is None:
-            xmax = Ri.max()
+            xmax = x_s.max()
 
-        R = np.linspace(xmin, xmax, 1000)
-        S_mean = self.gp_log_S.mean(R)
-        S_var = 1.96 * np.sqrt(np.diag(self.gp_log_S.cov(R)))
-        lower = S_mean - S_var
-        upper = S_mean + S_var
+        x = np.linspace(xmin, xmax, 1000)
+        l_mean = self.gp_log_l.mean(x)
+        l_var = 1.96 * np.sqrt(np.diag(self.gp_log_l.cov(x)))
+        lower = l_mean - l_var
+        upper = l_mean + l_var
 
-        if f_S is not None:
-            S = self.log_transform(f_S(R))
-            ax.plot(R, S, 'k-', lw=2)
+        if f_l is not None:
+            l = self.log_transform(f_l(x))
+            ax.plot(x, l, 'k-', lw=2)
 
-        ax.fill_between(R, lower, upper, color='r', alpha=0.2)
-        ax.plot(R, S_mean, 'r-', lw=2)
-        ax.plot(Ri, Si, 'ro', markersize=5)
-        ax.plot(self.Rc, self.gp_log_S.mean(self.Rc), 'bs', markersize=4)
+        ax.fill_between(x, lower, upper, color='r', alpha=0.2)
+        ax.plot(x, l_mean, 'r-', lw=2)
+        ax.plot(x_s, l_s, 'ro', markersize=5)
+        ax.plot(self.xc, self.gp_log_l.mean(self.xc), 'bs', markersize=4)
 
-        ax.set_xlabel("R")
-        ax.set_ylabel("log(S)")
-        ax.set_title("GP over log(S)")
+        ax.set_title(r"GP over $\log(\ell)$")
         ax.set_xlim(xmin, xmax)
 
-    def plot_gp_S(self, ax, f_S=None, xmin=None, xmax=None):
-        Ri = self.R
-        Si = self.S
+    def plot_gp_l(self, ax, f_l=None, xmin=None, xmax=None):
+        x_s = self.x
+        l_s = self.l
 
         if xmin is None:
-            xmin = Ri.min()
+            xmin = x_s.min()
         if xmax is None:
-            xmax = Ri.max()
+            xmax = x_s.max()
 
-        R = np.linspace(xmin, xmax, 1000)
-        S_mean = self.gp_S.mean(R)
-        S_var = 1.96 * np.sqrt(np.diag(self.gp_S.cov(R)))
-        lower = S_mean - S_var
-        upper = S_mean + S_var
+        x = np.linspace(xmin, xmax, 1000)
+        l_mean = self.gp_l.mean(x)
+        l_var = 1.96 * np.sqrt(np.diag(self.gp_l.cov(x)))
+        lower = l_mean - l_var
+        upper = l_mean + l_var
 
-        if f_S is not None:
-            S = f_S(R)
-            ax.plot(R, S, 'k-', lw=2)
+        if f_l is not None:
+            l = f_l(x)
+            ax.plot(x, l, 'k-', lw=2)
 
-        ax.fill_between(R, lower, upper, color='r', alpha=0.2)
-        ax.plot(R, S_mean, 'r-', lw=2)
-        ax.plot(Ri, Si, 'ro', markersize=5)
-        ax.plot(self.Rc, self.gp_S.mean(self.Rc), 'bs', markersize=4)
+        ax.fill_between(x, lower, upper, color='r', alpha=0.2)
+        ax.plot(x, l_mean, 'r-', lw=2)
+        ax.plot(x_s, l_s, 'ro', markersize=5)
+        ax.plot(self.xc, self.gp_l.mean(self.xc), 'bs', markersize=4)
 
-        ax.set_xlabel("R")
-        ax.set_ylabel("S")
-        ax.set_title("GP over exp(log(S))")
+        ax.set_title(r"GP over $\exp(\log(\ell))$")
         ax.set_xlim(xmin, xmax)
 
-    def plot_S(self, ax, f_S=None, xmin=None, xmax=None):
-        Ri = self.R
-        Si = self.S
+    def plot_l(self, ax, f_l=None, xmin=None, xmax=None):
+        x_s = self.x
+        l_s = self.l
 
         if xmin is None:
-            xmin = Ri.min()
+            xmin = x_s.min()
         if xmax is None:
-            xmax = Ri.max()
+            xmax = x_s.max()
 
-        R = np.linspace(xmin, xmax, 1000)
-        S_mean = self.S_mean(R)
-        S_var = 1.96 * np.sqrt(self.S_var(R))
-        lower = S_mean - S_var
-        upper = S_mean + S_var
+        x = np.linspace(xmin, xmax, 1000)
+        l_mean = self.l_mean(x)
+        l_var = 1.96 * np.sqrt(self.l_var(x))
+        lower = l_mean - l_var
+        upper = l_mean + l_var
 
-        if f_S is not None:
-            S = f_S(R)
-            ax.plot(R, S, 'k-', lw=2, label="truth")
+        if f_l is not None:
+            l = f_l(x)
+            ax.plot(x, l, 'k-', lw=2, label=r"$\ell(x)$")
 
-        ax.fill_between(R, lower, upper, color='r', alpha=0.2)
+        ax.fill_between(x, lower, upper, color='r', alpha=0.2)
         ax.plot(
-            R, S_mean,
-            'r-', lw=2, label="approx.")
+            x, l_mean,
+            'r-', lw=2, label="final approx")
         ax.plot(
-            Ri, Si,
-            'ro', markersize=5, label="observations")
+            x_s, l_s,
+            'ro', markersize=5, label="$\ell(x_s)$")
         ax.plot(
-            self.Rc, self.S_mean(self.Rc),
-            'bs', markersize=4, label="candidates")
+            self.xc, self.l_mean(self.xc),
+            'bs', markersize=4, label="$\exp(m_{\log(\ell)}(x_c))$")
 
-        ax.set_xlabel("R")
-        ax.set_ylabel("S")
         ax.set_title("Final Approximation")
         ax.set_xlim(xmin, xmax)
 
         ax.legend(loc=0, fontsize=10)
 
-    def plot(self, f_S=None, xmin=None, xmax=None):
+    def plot(self, f_l=None, xmin=None, xmax=None):
         fig, axes = plt.subplots(1, 3)
 
-        self.plot_gp_log_S(axes[0], f_S=f_S, xmin=xmin, xmax=xmax)
-        self.plot_gp_S(axes[1], f_S=f_S, xmin=xmin, xmax=xmax)
-        self.plot_S(axes[2], f_S=f_S, xmin=xmin, xmax=xmax)
+        self.plot_gp_log_l(axes[0], f_l=f_l, xmin=xmin, xmax=xmax)
+        self.plot_gp_l(axes[1], f_l=f_l, xmin=xmin, xmax=xmax)
+        self.plot_l(axes[2], f_l=f_l, xmin=xmin, xmax=xmax)
 
         ymins, ymaxs = zip(*[ax.get_ylim() for ax in axes[1:]])
         ymin = min(ymins)
@@ -447,8 +441,8 @@ class BQ(object):
         for ax in axes[1:]:
             ax.set_ylim(ymin, ymax)
 
-        fig.set_figwidth(10)
-        fig.set_figheight(3)
+        fig.set_figwidth(12)
+        fig.set_figheight(3.5)
         plt.tight_layout()
 
         return fig, axes
