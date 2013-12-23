@@ -12,19 +12,33 @@ EPS = np.finfo(DTYPE).eps
 
 
 class BQ(object):
-    """Estimate a likelihood function, l(y|x) using Gaussian Process
-    regressions, as in Osborne et al. (2012):
+    r"""
+    Estimate an integral of the following form using Bayesian
+    Quadrature with a Gaussian Process prior:
 
-    1) Estimate l using a GP
-    2) Estimate log(l) using second GP
-    3) Estimate delta_C using a third GP
+    .. math::
 
-    References
+        Z = \int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma)\ \mathrm{d}x
+
+    Parameters
     ----------
-    Osborne, M. A., Duvenaud, D., Garnett, R., Rasmussen, C. E.,
-        Roberts, S. J., & Ghahramani, Z. (2012). Active Learning of
-        Model Evidence Using Bayesian Quadrature. *Advances in Neural
-        Information Processing Systems*, 25.
+    x : numpy.ndarray
+        size :math:`s` array of sample locations
+    l : numpy.ndarray
+        size :math:`s` array of sample observations
+    x_mean : float
+        prior mean, :math:`\mu`
+    x_var : float
+        prior variance, :math:`\sigma`
+
+    Notes
+    -----
+    This algorithm is an updated version of the one described in
+    [OD12]_. The overall idea is:
+
+    1. Estimate :math:`\log\ell` using a GP.
+    2. Estimate :math:`\bar{\ell}=\exp(\log\ell)` using second GP.
+    3. Integrate exactly under :math:`\bar{\ell}`.
 
     """
 
@@ -32,6 +46,7 @@ class BQ(object):
                  ntry, n_candidate,
                  x_mean, x_var,
                  h=None, w=None, s=None):
+        """Initialize the Bayesian Quadrature object."""
 
         # save the given parameters
         self.ntry = int(ntry)
@@ -52,16 +67,10 @@ class BQ(object):
         if self.x.shape != self.l.shape:
             raise ValueError("shape mismatch for x and l")
 
-        self.log_l = self.log_transform(self.l)
+        self.log_l = np.log(self.l)
         self.n_sample = self.x.size
 
         self.improve_covariance_conditioning = False
-
-    def log_transform(self, x):
-        return np.log(x)
-
-    def inv_log_transform(self, xt):
-        return np.exp(xt)
 
     def _fit_gp(self, x, y, **kwargs):
         # figure out which parameters we are fitting and how to
@@ -127,7 +136,7 @@ class BQ(object):
 
         m_log_l = self.gp_log_l.mean(self.xsc)
         v_log_l = np.diag(self.gp_log_l.cov(self.xsc))
-        self.lc = self.inv_log_transform(m_log_l + 0.5 * v_log_l)
+        self.lc = np.exp(m_log_l + 0.5 * v_log_l)
 
         logger.info("Fitting parameters for GP over exp(log(l))")
         self.gp_l = self._fit_gp(self.xsc, self.lc)
@@ -150,11 +159,57 @@ class BQ(object):
         self._fit_l()
 
     def l_mean(self, x):
+        r"""
+        Mean of the final approximation to :math:`\ell`.
+
+        Parameters
+        ----------
+        x : numpy.ndarray
+            :math:`m` array of new sample locations.
+
+        Returns
+        -------
+        mean : numpy.ndarray
+            :math:`m` array of predictive means
+
+        Notes
+        -----
+        This is just the mean of the GP over :math:`\exp(\log\ell)`, i.e.:
+
+        .. math::
+
+            \mathbb{E}[\bar{\ell}(\mathbf{x})] = \mathbb{E}_{\mathrm{GP}(\exp(\log\ell))}(\mathbf{x})
+
+        """
         # the estimated mean of l
         l_mean = self.gp_l.mean(x)
         return l_mean
 
     def l_var(self, x):
+        r"""
+        Marginal variance of the final approximation to :math:`\ell`.
+
+        Parameters
+        ----------
+        x : numpy.ndarray
+            :math:`m` array of new sample locations.
+
+        Returns
+        -------
+        mean : numpy.ndarray
+            :math:`m` array of predictive variances
+
+        Notes
+        -----
+        This is just the diagonal of the covariance of the GP over
+        :math:`\log\ell` multiplied by the squared mean of the GP over
+        :math:`\exp(\log\ell)`, i.e.:
+
+        .. math::
+
+            \mathbb{V}[\bar{\ell}(\mathbf{x})] = \mathbb{V}_{\mathrm{GP}(\log\ell)}(\mathbf{x})\mathbb{E}_{\mathrm{GP}(\exp(\log\ell))}(\mathbf{x})^2
+
+        """
         # the estimated variance of l
         v_log_l = np.diag(self.gp_log_l.cov(x))
         m_l = self.gp_l.mean(x)
@@ -210,30 +265,6 @@ class BQ(object):
     def Z_var(self):
         V_Z, V_Z_eps = self._Z_var_and_eps()
         return V_Z + V_Z_eps
-
-    def dm_dw(self, x):
-        """Compute the partial derivative of a GP mean with respect to
-        w, the input scale parameter.
-
-        """
-        dm_dtheta = self.gp_log_l.dm_dtheta(x)
-        # XXX: fix this slicing
-        dm_dw = dm_dtheta[1]
-        return dm_dw
-
-    def Cw(self, gp):
-        """The variances of our posteriors over our input scale. We assume the
-        covariance matrix has zero off-diagonal elements; the posterior
-        is spherical.
-
-        """
-        # H_theta is the diagonal of the hessian of the likelihood of
-        # the GP over the log-likelihood with respect to its log input
-        # scale.
-        H_theta = gp.d2lh_dtheta2
-        # XXX: fix this slicing
-        Cw = -1. / H_theta[1, 1]
-        return Cw
 
     def expected_squared_mean(self, x_a):
         if np.abs((x_a - self.xc) < 1e-3).any():
@@ -354,7 +385,7 @@ class BQ(object):
         upper = l_mean + l_var
 
         if f_l is not None:
-            l = self.log_transform(f_l(x))
+            l = np.log(f_l(x))
             ax.plot(x, l, 'k-', lw=2)
 
         ax.fill_between(x, lower, upper, color='r', alpha=0.2)
