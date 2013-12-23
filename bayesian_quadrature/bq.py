@@ -217,6 +217,23 @@ class BQ(object):
         return l_var
 
     def Z_mean(self):
+        r"""
+        Approximate mean of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma)\ \mathrm{d}x`.
+
+        Returns
+        -------
+        mean : float
+            approximate mean
+
+        Notes
+        -----
+        This is equivalent to:
+
+        .. math::
+
+            \mathbb{E}[Z]\approx \int\bar{\ell}(x)\mathcal{N}(x\ |\ \mu, \sigma)\ \mathrm{d}x = \left(\int K_{\exp(\log\ell)}(x, \mathbf{x}_c)\mathcal{N}(x\ |\ \mu, \sigma)\ \mathrm{d}x\right)K_{\exp(\log\ell)}(\mathbf{x}_c, \mathbf{x}_c)^{-1}\ell(\mathbf{x}_c)
+
+        """
 
         x_sc = self.x_sc[:, None]
         alpha_l = self.gp_l.inv_Kxx_y
@@ -230,6 +247,24 @@ class BQ(object):
         return m_Z
 
     def Z_var(self):
+        r"""
+        Approximate variance of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma)\ \mathrm{d}x`.
+
+        Returns
+        -------
+        var : float
+            approximate variance
+
+        Notes
+        -----
+        This is equivalent to:
+
+        .. math::
+
+            \mathbb{V}(Z)\approx \int\int \mathrm{Cov}_{\log\ell}(x, x^\prime)\bar{\ell}(x)\bar{\ell}(x^\prime)\mathcal{N}(x\ |\ \mu, \sigma)\mathcal{N}(x^\prime\ |\ \mu, \sigma)\ \mathrm{d}x\ \mathrm{d}x^\prime
+
+        """
+
         # values for the GPs over l(x) and log(l(x))
         x_sc = self.x_sc[:, None]
 
