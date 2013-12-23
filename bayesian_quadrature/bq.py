@@ -29,12 +29,11 @@ class BQ(object):
     """
 
     def __init__(self, x, l,
-                 gamma, ntry, n_candidate,
+                 ntry, n_candidate,
                  x_mean, x_var,
                  h=None, w=None, s=None):
 
         # save the given parameters
-        self.gamma = float(gamma)
         self.ntry = int(ntry)
         self.n_candidate = int(n_candidate)
         self.x_mean = np.array([x_mean], dtype=DTYPE)
@@ -59,10 +58,10 @@ class BQ(object):
         self.improve_covariance_conditioning = False
 
     def log_transform(self, x):
-        return np.log(x + self.gamma) - np.log(self.gamma)
+        return np.log(x)
 
     def inv_log_transform(self, xt):
-        return np.exp(xt + np.log(self.gamma)) - self.gamma
+        return np.exp(xt)
 
     def _fit_gp(self, x, y, **kwargs):
         # figure out which parameters we are fitting and how to
