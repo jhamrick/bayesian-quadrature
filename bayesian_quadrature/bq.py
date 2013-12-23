@@ -103,22 +103,17 @@ class BQ(object):
         return gp
 
     def _choose_candidates(self):
-        ns = self.n_sample
-        nc = self.n_candidate
-
-        # choose anchor points
-        idx = np.random.randint(0, ns, nc)
-
         # compute the candidate points
         w = self.gp_log_S.K.w
-        eps = np.random.choice([-1, 1], nc) * w
-        Rc_all = self.R[idx] + eps
+        xmin = self.R.min() - w
+        xmax = self.R.max() + w
+        Rc_all = np.random.uniform(xmin, xmax, self.n_candidate)
 
         # make sure they don't overlap with points we already have
         Rc = []
-        for i in xrange(nc):
-            if (np.abs(Rc_all[i] - np.array(Rc)) >= w).all():
-                if (np.abs(Rc_all[i] - self.R) >= w).all():
+        for i in xrange(self.n_candidate):
+            if (np.abs(Rc_all[i] - np.array(Rc)) >= 1e-4).all():
+                if (np.abs(Rc_all[i] - self.R) >= 1e-4).all():
                     Rc.append(Rc_all[i])
         Rc = np.array(Rc)
         return Rc
@@ -399,7 +394,7 @@ class BQ(object):
 
         ax.set_xlabel("R")
         ax.set_ylabel("S")
-        ax.set_title("GP over S")
+        ax.set_title("GP over exp(log(S))")
         ax.set_xlim(xmin, xmax)
 
     def plot_S(self, ax, f_S=None, xmin=None, xmax=None):
@@ -419,16 +414,25 @@ class BQ(object):
 
         if f_S is not None:
             S = f_S(R)
-            ax.plot(R, S, 'k-', lw=2)
+            ax.plot(R, S, 'k-', lw=2, label="truth")
 
         ax.fill_between(R, lower, upper, color='r', alpha=0.2)
-        ax.plot(R, S_mean, 'r-', lw=2)
-        ax.plot(Ri, Si, 'ro', markersize=5)
+        ax.plot(
+            R, S_mean,
+            'r-', lw=2, label="approx.")
+        ax.plot(
+            Ri, Si,
+            'ro', markersize=5, label="observations")
+        ax.plot(
+            self.Rc, self.S_mean(self.Rc),
+            'bs', markersize=4, label="candidates")
 
         ax.set_xlabel("R")
         ax.set_ylabel("S")
-        ax.set_title("Estimated S")
+        ax.set_title("Final Approximation")
         ax.set_xlim(xmin, xmax)
+
+        ax.legend(loc=0, fontsize=10)
 
     def plot(self, f_S=None, xmin=None, xmax=None):
         fig, axes = plt.subplots(1, 3)
@@ -446,3 +450,5 @@ class BQ(object):
         fig.set_figwidth(10)
         fig.set_figheight(3)
         plt.tight_layout()
+
+        return fig, axes
