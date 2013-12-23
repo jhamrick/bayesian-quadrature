@@ -440,46 +440,21 @@ def int_dK(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE
             out[i, j] = int_K_vec[i] * (((S[j, j] + m[j] ** 2) / w[j]**3) - (1.0 / w[j]))
 
 
-def Z_mean(np.ndarray[DTYPE_t, ndim=2] x_s, np.ndarray[DTYPE_t, ndim=2] x_sc, np.ndarray[DTYPE_t, ndim=1] alpha_l, np.ndarray[DTYPE_t, ndim=1] alpha_del, DTYPE_t h_s, np.ndarray[DTYPE_t, ndim=1] w_s, DTYPE_t h_dc, np.ndarray[DTYPE_t, ndim=1] w_dc, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov, gamma):
+def Z_mean(np.ndarray[DTYPE_t, ndim=2] x_sc, np.ndarray[DTYPE_t, ndim=1] alpha_l, DTYPE_t h_s, np.ndarray[DTYPE_t, ndim=1] w_s, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
 
     cdef np.ndarray[DTYPE_t, ndim=1] int_K_l
-    cdef np.ndarray[DTYPE_t, ndim=1] int_K_del
-    cdef np.ndarray[DTYPE_t, ndim=2] int_K_del_K_l
-    cdef int ns, nc, d
-    cdef DTYPE_t E_m_l, E_m_l_m_del, E_m_del, m_Z
+    cdef int nc, d
+    cdef DTYPE_t m_Z
 
-    ns = x_s.shape[0]
     nc = x_sc.shape[0]
-    d = x_s.shape[1]
+    d = x_sc.shape[1]
 
-    ## First term
     # E[m_l | x_s] = (int K_l(x, x_s) p(x) dx) alpha_l(x_s)
-    int_K_l = np.empty(ns, dtype=DTYPE)
-    int_K(int_K_l, x_s, h_s, w_s, mu, cov)
-    E_m_l = dot(int_K_l, alpha_l)
-    if E_m_l <= 0:
-        warn("E_m_l = %s" % E_m_l)
-
-    ## Second term
-    # E[m_l*m_del | x_s, x_c] = alpha_del(x_sc)' *
-    #     int K_del(x_sc, x) K_l(x, x_s) p(x) dx *
-    #     alpha_l(x_s)
-    int_K_del_K_l = np.empty((nc, ns), dtype=DTYPE)
-    int_K1_K2(int_K_del_K_l, x_sc, x_s, h_dc, w_dc, h_s, w_s, mu, cov)
-    E_m_l_m_del = dot(dot(alpha_del, int_K_del_K_l), alpha_l)
-    if E_m_l_m_del <= 0:
-        warn("E_m_l_m_del = %s" % E_m_l_m_del)
-    
-    ## Third term
-    # E[m_del | x_sc] = (int K_del(x, x_sc) p(x) dx) alpha_del(x_c)
-    int_K_del = np.empty(nc, dtype=DTYPE)
-    int_K(int_K_del, x_sc, h_dc, w_dc, mu, cov)
-    E_m_del = dot(int_K_del, alpha_del)
-    if E_m_del <= 0:
-        warn("E_m_del = %s" % E_m_del)
-    
-    # put the three terms together
-    m_Z = E_m_l + E_m_l_m_del + (gamma * E_m_del)
+    int_K_l = np.empty(nc, dtype=DTYPE)
+    int_K(int_K_l, x_sc, h_s, w_s, mu, cov)
+    m_Z = dot(int_K_l, alpha_l)
+    if m_Z <= 0:
+        warn("m_Z = %s" % m_Z)
 
     return m_Z
 

@@ -131,15 +131,15 @@ class BQ(object):
         self.gp_log_l = self._fit_gp(self.x, self.log_l)
 
     def _fit_l(self):
-        self.xc = self._choose_candidates()
-        self.xsc = np.concatenate([self.x, self.xc], axis=0)
+        self.x_c = self._choose_candidates()
+        self.x_sc = np.concatenate([self.x, self.x_c], axis=0)
 
-        m_log_l = self.gp_log_l.mean(self.xsc)
-        v_log_l = np.diag(self.gp_log_l.cov(self.xsc))
-        self.lc = np.exp(m_log_l + 0.5 * v_log_l)
+        m_log_l = self.gp_log_l.mean(self.x_sc)
+        v_log_l = np.diag(self.gp_log_l.cov(self.x_sc))
+        self.l_sc = np.exp(m_log_l + 0.5 * v_log_l)
 
         logger.info("Fitting parameters for GP over exp(log(l))")
-        self.gp_l = self._fit_gp(self.xsc, self.lc)
+        self.gp_l = self._fit_gp(self.x_sc, self.l_sc)
 
     def fit(self):
         """Run the GP regressions to fit the likelihood function.
@@ -218,22 +218,14 @@ class BQ(object):
 
     def Z_mean(self):
 
-        # values for the GP over l(x)
-        x_s = self.x[:, None]
+        x_sc = self.x_sc[:, None]
         alpha_l = self.gp_l.inv_Kxx_y
         h_s, w_s = self.gp_l.K.params
         w_s = np.array([w_s])
 
-        # values for the GP of Delta(x)
-        x_sc = self.gp_Dc.x[:, None]
-        alpha_del = self.gp_Dc.inv_Kxx_y
-        h_dc, w_dc = self.gp_Dc.K.params
-        w_dc = np.array([w_dc])
-
         m_Z = bq_c.Z_mean(
-            x_s, x_sc, alpha_l, alpha_del,
-            h_s, w_s, h_dc, w_dc,
-            self.x_mean, self.x_cov, self.gamma)
+            x_sc, alpha_l, h_s, w_s,
+            self.x_mean, self.x_cov)
 
         return m_Z
 
@@ -267,11 +259,11 @@ class BQ(object):
         return V_Z + V_Z_eps
 
     def expected_squared_mean(self, x_a):
-        if np.abs((x_a - self.xc) < 1e-3).any():
+        if np.abs((x_a - self.x_c) < 1e-3).any():
             return self.Z_mean() ** 2
 
         x_s = self.x
-        x_c = self.xc
+        x_c = self.x_c
 
         ns, = x_s.shape
 
@@ -391,7 +383,7 @@ class BQ(object):
         ax.fill_between(x, lower, upper, color='r', alpha=0.2)
         ax.plot(x, l_mean, 'r-', lw=2)
         ax.plot(x_s, l_s, 'ro', markersize=5)
-        ax.plot(self.xc, self.gp_log_l.mean(self.xc), 'bs', markersize=4)
+        ax.plot(self.x_c, self.gp_log_l.mean(self.x_c), 'bs', markersize=4)
 
         ax.set_title(r"GP over $\log(\ell)$")
         ax.set_xlim(xmin, xmax)
@@ -418,7 +410,7 @@ class BQ(object):
         ax.fill_between(x, lower, upper, color='r', alpha=0.2)
         ax.plot(x, l_mean, 'r-', lw=2)
         ax.plot(x_s, l_s, 'ro', markersize=5)
-        ax.plot(self.xc, self.gp_l.mean(self.xc), 'bs', markersize=4)
+        ax.plot(self.x_c, self.gp_l.mean(self.x_c), 'bs', markersize=4)
 
         ax.set_title(r"GP over $\exp(\log(\ell))$")
         ax.set_xlim(xmin, xmax)
@@ -450,7 +442,7 @@ class BQ(object):
             x_s, l_s,
             'ro', markersize=5, label="$\ell(x_s)$")
         ax.plot(
-            self.xc, self.l_mean(self.xc),
+            self.x_c, self.l_mean(self.x_c),
             'bs', markersize=4, label="$\exp(m_{\log(\ell)}(x_c))$")
 
         ax.set_title("Final Approximation")
