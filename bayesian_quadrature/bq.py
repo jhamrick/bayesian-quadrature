@@ -113,16 +113,16 @@ class BQ(object):
     def _choose_candidates(self):
         # compute the candidate points
         w = self.gp_log_l.K.w
-        xmin = self.x.min() - w
-        xmax = self.x.max() + w
-        xc_all = np.random.uniform(xmin, xmax, self.n_candidate)
+        thresh = 1e-1
+        xmin = (self.x.min() - w) * thresh
+        xmax = (self.x.max() + w) * thresh
+        xc_all = np.random.uniform(xmin, xmax, self.n_candidate) / thresh
 
         # make sure they don't overlap with points we already have
         xc = []
         for i in xrange(self.n_candidate):
-            if (np.abs(xc_all[i] - np.array(xc)) >= 1e-4).all():
-                if (np.abs(xc_all[i] - self.x) >= 1e-4).all():
-                    xc.append(xc_all[i])
+            if (np.abs(xc_all[i] - self.x) >= thresh).all():
+                xc.append(xc_all[i])
         xc = np.array(xc)
         return xc
 
@@ -229,34 +229,25 @@ class BQ(object):
 
         return m_Z
 
-    def _Z_var_and_eps(self):
+    def Z_var(self):
         # values for the GPs over l(x) and log(l(x))
-        x_s = self.x
+        x_sc = self.x_sc[:, None]
 
         alpha_l = self.gp_l.inv_Kxx_y
-        alpha_tl = self.gp_log_l.inv_Kxx_y
-        inv_L_tl = self.gp_log_l.inv_Lxx
-        inv_K_tl = self.gp_log_l.inv_Kxx
+        Kxcxc = self.gp_log_l.Kxoxo(self.x_sc)
+        inv_L_tl = np.linalg.inv(np.linalg.cholesky(Kxcxc))
 
         h_l, w_l = self.gp_l.K.params
         w_l = np.array([w_l])
         h_tl, w_tl = self.gp_log_l.K.params
         w_tl = np.array([w_tl])
 
-        dK_tl_dw = self.gp_log_l.K.dK_dw(x_s, x_s)[..., None]
-        Cw = np.array([[self.Cw(self.gp_log_l)]])
-
-        V_Z, V_Z_eps = bq_c.Z_var(
-            x_s[:, None], alpha_l, alpha_tl,
-            inv_L_tl, inv_K_tl, dK_tl_dw, Cw,
+        V_Z = bq_c.Z_var(
+            x_sc, alpha_l, inv_L_tl,
             h_l, w_l, h_tl, w_tl,
-            self.x_mean, self.x_cov, self.gamma)
+            self.x_mean, self.x_cov)
 
-        return V_Z, V_Z_eps
-
-    def Z_var(self):
-        V_Z, V_Z_eps = self._Z_var_and_eps()
-        return V_Z + V_Z_eps
+        return V_Z
 
     def expected_squared_mean(self, x_a):
         if np.abs((x_a - self.x_c) < 1e-3).any():
