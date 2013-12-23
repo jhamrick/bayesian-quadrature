@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+import matplotlib.pyplot as plt
 from gp import GP, GaussianKernel
 
 from . import bq_c
@@ -58,10 +59,10 @@ class BQ(object):
         self.improve_covariance_conditioning = False
 
     def log_transform(self, x):
-        return np.log((x / self.gamma) + 1)
+        return np.log(x + self.gamma) - np.log(self.gamma)
 
     def inv_log_transform(self, xt):
-        return (xt - 1.0) / self.gamma
+        return np.exp(xt + np.log(self.gamma)) - self.gamma
 
     def _fit_gp(self, x, y, **kwargs):
         # figure out which parameters we are fitting and how to
@@ -96,7 +97,9 @@ class BQ(object):
         gp = GP(GaussianKernel(h, w), x, y, s=s)
 
         # fit the parameters
-        gp.fit_MLII(fitmask, randf=randf[fitmask], nrestart=ntry)
+        if fitmask.any():
+            gp.fit_MLII(fitmask, randf=randf[fitmask], nrestart=ntry)
+
         return gp
 
     def _choose_candidates(self):
@@ -107,16 +110,18 @@ class BQ(object):
         idx = np.random.randint(0, ns, nc)
 
         # compute the candidate points
-        eps = np.random.choice([-1, 1], nc) * self.gp_log_S.K.w
-        Rc = self.R[idx] + eps
+        w = self.gp_log_S.K.w
+        eps = np.random.choice([-1, 1], nc) * w
+        Rc_all = self.R[idx] + eps
 
         # make sure they don't overlap with points we already have
-        Rsc = list(self.R.copy())
+        Rc = []
         for i in xrange(nc):
-            if (np.abs(Rc[i] - np.array(Rsc)) > np.radians(1)).all():
-                Rsc.append(Rc[i])
-        Rsc = np.array(Rsc)
-        return Rsc
+            if (np.abs(Rc_all[i] - np.array(Rc)) >= w).all():
+                if (np.abs(Rc_all[i] - self.R) >= w).all():
+                    Rc.append(Rc_all[i])
+        Rc = np.array(Rc)
+        return Rc
 
     def _fit_log_S(self):
         logger.info("Fitting parameters for GP over log(S)")
@@ -124,14 +129,14 @@ class BQ(object):
 
     def _fit_S(self):
         self.Rc = self._choose_candidates()
+        self.Rsc = np.concatenate([self.R, self.Rc], axis=0)
 
-        m_log_S = self.gp_log_S.mean(self.Rc)
-        v_log_S = np.diag(self.gp_log_S.cov(self.Rc))
-        self.Sc = self.inv_log_transform(
-            np.exp(self.gamma * m_log_S + 0.5 * v_log_S))
+        m_log_S = self.gp_log_S.mean(self.Rsc)
+        v_log_S = np.diag(self.gp_log_S.cov(self.Rsc))
+        self.Sc = self.inv_log_transform(m_log_S + 0.5 * v_log_S)
 
         logger.info("Fitting parameters for GP over exp(log(S))")
-        self.gp_S = self._fit_gp(self.Rc, self.Sc)
+        self.gp_S = self._fit_gp(self.Rsc, self.Sc)
 
     def fit(self):
         """Run the GP regressions to fit the likelihood function.
@@ -158,7 +163,7 @@ class BQ(object):
     def S_var(self, R):
         # the estimated variance of S
         v_log_S = np.diag(self.gp_log_S.cov(R))
-        m_S = self.gp_S.mean(R) + self.gamma
+        m_S = self.gp_S.mean(R)
         S_var = v_log_S * m_S ** 2
         return S_var
 
@@ -338,3 +343,106 @@ class BQ(object):
         expected_sqd_mean = self.expected_squared_mean(x_a)
         expected_var = mean_second_moment - expected_sqd_mean
         return expected_var
+
+    def plot_gp_log_S(self, ax, f_S=None, xmin=None, xmax=None):
+        Ri = self.R
+        Si = self.log_S
+
+        if xmin is None:
+            xmin = Ri.min()
+        if xmax is None:
+            xmax = Ri.max()
+
+        R = np.linspace(xmin, xmax, 1000)
+        S_mean = self.gp_log_S.mean(R)
+        S_var = 1.96 * np.sqrt(np.diag(self.gp_log_S.cov(R)))
+        lower = S_mean - S_var
+        upper = S_mean + S_var
+
+        if f_S is not None:
+            S = self.log_transform(f_S(R))
+            ax.plot(R, S, 'k-', lw=2)
+
+        ax.fill_between(R, lower, upper, color='r', alpha=0.2)
+        ax.plot(R, S_mean, 'r-', lw=2)
+        ax.plot(Ri, Si, 'ro', markersize=5)
+        ax.plot(self.Rc, self.gp_log_S.mean(self.Rc), 'bs', markersize=4)
+
+        ax.set_xlabel("R")
+        ax.set_ylabel("log(S)")
+        ax.set_title("GP over log(S)")
+        ax.set_xlim(xmin, xmax)
+
+    def plot_gp_S(self, ax, f_S=None, xmin=None, xmax=None):
+        Ri = self.R
+        Si = self.S
+
+        if xmin is None:
+            xmin = Ri.min()
+        if xmax is None:
+            xmax = Ri.max()
+
+        R = np.linspace(xmin, xmax, 1000)
+        S_mean = self.gp_S.mean(R)
+        S_var = 1.96 * np.sqrt(np.diag(self.gp_S.cov(R)))
+        lower = S_mean - S_var
+        upper = S_mean + S_var
+
+        if f_S is not None:
+            S = f_S(R)
+            ax.plot(R, S, 'k-', lw=2)
+
+        ax.fill_between(R, lower, upper, color='r', alpha=0.2)
+        ax.plot(R, S_mean, 'r-', lw=2)
+        ax.plot(Ri, Si, 'ro', markersize=5)
+        ax.plot(self.Rc, self.gp_S.mean(self.Rc), 'bs', markersize=4)
+
+        ax.set_xlabel("R")
+        ax.set_ylabel("S")
+        ax.set_title("GP over S")
+        ax.set_xlim(xmin, xmax)
+
+    def plot_S(self, ax, f_S=None, xmin=None, xmax=None):
+        Ri = self.R
+        Si = self.S
+
+        if xmin is None:
+            xmin = Ri.min()
+        if xmax is None:
+            xmax = Ri.max()
+
+        R = np.linspace(xmin, xmax, 1000)
+        S_mean = self.S_mean(R)
+        S_var = 1.96 * np.sqrt(self.S_var(R))
+        lower = S_mean - S_var
+        upper = S_mean + S_var
+
+        if f_S is not None:
+            S = f_S(R)
+            ax.plot(R, S, 'k-', lw=2)
+
+        ax.fill_between(R, lower, upper, color='r', alpha=0.2)
+        ax.plot(R, S_mean, 'r-', lw=2)
+        ax.plot(Ri, Si, 'ro', markersize=5)
+
+        ax.set_xlabel("R")
+        ax.set_ylabel("S")
+        ax.set_title("Estimated S")
+        ax.set_xlim(xmin, xmax)
+
+    def plot(self, f_S=None, xmin=None, xmax=None):
+        fig, axes = plt.subplots(1, 3)
+
+        self.plot_gp_log_S(axes[0], f_S=f_S, xmin=xmin, xmax=xmax)
+        self.plot_gp_S(axes[1], f_S=f_S, xmin=xmin, xmax=xmax)
+        self.plot_S(axes[2], f_S=f_S, xmin=xmin, xmax=xmax)
+
+        ymins, ymaxs = zip(*[ax.get_ylim() for ax in axes[1:]])
+        ymin = min(ymins)
+        ymax = max(ymaxs)
+        for ax in axes[1:]:
+            ax.set_ylim(ymin, ymax)
+
+        fig.set_figwidth(10)
+        fig.set_figheight(3)
+        plt.tight_layout()
