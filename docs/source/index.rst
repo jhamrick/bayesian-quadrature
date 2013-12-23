@@ -7,6 +7,7 @@ Documentation
    :maxdepth: 4
 
    bayesian_quadrature.bq
+   example
 
 Derivations
 ~~~~~~~~~~~
