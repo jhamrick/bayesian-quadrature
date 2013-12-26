@@ -1,6 +1,7 @@
 import numpy as np
 import logging
 import matplotlib.pyplot as plt
+import scipy.stats
 from gp import GP, GaussianKernel
 
 from . import bq_c
@@ -235,6 +236,13 @@ class BQ(object):
 
         return m_Z
 
+    def approx_Z_mean(self, xo):
+        p_xo = scipy.stats.norm.pdf(
+            xo, self.x_mean[0], np.sqrt(self.x_cov[0, 0]))
+        l = self.l_mean(xo)
+        approx = np.trapz(l * p_xo, xo)
+        return approx
+
     def Z_var(self):
         r"""
         Approximate variance of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x`.
@@ -272,6 +280,15 @@ class BQ(object):
             self.x_mean, self.x_cov)
 
         return V_Z
+
+    def approx_Z_var(self, xo):
+        p_xo = scipy.stats.norm.pdf(
+            xo, self.x_mean[0], np.sqrt(self.x_cov[0, 0]))
+        m_l = self.gp_l.mean(xo)
+        C_tl = self.gp_log_l.cov(xo)
+        approx = np.trapz(
+            np.trapz(C_tl * m_l * p_xo, xo) * m_l * p_xo, xo)
+        return approx
 
     def expected_squared_mean(self, x_a):
         if np.abs((x_a - self.x_c) < 1e-3).any():

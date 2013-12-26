@@ -3,6 +3,8 @@ from __future__ import division
 import numpy as np
 cimport numpy as np
 
+import scipy.stats
+
 from libc.math cimport exp, log, fmax, copysign, fabs, M_PI
 from cpython cimport bool
 from warnings import warn
@@ -79,6 +81,13 @@ def int_K(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE_
         out[i] = h_2 * exp(out[i])
 
 
+def approx_int_K(xo, gp, mu, cov):
+    Kxxo = gp.Kxxo(xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    approx_int = np.trapz(Kxxo * p_xo, xo)
+    return approx_int
+
+
 def int_K1_K2(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2] x1, np.ndarray[DTYPE_t, ndim=2] x2, DTYPE_t h1, np.ndarray[DTYPE_t, ndim=1] w1, DTYPE_t h2, np.ndarray[DTYPE_t, ndim=1] w2, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
     """Computes integrals of the form:
 
@@ -140,6 +149,14 @@ def int_K1_K2(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2] x1, n
         mvn_logpdf(out[i], x[i], m, C)
         for j in xrange(n2):
             out[i, j] = h1_2_h2_2 * exp(out[i, j])
+
+
+def approx_int_K1_K2(xo, gp1, gp2, mu, cov):
+    K1xxo = gp1.Kxxo(xo)
+    K2xxo = gp2.Kxxo(xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    approx_int = np.trapz(K1xxo[:, None] * K2xxo[None, :] * p_xo, xo)
+    return approx_int
 
 
 def int_int_K1_K2_K1(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE_t h1, np.ndarray[DTYPE_t, ndim=1] w1, DTYPE_t h2, np.ndarray[DTYPE_t, ndim=1] w2, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
@@ -215,6 +232,15 @@ def int_int_K1_K2_K1(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2
             out[i, j] = h1_4_h2_2 * exp(Gdeti + N1[i] + N1[j] + N2[i, j])
 
 
+def approx_int_int_K1_K2_K1(xo, gp1, gp2, mu, cov):
+    K1xxo = gp1.Kxxo(xo)
+    K2xoxo = gp2.Kxoxo(xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    int1 = np.trapz(K1xxo[:, None, :] * K2xoxo * p_xo, xo)
+    approx_int = np.trapz(K1xxo[:, None] * int1[None] * p_xo, xo)
+    return approx_int
+
+
 def int_int_K1_K2(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE_t h1, np.ndarray[DTYPE_t, ndim=1] w1, DTYPE_t h2, np.ndarray[DTYPE_t, ndim=1] w2, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
     """Computes integrals of the form:
 
@@ -275,6 +301,15 @@ def int_int_K1_K2(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x
     for i in xrange(n):
         out[i] = h1_2_h2_2 * exp(N1[0] + N2[i])
 
+def approx_int_int_K1_K2(xo, gp1, gp2, mu, cov):
+    K1xoxo = gp1.Kxoxo(xo)
+    K2xxo = gp2.Kxxo(xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    int1 = np.trapz(K1xoxo * K2xxo[:, :, None] * p_xo, xo)
+    approx_int = np.trapz(int1 * p_xo, xo)
+    return approx_int
+
+
 def int_int_K(int d, DTYPE_t h, np.ndarray[DTYPE_t, ndim=1] w, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
     """Computes integrals of the form:
 
@@ -310,6 +345,14 @@ def int_int_K(int d, DTYPE_t h, np.ndarray[DTYPE_t, ndim=1] w, np.ndarray[DTYPE_
     mvn_logpdf(N, zx, zm, W_2cov)
 
     return (h ** 2) * exp(N[0])
+
+
+def approx_int_int_K(xo, gp, mu, cov):
+    Kxoxo = gp.Kxoxo(xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    approx_int = np.trapz(np.trapz(Kxoxo * p_xo, xo) * p_xo, xo)
+    return approx_int
+
 
 def int_K1_dK2(np.ndarray[DTYPE_t, ndim=3] out, np.ndarray[DTYPE_t, ndim=2] x1, np.ndarray[DTYPE_t, ndim=2] x2, DTYPE_t h1, np.ndarray[DTYPE_t, ndim=1] w1, DTYPE_t h2, np.ndarray[DTYPE_t, ndim=1] w2, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
     """Computes integrals of the form:
@@ -393,6 +436,15 @@ def int_K1_dK2(np.ndarray[DTYPE_t, ndim=3] out, np.ndarray[DTYPE_t, ndim=2] x1, 
                 out[i, j, k] = int_K1_K2_mat[i, j] * (((S[k, k] + m[k] ** 2) / w2[k]**3) - (1.0 / w2[k]))
     
 
+def approx_int_K1_dK2(xo, gp1, gp2, mu, cov):
+    K1xxo = gp1.Kxxo(xo)
+    dK2xxo = gp2.K.dK_dw(gp2._x, xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    approx_int = np.trapz(
+        K1xxo[:, None] * dK2xxo[None, :] * p_xo, xo)[..., None]
+    return approx_int
+
+
 def int_dK(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE_t h, np.ndarray[DTYPE_t, ndim=1] w, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
 
     cdef np.ndarray[DTYPE_t, ndim=1] int_K_vec
@@ -438,6 +490,13 @@ def int_dK(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE
         m[:] = dot(A, xsubmu[i])
         for j in xrange(d):
             out[i, j] = int_K_vec[i] * (((S[j, j] + m[j] ** 2) / w[j]**3) - (1.0 / w[j]))
+
+
+def approx_int_dK(xo, gp, mu, cov):
+    dKxxo = gp.K.dK_dw(gp._x, xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    approx_int = np.trapz(dKxxo * p_xo, xo)[..., None]
+    return approx_int
 
 
 def Z_mean(np.ndarray[DTYPE_t, ndim=2] x_sc, np.ndarray[DTYPE_t, ndim=1] alpha_l, DTYPE_t h_l, np.ndarray[DTYPE_t, ndim=1] w_l, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
