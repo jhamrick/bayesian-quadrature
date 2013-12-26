@@ -35,3 +35,5 @@ Tests
           Roberts, S. J., & Ghahramani, Z. (2012). Active Learning of
           Model Evidence Using Bayesian Quadrature. Advances in
           Neural Information Processing Systems, 25.
+
+.. [O13] Osborne, M. A. (2013). Gaussian Identities.

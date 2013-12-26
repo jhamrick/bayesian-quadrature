@@ -142,16 +142,7 @@ class BQ(object):
         self.gp_l = self._fit_gp(self.x_sc, self.l_sc)
 
     def fit(self):
-        """Run the GP regressions to fit the likelihood function.
-
-        References
-        ----------
-        Osborne, M. A., Duvenaud, D., Garnett, R., Rasmussen, C. E.,
-            Roberts, S. J., & Ghahramani, Z. (2012). Active Learning of
-            Model Evidence Using Bayesian Quadrature. *Advances in Neural
-            Information Processing Systems*, 25.
-
-        """
+        """Run the GP regressions to fit the likelihood function."""
 
         logger.info("Fitting likelihood")
 
