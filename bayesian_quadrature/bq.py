@@ -58,18 +58,18 @@ class BQ(object):
         # default kernel parameter values
         self.default_params = dict(h=h, w=w, s=s)
 
-        self.x = np.array(x, dtype=DTYPE, copy=True)
-        self.l = np.array(l, dtype=DTYPE, copy=True)
+        self.x_s = np.array(x, dtype=DTYPE, copy=True)
+        self.l_s = np.array(l, dtype=DTYPE, copy=True)
 
-        if self.x.ndim > 1:
+        if self.x_s.ndim > 1:
             raise ValueError("invalid number of dimensions for x")
-        if self.l.ndim > 1:
+        if self.l_s.ndim > 1:
             raise ValueError("invalid number of dimensions for l")
-        if self.x.shape != self.l.shape:
+        if self.x_s.shape != self.l_s.shape:
             raise ValueError("shape mismatch for x and l")
 
-        self.log_l = np.log(self.l)
-        self.n_sample = self.x.size
+        self.tl_s = np.log(self.l_s)
+        self.n_sample = self.x_s.size
 
     def _fit_gp(self, x, y, **kwargs):
         # figure out which parameters we are fitting and how to
@@ -112,30 +112,28 @@ class BQ(object):
     def _choose_candidates(self):
         # compute the candidate points
         w = self.gp_log_l.K.w
+        # TODO: make this threshold be a configuration parameter
         thresh = 1e-1
-        xmin = (self.x.min() - w) * thresh
-        xmax = (self.x.max() + w) * thresh
+        xmin = (self.x_s.min() - w) * thresh
+        xmax = (self.x_s.max() + w) * thresh
         xc_all = np.random.uniform(xmin, xmax, self.n_candidate) / thresh
 
         # make sure they don't overlap with points we already have
         xc = []
         for i in xrange(self.n_candidate):
-            if (np.abs(xc_all[i] - self.x) >= thresh).all():
+            if (np.abs(xc_all[i] - self.x_s) >= thresh).all():
                 xc.append(xc_all[i])
         xc = np.array(xc)
         return xc
 
     def _fit_log_l(self):
         logger.info("Fitting parameters for GP over log(l)")
-        self.gp_log_l = self._fit_gp(self.x, self.log_l)
+        self.gp_log_l = self._fit_gp(self.x_s, self.tl_s)
 
     def _fit_l(self):
         self.x_c = self._choose_candidates()
-        self.x_sc = np.concatenate([self.x, self.x_c], axis=0)
-
-        m_log_l = self.gp_log_l.mean(self.x_sc)
-        v_log_l = np.diag(self.gp_log_l.cov(self.x_sc))
-        self.l_sc = np.exp(m_log_l + 0.5 * v_log_l)
+        self.x_sc = np.concatenate([self.x_s, self.x_c], axis=0)
+        self.l_sc = np.exp(self.gp_log_l.mean(self.x_sc))
 
         logger.info("Fitting parameters for GP over exp(log(l))")
         self.gp_l = self._fit_gp(self.x_sc, self.l_sc)
@@ -202,7 +200,7 @@ class BQ(object):
         """
         # the estimated variance of l
         v_log_l = np.diag(self.gp_log_l.cov(x))
-        m_l = self.gp_l.mean(x)
+        m_l = self.l_mean(x)
         l_var = v_log_l * m_l ** 2
         return l_var
 
@@ -221,7 +219,10 @@ class BQ(object):
 
         .. math::
 
-            \mathbb{E}[Z]\approx \int\bar{\ell}(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x = \left(\int K_{\exp(\log\ell)}(x, \mathbf{x}_c)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x\right)K_{\exp(\log\ell)}(\mathbf{x}_c, \mathbf{x}_c)^{-1}\ell(\mathbf{x}_c)
+            \begin{align*}
+            \mathbb{E}[Z]&\approx \int\bar{\ell}(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x \\
+            &= \left(\int K_{\exp(\log\ell)}(x, \mathbf{x}_c)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x\right)K_{\exp(\log\ell)}(\mathbf{x}_c, \mathbf{x}_c)^{-1}\ell(\mathbf{x}_c)
+            \end{align*}
 
         """
 
@@ -284,7 +285,7 @@ class BQ(object):
     def approx_Z_var(self, xo):
         p_xo = scipy.stats.norm.pdf(
             xo, self.x_mean[0], np.sqrt(self.x_cov[0, 0]))
-        m_l = self.gp_l.mean(xo)
+        m_l = self.l_mean(xo)
         C_tl = self.gp_log_l.cov(xo)
         approx = np.trapz(
             np.trapz(C_tl * m_l * p_xo, xo) * m_l * p_xo, xo)
@@ -294,20 +295,14 @@ class BQ(object):
         if np.abs((x_a - self.x_c) < 1e-3).any():
             return self.Z_mean() ** 2
 
-        x_s = self.x
-        x_c = self.x_c
-
-        ns, = x_s.shape
-
         # include new x_a
-        x_sa = np.concatenate([x_s, x_a])
-        x_sca = np.concatenate([x_c, x_a])
+        x_sa = np.concatenate([self.x_s, x_a])
+        x_sca = np.concatenate([self.x_sc, x_a])
 
         tl_a = self.gp_log_l.mean(x_a)
-        tl_s = self.log_l
+        tl_s = self.tl_s
 
-        l_a = self.gp_l.mean(x_a)
-        l_sc = self.l
+        l_a = self.l_mean(x_a)
 
         # update gp over log(l)
         gp_log_la = self.gp_log_l.copy()
@@ -317,7 +312,7 @@ class BQ(object):
         # update gp over l
         gp_la = self.gp_l.copy()
         gp_la.x = x_sca
-        gp_la.y = np.concatenate([l_sc, l_a])
+        gp_la.y = np.concatenate([self.l_sc, l_a])
 
         # exp(log(l_c)) (not exp(log(l_s))) will probably change with
         # the addition of x_a. We can't recompute them (because we
@@ -340,7 +335,7 @@ class BQ(object):
         tC_a = float(self.gp_log_l.cov(x_a))
 
         expected_sqd_mean = bq_c.expected_squared_mean(
-            x_sca[:, None], l_sc,
+            x_sca[:, None], self.l_sc,
             inv_K_l,
             tm_a, tC_a,
             gp_la.K.h, np.array([gp_la.K.w]),
@@ -359,13 +354,10 @@ class BQ(object):
         return expected_var
 
     def plot_gp_log_l(self, ax, f_l=None, xmin=None, xmax=None):
-        x_s = self.x
-        l_s = self.log_l
-
         if xmin is None:
-            xmin = x_s.min()
+            xmin = self.x_s.min()
         if xmax is None:
-            xmax = x_s.max()
+            xmax = self.x_s.max()
 
         x = np.linspace(xmin, xmax, 1000)
         l_mean = self.gp_log_l.mean(x)
@@ -379,23 +371,20 @@ class BQ(object):
 
         ax.fill_between(x, lower, upper, color='r', alpha=0.2)
         ax.plot(x, l_mean, 'r-', lw=2)
-        ax.plot(x_s, l_s, 'ro', markersize=5)
+        ax.plot(self.x_s, self.l_s, 'ro', markersize=5)
         ax.plot(self.x_c, self.gp_log_l.mean(self.x_c), 'bs', markersize=4)
 
         ax.set_title(r"GP over $\log(\ell)$")
         ax.set_xlim(xmin, xmax)
 
     def plot_gp_l(self, ax, f_l=None, xmin=None, xmax=None):
-        x_s = self.x
-        l_s = self.l
-
         if xmin is None:
-            xmin = x_s.min()
+            xmin = self.x_s.min()
         if xmax is None:
-            xmax = x_s.max()
+            xmax = self.x_s.max()
 
         x = np.linspace(xmin, xmax, 1000)
-        l_mean = self.gp_l.mean(x)
+        l_mean = self.l_mean(x)
         l_var = 1.96 * np.sqrt(np.diag(self.gp_l.cov(x)))
         lower = l_mean - l_var
         upper = l_mean + l_var
@@ -406,20 +395,17 @@ class BQ(object):
 
         ax.fill_between(x, lower, upper, color='r', alpha=0.2)
         ax.plot(x, l_mean, 'r-', lw=2)
-        ax.plot(x_s, l_s, 'ro', markersize=5)
-        ax.plot(self.x_c, self.gp_l.mean(self.x_c), 'bs', markersize=4)
+        ax.plot(self.x_sc, self.l_sc, 'ro', markersize=5)
+        ax.plot(self.x_c, self.l_mean(self.x_c), 'bs', markersize=4)
 
         ax.set_title(r"GP over $\exp(\log(\ell))$")
         ax.set_xlim(xmin, xmax)
 
     def plot_l(self, ax, f_l=None, xmin=None, xmax=None):
-        x_s = self.x
-        l_s = self.l
-
         if xmin is None:
-            xmin = x_s.min()
+            xmin = self.x_s.min()
         if xmax is None:
-            xmax = x_s.max()
+            xmax = self.x_s.max()
 
         x = np.linspace(xmin, xmax, 1000)
         l_mean = self.l_mean(x)
@@ -436,7 +422,7 @@ class BQ(object):
             x, l_mean,
             'r-', lw=2, label="final approx")
         ax.plot(
-            x_s, l_s,
+            self.x_sc, self.l_sc,
             'ro', markersize=5, label="$\ell(x_s)$")
         ax.plot(
             self.x_c, self.l_mean(self.x_c),
