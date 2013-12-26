@@ -162,9 +162,7 @@ def test_int_K():
     bq = make_bq()
     xo = make_xo()
 
-    Kxxo = bq.gp_l.Kxxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.x_mean[0], np.sqrt(bq.x_cov[0, 0]))
-    approx_int = np.trapz(Kxxo * p_xo, xo)
+    approx_int = bq_c.approx_int_K(xo, bq.gp_l, bq.x_mean, bq.x_cov)
     calc_int = np.empty(bq.gp_l.x.shape[0])
     bq_c.int_K(
         calc_int, bq.gp_l.x[:, None],
@@ -172,9 +170,7 @@ def test_int_K():
         bq.x_mean, bq.x_cov)
     assert np.allclose(calc_int, approx_int, atol=1e-3)
 
-    Kxxo = bq.gp_log_l.Kxxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.x_mean[0], np.sqrt(bq.x_cov[0, 0]))
-    approx_int = np.trapz(Kxxo * p_xo, xo)
+    approx_int = bq_c.approx_int_K(xo, bq.gp_log_l, bq.x_mean, bq.x_cov)
     calc_int = np.empty(bq.gp_log_l.x.shape[0])
     bq_c.int_K(
         calc_int, bq.gp_log_l.x[:, None],
@@ -202,10 +198,8 @@ def test_int_K1_K2():
     bq = make_bq()
     xo = make_xo()
 
-    K1xxo = bq.gp_l.Kxxo(xo)
-    K2xxo = bq.gp_log_l.Kxxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.x_mean[0], np.sqrt(bq.x_cov[0, 0]))
-    approx_int = np.trapz(K1xxo[:, None] * K2xxo[None, :] * p_xo, xo)
+    approx_int = bq_c.approx_int_K1_K2(
+        xo, bq.gp_l, bq.gp_log_l, bq.x_mean, bq.x_cov)
 
     calc_int = np.empty((bq.gp_l.x.shape[0], bq.gp_log_l.x.shape[0]))
     bq_c.int_K1_K2(
@@ -237,11 +231,8 @@ def test_int_int_K1_K2_K1():
     bq = make_bq()
     xo = make_xo()
 
-    K1xxo = bq.gp_l.Kxxo(xo)
-    K2xoxo = bq.gp_log_l.Kxoxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.x_mean[0], np.sqrt(bq.x_cov[0, 0]))
-    int1 = np.trapz(K1xxo[:, None, :] * K2xoxo * p_xo, xo)
-    approx_int = np.trapz(K1xxo[:, None] * int1[None] * p_xo, xo)
+    approx_int = bq_c(
+        xo, bq.gp_l, bq.gp_log_l, bq.x_mean, bq.x_cov)
 
     calc_int = np.empty((bq.gp_l.x.shape[0], bq.gp_l.x.shape[0]))
     bq_c.int_int_K1_K2_K1(
@@ -273,11 +264,8 @@ def test_int_int_K1_K2():
     bq = make_bq()
     xo = make_xo()
 
-    K1xoxo = bq.gp_l.Kxoxo(xo)
-    K2xxo = bq.gp_log_l.Kxxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.x_mean[0], np.sqrt(bq.x_cov[0, 0]))
-    int1 = np.trapz(K1xoxo * K2xxo[:, :, None] * p_xo, xo)
-    approx_int = np.trapz(int1 * p_xo, xo)
+    approx_int = bq.approx_int_int_K1_K2(
+        xo, bq.gp_l, bq.gp_log_l, bq.x_mean, bq.x_co)
 
     calc_int = np.empty(bq.gp_log_l.x.shape[0])
     bq_c.int_int_K1_K2(
@@ -309,17 +297,13 @@ def test_int_int_K():
     bq = make_bq()
     xo = make_xo()
 
-    Kxoxo = bq.gp_l.Kxoxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.x_mean[0], np.sqrt(bq.x_cov[0, 0]))
-    approx_int = np.trapz(np.trapz(Kxoxo * p_xo, xo) * p_xo, xo)
+    approx_int = bq_c.approx_int_int_K(xo, bq.gp_l, bq.x_mean, bq.x_cov)
     calc_int = bq_c.int_int_K(
         1, bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
         bq.x_mean, bq.x_cov)
     assert np.allclose(calc_int, approx_int, atol=1e-4)
 
-    Kxoxo = bq.gp_log_l.Kxoxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.x_mean[0], np.sqrt(bq.x_cov[0, 0]))
-    approx_int = np.trapz(np.trapz(Kxoxo * p_xo, xo) * p_xo, xo)
+    approx_int = bq_c.approx_int_int_K(xo, bq.gp_log_l, bq.x_mean, bq.x_cov)
     calc_int = bq_c.int_int_K(
         1, bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
         bq.x_mean, bq.x_cov)
@@ -344,11 +328,8 @@ def test_int_K1_dK2():
     bq = make_bq()
     xo = make_xo()
 
-    K1xxo = bq.gp_l.Kxxo(xo)
-    dK2xxo = bq.gp_log_l.K.dK_dw(bq.gp_log_l._x, xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.x_mean[0], np.sqrt(bq.x_cov[0, 0]))
-    approx_int = np.trapz(
-        K1xxo[:, None] * dK2xxo[None, :] * p_xo, xo)[..., None]
+    approx_int = bq_c.approx_int_K1_dK2(
+        xo, bq.gp_l, bq.gp_log_l, bq.x_mean, bq.x_cov)
 
     calc_int = np.empty((bq.gp_l.x.shape[0], bq.gp_log_l.x.shape[0], 1))
     bq_c.int_K1_dK2(
@@ -365,9 +346,7 @@ def test_int_dK():
     bq = make_bq()
     xo = make_xo()
 
-    dKxxo = bq.gp_l.K.dK_dw(bq.gp_l._x, xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.x_mean[0], np.sqrt(bq.x_cov[0, 0]))
-    approx_int = np.trapz(dKxxo * p_xo, xo)[..., None]
+    approx_int = bq_c.approx_int_dK(xo, bq.gp_l, bq.x_mean, bq.x_cov)
     calc_int = np.empty((bq.gp_l.x.shape[0], 1))
     bq_c.int_dK(
         calc_int, bq.gp_l.x[:, None],
@@ -375,9 +354,7 @@ def test_int_dK():
         bq.x_mean, bq.x_cov)
     assert np.allclose(calc_int, approx_int, atol=1e-3)
 
-    dKxxo = bq.gp_log_l.K.dK_dw(bq.gp_log_l._x, xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.x_mean[0], np.sqrt(bq.x_cov[0, 0]))
-    approx_int = np.trapz(dKxxo * p_xo, xo)[..., None]
+    approx_int = bq_c.approx_int_dK(xo, bq.gp_log_l, bq.x_mean, bq.x_cov)
     calc_int = np.empty((bq.gp_log_l.x.shape[0], 1))
     bq_c.int_dK(
         calc_int, bq.gp_log_l.x[:, None],
