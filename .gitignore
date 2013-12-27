@@ -12,3 +12,4 @@ docs/source/*_files/
 docs/ipynb/*.rst
 docs/ipynb/*_files/
 docs/_build
+htmlcov
