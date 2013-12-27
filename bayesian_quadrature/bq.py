@@ -291,25 +291,28 @@ class BQ(object):
             np.trapz(C_tl * m_l * p_xo, xo) * m_l * p_xo, xo)
         return approx
 
-    def expected_Z_var(self, x_a):
+    def expected_squared_mean(self, x_a):
+        if np.abs((x_a - self.x_c) < 1e-3).any():
+            return self.Z_mean() ** 2
+
         # include new x_a
         x_sa = np.concatenate([self.x_s, x_a])
-        tl_sa = np.concatenate([self.tl_s, self.gp_log_l.mean(x_a)])
-
         x_sca = np.concatenate([self.x_sc, x_a])
-        l_sca = np.concatenate([self.l_sc, np.exp(tl_sa[-1:])])
+
+        tl_a = self.gp_log_l.mean(x_a)
+        tl_s = self.tl_s
+
+        l_a = self.l_mean(x_a)
 
         # update gp over log(l)
         gp_log_la = self.gp_log_l.copy()
-        gp_log_la._memoized = {}
         gp_log_la.x = x_sa
-        gp_log_la.y = tl_sa
+        gp_log_la.y = np.concatenate([tl_s, tl_a])
 
         # update gp over l
         gp_la = self.gp_l.copy()
-        gp_la._memoized = {}
         gp_la.x = x_sca
-        gp_la.y = l_sca
+        gp_la.y = np.concatenate([self.l_sc, l_a])
 
         # exp(log(l_c)) (not exp(log(l_s))) will probably change with
         # the addition of x_a. We can't recompute them (because we
@@ -317,36 +320,38 @@ class BQ(object):
         # covariance matrix to allow room for error for the x_c
         # closest to x_a
         K_l = gp_la.Kxx
-        idx = np.array([x_sca.shape[0] - 1], dtype=DTYPE)
-        bq_c.improve_covariance_conditioning(K_l, idx=idx)
+        bq_c.improve_covariance_conditioning(
+            K_l, idx=np.array([x_sca.shape[0] - 1], dtype=DTYPE))
 
         try:
             inv_K_l = gp_la.inv_Kxx
         except np.linalg.LinAlgError:
-            return self.Z_var()
+            return self.mean() ** 2
 
-        try:
-            Kxcxc = self.gp_log_l.Kxoxo(x_sca)
-            bq_c.improve_covariance_conditioning(Kxcxc, idx=idx)
-            inv_L_tl = np.linalg.inv(np.linalg.cholesky(Kxcxc))
-        except np.linalg.LinAlgError:
-            return self.Z_var()
+        # compute expected transformed mean
+        tm_a = float(self.gp_log_l.mean(x_a))
 
         # compute expected transformed covariance
         tC_a = float(self.gp_log_l.cov(x_a))
 
-        V = bq_c.expected_Z_var(
+        expected_sqd_mean = bq_c.expected_squared_mean(
             x_sca[:, None], self.l_sc,
-            inv_L_tl, inv_K_l, tl_sa[-1], tC_a,
+            inv_K_l,
+            tm_a, tC_a,
             gp_la.K.h, np.array([gp_la.K.w]),
-            gp_log_la.K.h, np.array([gp_log_la.K.w]),
             self.x_mean, self.x_cov)
 
-        # if np.isnan(V) or V < -EPS:
-        #     raise RuntimeError(
-        #         "invalid expected variance: %s" % V)
+        if np.isnan(expected_sqd_mean) or expected_sqd_mean < 0:
+            raise RuntimeError(
+                "invalid expected squared mean: %s" % expected_sqd_mean)
 
-        return V
+        return expected_sqd_mean
+
+    def expected_Z_var(self, x_a):
+        mean_second_moment = self.Z_mean() ** 2 + self.Z_var()
+        expected_sqd_mean = self.expected_squared_mean(x_a)
+        expected_var = mean_second_moment - expected_sqd_mean
+        return expected_var
 
     def plot_gp_log_l(self, ax, f_l=None, xmin=None, xmax=None):
         if xmin is None:
@@ -366,7 +371,7 @@ class BQ(object):
 
         ax.fill_between(x, lower, upper, color='r', alpha=0.2)
         ax.plot(x, l_mean, 'r-', lw=2)
-        ax.plot(self.x_s, self.tl_s, 'ro', markersize=5)
+        ax.plot(self.x_s, self.l_s, 'ro', markersize=5)
         ax.plot(self.x_c, self.gp_log_l.mean(self.x_c), 'bs', markersize=4)
 
         ax.set_title(r"GP over $\log(\ell)$")
