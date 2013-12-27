@@ -123,20 +123,43 @@ class BQ(object):
         for i in xrange(self.n_candidate):
             if (np.abs(xc_all[i] - self.x_s) >= thresh).all():
                 xc.append(xc_all[i])
-        xc = np.array(xc)
+        xc = np.array(sorted(xc))
         return xc
 
-    def _fit_log_l(self):
-        logger.info("Fitting parameters for GP over log(l)")
-        self.gp_log_l = self._fit_gp(self.x_s, self.tl_s)
+    def _improve_gp_conditioning(self, gp):
+        Kxx = gp.Kxx
+        gp._memoized = {'Kxx': Kxx}
+        var = np.diag(gp.cov(gp._x))
+        cond = np.linalg.cond(Kxx)
+        logger.debug("Kxx conditioning number is %s", cond)
 
-    def _fit_l(self):
+        while (var < 0).any():
+            idx = np.nonzero(var < 0)[0]
+            bq_c.improve_covariance_conditioning(Kxx, idx=idx)
+
+            Kxx = gp.Kxx
+            gp._memoized = {'Kxx': Kxx}
+            var = np.diag(gp.cov(gp._x))
+            cond = np.linalg.cond(Kxx)
+            logger.debug("Kxx conditioning number is now %s", cond)
+
+    def _fit_log_l(self, params=None):
+        logger.debug("Fitting parameters for GP over log(l)")
+        self.gp_log_l = self._fit_gp(self.x_s, self.tl_s)
+        if params is not None:
+            self.gp_log_l.params = params
+        self._improve_gp_conditioning(self.gp_log_l)
+
+    def _fit_l(self, params=None):
         self.x_c = self._choose_candidates()
         self.x_sc = np.concatenate([self.x_s, self.x_c], axis=0)
         self.l_sc = np.exp(self.gp_log_l.mean(self.x_sc))
 
-        logger.info("Fitting parameters for GP over exp(log(l))")
+        logger.debug("Fitting parameters for GP over exp(log(l))")
         self.gp_l = self._fit_gp(self.x_sc, self.l_sc)
+        if params is not None:
+            self.gp_l.params = params
+        self._improve_gp_conditioning(self.gp_l)
 
     def fit(self):
         """Run the GP regressions to fit the likelihood function."""
@@ -267,14 +290,12 @@ class BQ(object):
         x_sc = self.x_sc[:, None]
 
         alpha_l = self.gp_l.inv_Kxx_y
-        Kxcxc = self.gp_log_l.Kxoxo(self.x_sc)
-
-        try:
-            inv_L_tl = np.linalg.inv(np.linalg.cholesky(Kxcxc))
-        except np.linalg.LinAlgError:
-            idx = np.arange(self.x_s.shape[0], self.x_sc.shape[0])
-            bq_c.improve_covariance_conditioning(Kxcxc, idx)
-            inv_L_tl = np.linalg.inv(np.linalg.cholesky(Kxcxc))
+        gp_tl = self.gp_log_l.copy()
+        gp_tl.x = self.x_sc
+        gp_tl.y = np.log(self.l_sc)
+        gp_tl.Kxx[:self.x_s.size, :self.x_s.size] = self.gp_log_l.Kxx.copy()
+        self._improve_gp_conditioning(gp_tl)
+        inv_L_tl = gp_tl.inv_Lxx
 
         h_l, w_l = self.gp_l.K.params
         w_l = np.array([w_l])
@@ -299,31 +320,22 @@ class BQ(object):
 
     def expected_squared_mean(self, x_a):
         # include new x_a
-        x_sa = np.concatenate([self.x_s, x_a])
+        # x_sa = np.concatenate([self.x_s, x_a])
         x_sca = np.concatenate([self.x_sc, x_a])
         tl_a = self.gp_log_l.mean(x_a)
 
-        # update gp over log(l)
-        gp_log_la = self.gp_log_l.copy()
-        gp_log_la.x = x_sa
-        gp_log_la.y = np.concatenate([self.tl_s, tl_a])
+        # # update gp over log(l)
+        # gp_log_la = self.gp_log_l.copy()
+        # gp_log_la.x = x_sa
+        # gp_log_la.y = np.concatenate([self.tl_s, tl_a])
+        # gp_log_la.Kxx[:-1, :-1] = self.gp_log_l.Kxx.copy()
 
         # update gp over l
         gp_la = self.gp_l.copy()
         gp_la.x = x_sca
         gp_la.y = np.concatenate([self.l_sc, np.exp(tl_a)])
-
-        # exp(log(l_c)) (not exp(log(l_s))) will probably change with
-        # the addition of x_a. We can't recompute them (because we
-        # don't know l_a) but we can add noise to the diagonal of the
-        # covariance matrix to allow room for error for the x_c
-        # closest to x_a
-        try:
-            inv_K_l = gp_la.inv_Kxx
-        except np.linalg.LinAlgError:
-            idx = np.arange(self.x_s.shape[0], x_sca.shape[0])
-            bq_c.improve_covariance_conditioning(gp_la.Kxx, idx)
-            inv_K_l = gp_la.inv_Kxx
+        gp_la.Kxx[:-1, :-1] = self.gp_l.Kxx.copy()
+        inv_K_l = gp_la.inv_Kxx
 
         # compute expected transformed mean
         tm_a = self.gp_log_l.mean(x_a)
@@ -346,8 +358,10 @@ class BQ(object):
 
     def expected_Z_var(self, x_a):
         mean_second_moment = self.Z_mean() ** 2 + self.Z_var()
-        expected_sqd_mean = self.expected_squared_mean(x_a)
-        expected_var = mean_second_moment - expected_sqd_mean
+        expected_var = np.empty(x_a.shape[0])
+        for i in xrange(x_a.shape[0]):
+            expected_sqd_mean = self.expected_squared_mean(x_a[i])
+            expected_var[i] = mean_second_moment - expected_sqd_mean
         return expected_var
 
     def plot_gp_log_l(self, ax, f_l=None, xmin=None, xmax=None):
@@ -358,9 +372,10 @@ class BQ(object):
 
         x = np.linspace(xmin, xmax, 1000)
         l_mean = self.gp_log_l.mean(x)
-        l_var = 1.96 * np.sqrt(np.diag(self.gp_log_l.cov(x)))
-        lower = l_mean - l_var
-        upper = l_mean + l_var
+        l_var = np.diag(self.gp_log_l.cov(x))
+        l_int = 1.96 * np.sqrt(l_var)
+        lower = l_mean - l_int
+        upper = l_mean + l_int
 
         if f_l is not None:
             l = np.log(f_l(x))
@@ -382,9 +397,10 @@ class BQ(object):
 
         x = np.linspace(xmin, xmax, 1000)
         l_mean = self.l_mean(x)
-        l_var = 1.96 * np.sqrt(np.diag(self.gp_l.cov(x)))
-        lower = l_mean - l_var
-        upper = l_mean + l_var
+        l_var = np.diag(self.gp_l.cov(x))
+        l_int = 1.96 * np.sqrt(l_var)
+        lower = l_mean - l_int
+        upper = l_mean + l_int
 
         if f_l is not None:
             l = f_l(x)
@@ -437,7 +453,7 @@ class BQ(object):
             xmax = self.x_s.max()
 
         x_a = np.linspace(xmin, xmax, 100)
-        exp_Z_var = np.array([self.expected_Z_var(i) for i in x_a[:, None]])
+        exp_Z_var = self.expected_Z_var(x_a[:, None])
 
         # plot the expected variance
         ax.plot(x_a, exp_Z_var,
