@@ -10,6 +10,7 @@ logger = logging.getLogger("bayesian_quadrature")
 
 DTYPE = np.dtype('float64')
 EPS = np.finfo(DTYPE).eps
+PREC = np.finfo(DTYPE).precision
 
 
 class BQ(object):
@@ -128,11 +129,22 @@ class BQ(object):
 
     def _improve_gp_conditioning(self, gp):
         Kxx = gp.Kxx
-        gp._memoized = {'Kxx': Kxx}
-        var = np.diag(gp.cov(gp._x))
         cond = np.linalg.cond(Kxx)
         logger.debug("Kxx conditioning number is %s", cond)
 
+        # the conditioning is really bad -- just increase the variance
+        # a little for all the elements until it's less bad
+        idx = np.arange(Kxx.shape[0])
+        while np.log10(cond) > PREC:
+            bq_c.improve_covariance_conditioning(Kxx, idx=idx)
+            cond = np.linalg.cond(Kxx)
+            logger.debug("Kxx conditioning number is now %s", cond)
+
+        # now improve just for those elements which result in a
+        # negative variance, until there are no more negative elements
+        # in the diagonal
+        gp._memoized = {'Kxx': Kxx}
+        var = np.diag(gp.cov(gp._x))
         while (var < 0).any():
             idx = np.nonzero(var < 0)[0]
             bq_c.improve_covariance_conditioning(Kxx, idx=idx)
@@ -335,7 +347,13 @@ class BQ(object):
         gp_la.x = x_sca
         gp_la.y = np.concatenate([self.l_sc, np.exp(tl_a)])
         gp_la.Kxx[:-1, :-1] = self.gp_l.Kxx.copy()
-        inv_K_l = gp_la.inv_Kxx
+        try:
+            inv_K_l = gp_la.inv_Kxx
+        except np.linalg.LinAlgError:
+            Kxx = gp_la.Kxx
+            gp_la._memoized = {'Kxx': Kxx}
+            bq_c.improve_covariance_conditioning(Kxx, idx=np.array([-1]))
+            inv_K_l = gp_la.inv_Kxx
 
         # compute expected transformed mean
         tm_a = self.gp_log_l.mean(x_a)
