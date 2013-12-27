@@ -552,29 +552,57 @@ def Z_var(np.ndarray[DTYPE_t, ndim=2] x_sc, np.ndarray[DTYPE_t, ndim=1] alpha_l,
     return V_Z
 
 
-def expected_squared_mean(np.ndarray[DTYPE_t, ndim=2] x_sca, np.ndarray[DTYPE_t, ndim=1] l_sc, np.ndarray[DTYPE_t, ndim=2] inv_K_l, DTYPE_t tm_a, DTYPE_t tC_a, DTYPE_t h_l, np.ndarray[DTYPE_t, ndim=1] w_l, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
+def expected_Z_var(np.ndarray[DTYPE_t, ndim=2] x_sca, np.ndarray[DTYPE_t, ndim=1] l_sc, np.ndarray[DTYPE_t, ndim=2] inv_L_tl, np.ndarray[DTYPE_t, ndim=2] inv_K_l, DTYPE_t tm_a, DTYPE_t tC_a, DTYPE_t h_l, np.ndarray[DTYPE_t, ndim=1] w_l, DTYPE_t h_tl, np.ndarray[DTYPE_t, ndim=1] w_tl, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
 
-    cdef np.ndarray[DTYPE_t, ndim=1] int_K_l
-    cdef np.ndarray[DTYPE_t, ndim=1] nlsa
-    cdef DTYPE_t nla, nls, nlsnla, nla2, expected_sqd_mean
+    cdef np.ndarray[DTYPE_t, ndim=2] int_K_l_K_tl_K_l
+    cdef np.ndarray[DTYPE_t, ndim=2] int_K_tl_K_l_mat
+    cdef np.ndarray[DTYPE_t, ndim=2] A
+    cdef np.ndarray[DTYPE_t, ndim=2] B
+    cdef np.ndarray[DTYPE_t, ndim=1] b1
+    cdef np.ndarray[DTYPE_t, ndim=1] b2
+    cdef DTYPE_t e1, e2, E_V_Z
+    cdef DTYPE_t a1, a2, a3, a4, Am
+    cdef DTYPE_t b3, b4, Bm1, Bm2, Bm3, Bm
     cdef int nsca
 
     nsca = x_sca.shape[0]
     
-    # int K_l(x, x_s) p(x) dx inv(K_l(x_s, x_s))
-    int_K_l = np.empty(nsca, dtype=DTYPE)
-    int_K(int_K_l, x_sca, h_l, w_l, mu, cov)
+    # E[m_l C_tl m_l | x_sca] = alpha_l(x_sca)' *
+    #    int int K_l(x_sca, x) K_tl(x, x') K_l(x', x_sca) p(x) p(x') dx dx' *
+    #    alpha_l(x_sca) - beta(x_sca)'beta(x_sca)
+    # Where beta is defined as:
+    # beta(x_sca) = inv(L_tl(x_sca, x_sca)) *
+    #    int K_tl(x_sca, x) K_l(x, x_sca) p(x) dx *
+    #    alpha_l(x_sca)
+    int_K_l_K_tl_K_l = np.empty((nsca, nsca), dtype=DTYPE)
+    int_int_K1_K2_K1(int_K_l_K_tl_K_l, x_sca, h_l, w_l, h_tl, w_tl, mu, cov)
 
-    # nlsa is the vector of weights, which, when multipled with
-    # the likelihoods, gives us our mean estimate for the evidence
-    nlsa = dot(int_K_l, inv_K_l)
-    nla = nlsa[-1]
-    nls = dot(nlsa[:-1], l_sc)
+    int_K_tl_K_l_mat = np.empty((nsca, nsca), dtype=DTYPE)
+    int_K1_K2(int_K_tl_K_l_mat, x_sca, x_sca, h_tl, w_tl, h_l, w_l, mu, cov)
 
-    # put it all together
-    nlsnla = 2 * nls * nla * exp(tm_a + 0.5 * tC_a)
-    nla2 = nla ** 2 * exp(2 * tm_a + 2 * tC_a)
-    expected_sqd_mean = nls ** 2 + nlsnla + nla2
+    e1 = exp(tm_a + 0.5 * tC_a)
+    e2 = exp(2 * tm_a + 2 * tC_a)
 
-    return expected_sqd_mean
+    A = dot(inv_K_l, dot(int_K_l_K_tl_K_l, inv_K_l))
+    a1 = dot(l_sc, dot(A[:-1, :-1], l_sc))
+    a2 = dot(A[-1, :-1], l_sc)
+    a3 = dot(l_sc, A[:-1, -1])
+    a4 = A[-1, -1]
+    Am = a1 + (a2 * e1) + (a3 * e1) + (a4 * e2)
 
+    B = dot(dot(inv_L_tl, int_K_tl_K_l_mat), inv_K_l)
+    b1 = dot(B[:-1, :-1], l_sc)
+    b2 = B[:-1, -1]
+    b3 = dot(B[-1, :-1], l_sc)
+    b4 = B[-1, -1]
+    Bm1 = dot(b1, b1) + b3 ** 2
+    Bm2 = 2 * (dot(b1, b2) + b3 * b4) * e1
+    Bm3 = (dot(b2, b2) + b4 ** 2) * e2
+    Bm = Bm1 + Bm2 + Bm3
+
+    E_V_Z = Am - Bm
+
+    if E_V_Z <= 0:
+        warn("E_V_Z = %s" % E_V_Z)
+
+    return E_V_Z
