@@ -301,6 +301,7 @@ def int_int_K1_K2(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x
     for i in xrange(n):
         out[i] = h1_2_h2_2 * exp(N1[0] + N2[i])
 
+
 def approx_int_int_K1_K2(xo, gp1, gp2, mu, cov):
     K1xoxo = gp1.Kxoxo(xo)
     K2xxo = gp2.Kxxo(xo)

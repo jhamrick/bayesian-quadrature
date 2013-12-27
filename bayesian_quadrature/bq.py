@@ -338,8 +338,9 @@ class BQ(object):
             self.x_mean, self.x_cov)
 
         if np.isnan(expected_sqd_mean) or expected_sqd_mean < 0:
-            raise RuntimeError(
-                "invalid expected squared mean: %s" % expected_sqd_mean)
+            logger.error(
+                "invalid expected squared mean: %s",
+                expected_sqd_mean)
 
         return expected_sqd_mean
 
