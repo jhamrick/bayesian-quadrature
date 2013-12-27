@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.stats
 import pytest
+import matplotlib.pyplot as plt
 
 from .. import BQ
 from .. import bq_c
@@ -428,3 +429,68 @@ def test_expected_squared_mean():
     x_a = np.random.uniform(-10, 10)
     esm = bq.expected_squared_mean(np.array([x_a]))
     assert esm >= 0
+
+
+def test_plot_gp_log_l():
+    npseed()
+    bq = make_bq()
+    fig, ax = plt.subplots()
+
+    bq.plot_gp_log_l(ax)
+    ax.cla()
+
+    bq.plot_gp_log_l(ax, f_l=lambda x: np.log(f_x(x)))
+    ax.cla()
+
+    bq.plot_gp_log_l(ax, xmin=-10, xmax=10)
+    ax.cla()
+
+    plt.close('all')
+
+
+def test_plot_gp_l():
+    npseed()
+    bq = make_bq()
+    fig, ax = plt.subplots()
+
+    bq.plot_gp_l(ax)
+    ax.cla()
+
+    bq.plot_gp_l(ax, f_l=f_x)
+    ax.cla()
+
+    bq.plot_gp_l(ax, xmin=-10, xmax=10)
+    ax.cla()
+
+    plt.close('all')
+
+
+def test_plot_l():
+    npseed()
+    bq = make_bq()
+    fig, ax = plt.subplots()
+
+    bq.plot_l(ax)
+    ax.cla()
+
+    bq.plot_l(ax, f_l=f_x)
+    ax.cla()
+
+    bq.plot_l(ax, xmin=-10, xmax=10)
+    ax.cla()
+
+    plt.close('all')
+
+
+def test_plot():
+    npseed()
+    bq = make_bq()
+
+    bq.plot()
+    plt.close('all')
+
+    bq.plot(f_l=f_x)
+    plt.close('all')
+
+    bq.plot(xmin=-10, xmax=10)
+    plt.close('all')

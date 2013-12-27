@@ -445,6 +445,5 @@ class BQ(object):
 
         fig.set_figwidth(12)
         fig.set_figheight(3.5)
-        plt.tight_layout()
 
         return fig, axes
