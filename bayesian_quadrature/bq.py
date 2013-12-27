@@ -268,7 +268,13 @@ class BQ(object):
 
         alpha_l = self.gp_l.inv_Kxx_y
         Kxcxc = self.gp_log_l.Kxoxo(self.x_sc)
-        inv_L_tl = np.linalg.inv(np.linalg.cholesky(Kxcxc))
+
+        try:
+            inv_L_tl = np.linalg.inv(np.linalg.cholesky(Kxcxc))
+        except np.linalg.LinAlgError:
+            idx = np.arange(self.x_s.shape[0], self.x_sc.shape[0])
+            bq_c.improve_covariance_conditioning(Kxcxc, idx)
+            inv_L_tl = np.linalg.inv(np.linalg.cholesky(Kxcxc))
 
         h_l, w_l = self.gp_l.K.params
         w_l = np.array([w_l])
@@ -312,14 +318,12 @@ class BQ(object):
         # don't know l_a) but we can add noise to the diagonal of the
         # covariance matrix to allow room for error for the x_c
         # closest to x_a
-        K_l = gp_la.Kxx
-        bq_c.improve_covariance_conditioning(
-            K_l, idx=np.array([x_sca.shape[0] - 1], dtype=DTYPE))
-
         try:
             inv_K_l = gp_la.inv_Kxx
         except np.linalg.LinAlgError:
-            return self.Z_mean() ** 2
+            idx = np.arange(self.x_s.shape[0], x_sca.shape[0])
+            bq_c.improve_covariance_conditioning(gp_la.Kxx, idx)
+            inv_K_l = gp_la.inv_Kxx
 
         # compute expected transformed mean
         tm_a = self.gp_log_l.mean(x_a)

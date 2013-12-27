@@ -40,7 +40,7 @@ def mvn_logpdf(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x, n
         out[i] = c - 0.5 * dot(dot(x[i] - m, Ci), x[i] - m)
 
 
-def improve_covariance_conditioning(np.ndarray[DTYPE_t, ndim=2] M, np.ndarray[DTYPE_t, ndim=1] idx):
+def improve_covariance_conditioning(np.ndarray[DTYPE_t, ndim=2] M, np.ndarray[long, ndim=1] idx):
     cdef DTYPE_t sqd_jitter = fmax(EPS, np.max(M)) * 1e-3
     cdef int n, i
     for i in xrange(len(idx)):
