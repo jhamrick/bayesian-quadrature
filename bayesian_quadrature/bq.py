@@ -292,27 +292,20 @@ class BQ(object):
         return approx
 
     def expected_squared_mean(self, x_a):
-        if np.abs((x_a - self.x_c) < 1e-3).any():
-            return self.Z_mean() ** 2
-
         # include new x_a
         x_sa = np.concatenate([self.x_s, x_a])
         x_sca = np.concatenate([self.x_sc, x_a])
-
         tl_a = self.gp_log_l.mean(x_a)
-        tl_s = self.tl_s
-
-        l_a = self.l_mean(x_a)
 
         # update gp over log(l)
         gp_log_la = self.gp_log_l.copy()
         gp_log_la.x = x_sa
-        gp_log_la.y = np.concatenate([tl_s, tl_a])
+        gp_log_la.y = np.concatenate([self.tl_s, tl_a])
 
         # update gp over l
         gp_la = self.gp_l.copy()
         gp_la.x = x_sca
-        gp_la.y = np.concatenate([self.l_sc, l_a])
+        gp_la.y = np.concatenate([self.l_sc, np.exp(tl_a)])
 
         # exp(log(l_c)) (not exp(log(l_s))) will probably change with
         # the addition of x_a. We can't recompute them (because we
@@ -326,18 +319,17 @@ class BQ(object):
         try:
             inv_K_l = gp_la.inv_Kxx
         except np.linalg.LinAlgError:
-            return self.mean() ** 2
+            return self.Z_mean() ** 2
 
         # compute expected transformed mean
-        tm_a = float(self.gp_log_l.mean(x_a))
+        tm_a = self.gp_log_l.mean(x_a)
 
         # compute expected transformed covariance
-        tC_a = float(self.gp_log_l.cov(x_a))
+        tC_a = self.l_var(x_a)
 
         expected_sqd_mean = bq_c.expected_squared_mean(
             x_sca[:, None], self.l_sc,
-            inv_K_l,
-            tm_a, tC_a,
+            inv_K_l, tm_a, tC_a,
             gp_la.K.h, np.array([gp_la.K.w]),
             self.x_mean, self.x_cov)
 
@@ -371,7 +363,7 @@ class BQ(object):
 
         ax.fill_between(x, lower, upper, color='r', alpha=0.2)
         ax.plot(x, l_mean, 'r-', lw=2)
-        ax.plot(self.x_s, self.l_s, 'ro', markersize=5)
+        ax.plot(self.x_s, self.tl_s, 'ro', markersize=5)
         ax.plot(self.x_c, self.gp_log_l.mean(self.x_c), 'bs', markersize=4)
 
         ax.set_title(r"GP over $\log(\ell)$")

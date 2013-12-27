@@ -41,7 +41,7 @@ def mvn_logpdf(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x, n
 
 
 def improve_covariance_conditioning(np.ndarray[DTYPE_t, ndim=2] M, np.ndarray[DTYPE_t, ndim=1] idx):
-    cdef DTYPE_t sqd_jitter = fmax(EPS, np.max(M)) * 1e-4
+    cdef DTYPE_t sqd_jitter = fmax(EPS, np.max(M)) * 1e-3
     cdef int n, i
     for i in xrange(len(idx)):
         M[idx[i], idx[i]] += sqd_jitter
@@ -573,7 +573,7 @@ def expected_squared_mean(np.ndarray[DTYPE_t, ndim=2] x_sca, np.ndarray[DTYPE_t,
 
     # put it all together
     nlsnla = 2 * nls * nla * exp(tm_a + 0.5 * tC_a)
-    nla2 = nla ** 2 * exp(2 * tm_a + 2 * tC_a)
+    nla2 = (nla ** 2) * exp(2 * tm_a + 2 * tC_a)
     expected_sqd_mean = nls ** 2 + nlsnla + nla2
 
     return expected_sqd_mean
