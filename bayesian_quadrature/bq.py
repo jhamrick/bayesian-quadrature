@@ -430,6 +430,36 @@ class BQ(object):
 
         ax.legend(loc=0, fontsize=10)
 
+    def plot_expected_variance(self, ax, xmin=None, xmax=None):
+        if xmin is None:
+            xmin = self.x_s.min()
+        if xmax is None:
+            xmax = self.x_s.max()
+
+        x_a = np.linspace(xmin, xmax, 100)
+        exp_Z_var = np.array([self.expected_Z_var(i) for i in x_a[:, None]])
+
+        # plot the expected variance
+        ax.plot(x_a, exp_Z_var,
+                label=r"$E[\mathrm{Var}(Z)]$",
+                color='k', lw=2)
+
+        # plot a line for the current variance
+        ax.hlines(
+            self.Z_var(), xmin, xmax,
+            color="#00FF00", lw=2, label=r"$\mathrm{Var}(Z)$")
+
+        ymin, ymax = ax.get_ylim()
+
+        # plot lines where there are observatiosn
+        ax.vlines(
+            self.x_sc, ymin, ymax,
+            color='k', linestyle='--', alpha=0.5)
+
+        ax.set_ylim(ymin, ymax)
+        ax.legend(loc=0, fontsize=10)
+        ax.set_title(r"Expected Variance of $Z$")
+
     def plot(self, f_l=None, xmin=None, xmax=None):
         fig, axes = plt.subplots(1, 3)
 

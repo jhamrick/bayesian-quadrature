@@ -485,3 +485,17 @@ def test_plot():
 
     bq.plot(xmin=-10, xmax=10)
     plt.close('all')
+
+
+def test_plot_expected_variance():
+    npseed()
+    bq = make_bq()
+    fig, ax = plt.subplots()
+
+    bq.plot_expected_variance(ax)
+    ax.cla()
+
+    bq.plot_expected_variance(ax, xmin=-10, xmax=10)
+    ax.cla()
+
+    plt.close('all')
