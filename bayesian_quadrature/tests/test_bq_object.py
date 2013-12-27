@@ -347,10 +347,7 @@ def test_Z_mean():
     npseed()
     bq = make_bq()
     xo = make_xo()
-
-    p_xo = scipy.stats.norm.pdf(xo, bq.x_mean[0], np.sqrt(bq.x_cov[0, 0]))
-    l = bq.l_mean(xo)
-    approx_Z = np.trapz(l * p_xo, xo)
+    approx_Z = bq.approx_Z_mean(xo)
     calc_Z = bq.Z_mean()
 
     assert np.allclose(approx_Z, calc_Z)
@@ -392,14 +389,8 @@ def test_Z_var():
     npseed()
     bq = make_bq()
     xo = make_xo()
-
-    p_xo = scipy.stats.norm.pdf(xo, bq.x_mean[0], np.sqrt(bq.x_cov[0, 0]))
-    m_l = bq.gp_l.mean(xo)
-    C_tl = bq.gp_log_l.cov(xo)
-    approx_var = np.trapz(np.trapz(C_tl * m_l * p_xo, xo) * m_l * p_xo, xo)
-
+    approx_var = bq.approx_Z_var(xo)
     calc_var = bq.Z_var()
-
     assert np.allclose(approx_var, calc_var, atol=1e-4)
 
 
