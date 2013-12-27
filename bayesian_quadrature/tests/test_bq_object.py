@@ -406,9 +406,9 @@ def test_expected_Z_var_close():
 def test_expected_squared_mean():
     npseed()
     bq = make_bq()
-    x_a = np.random.uniform(-10, 10)
-    esm = bq.expected_squared_mean(np.array([x_a]))
-    assert esm >= 0
+    x_a = np.random.uniform(-10, 10, 10)
+    esm = bq.expected_squared_mean(x_a[:, None])
+    assert (esm >= 0).all()
 
 
 def test_plot_gp_log_l():
@@ -485,6 +485,20 @@ def test_plot_expected_variance():
     ax.cla()
 
     bq.plot_expected_variance(ax, xmin=-10, xmax=10)
+    ax.cla()
+
+    plt.close('all')
+
+
+def test_plot_expected_squared_mean():
+    npseed()
+    bq = make_bq()
+    fig, ax = plt.subplots()
+
+    bq.plot_expected_squared_mean(ax)
+    ax.cla()
+
+    bq.plot_expected_squared_mean(ax, xmin=-10, xmax=10)
     ax.cla()
 
     plt.close('all')

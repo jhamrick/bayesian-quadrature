@@ -330,7 +330,7 @@ class BQ(object):
             np.trapz(C_tl * m_l * p_xo, xo) * m_l * p_xo, xo)
         return approx
 
-    def expected_squared_mean(self, x_a):
+    def _expected_squared_mean(self, x_a):
         # include new x_a
         # x_sa = np.concatenate([self.x_s, x_a])
         x_sca = np.concatenate([self.x_sc, x_a])
@@ -374,12 +374,16 @@ class BQ(object):
 
         return expected_sqd_mean
 
+    def expected_squared_mean(self, x_a):
+        esm = np.empty(x_a.shape[0])
+        for i in xrange(x_a.shape[0]):
+            esm[i] = self._expected_squared_mean(x_a[i])
+        return esm
+
     def expected_Z_var(self, x_a):
         mean_second_moment = self.Z_mean() ** 2 + self.Z_var()
-        expected_var = np.empty(x_a.shape[0])
-        for i in xrange(x_a.shape[0]):
-            expected_sqd_mean = self.expected_squared_mean(x_a[i])
-            expected_var[i] = mean_second_moment - expected_sqd_mean
+        expected_squared_mean = self.expected_squared_mean(x_a)
+        expected_var = mean_second_moment - expected_squared_mean
         return expected_var
 
     def plot_gp_log_l(self, ax, f_l=None, xmin=None, xmax=None):
@@ -464,6 +468,36 @@ class BQ(object):
 
         ax.legend(loc=0, fontsize=10)
 
+    def plot_expected_squared_mean(self, ax, xmin=None, xmax=None):
+        if xmin is None:
+            xmin = self.x_s.min()
+        if xmax is None:
+            xmax = self.x_s.max()
+
+        x_a = np.linspace(xmin, xmax, 100)
+        exp_sq_m = self.expected_squared_mean(x_a[:, None])
+
+        # plot the expected variance
+        ax.plot(x_a, exp_sq_m,
+                label=r"$E[\mathrm{m}(Z)^2]$",
+                color='k', lw=2)
+
+        # plot a line for the current variance
+        ax.hlines(
+            self.Z_mean() ** 2, xmin, xmax,
+            color="#00FF00", lw=2, label=r"$\mathrm{m}(Z)^2$")
+
+        ymin, ymax = ax.get_ylim()
+
+        # plot lines where there are observatiosn
+        ax.vlines(
+            self.x_sc, ymin, ymax,
+            color='k', linestyle='--', alpha=0.5)
+
+        ax.set_ylim(ymin, ymax)
+        ax.legend(loc=0, fontsize=10)
+        ax.set_title(r"Expected squared mean of $Z$")
+
     def plot_expected_variance(self, ax, xmin=None, xmax=None):
         if xmin is None:
             xmin = self.x_s.min()
@@ -492,7 +526,7 @@ class BQ(object):
 
         ax.set_ylim(ymin, ymax)
         ax.legend(loc=0, fontsize=10)
-        ax.set_title(r"Expected Variance of $Z$")
+        ax.set_title(r"Expected variance of $Z$")
 
     def plot(self, f_l=None, xmin=None, xmax=None):
         fig, axes = plt.subplots(1, 3)
