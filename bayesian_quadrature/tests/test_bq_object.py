@@ -394,24 +394,13 @@ def test_Z_var():
     assert np.allclose(approx_var, calc_var, atol=1e-4)
 
 
-@pytest.mark.xfail(reason="https://github.com/numpy/numpy/issues/661")
-def test_expected_Z_var_same():
-    npseed()
-    bq = make_bq()
-    Z_var = bq.Z_var()
-    for x in bq.x_s:
-        E_Z_var = bq.expected_Z_var(np.array([x]))
-        assert E_Z_var == Z_var
-
-
 @pytest.mark.xfail(reason="bug")
 def test_expected_Z_var_close():
     npseed()
     bq = make_bq()
     Z_var = bq.Z_var()
-    for x in bq.x_s:
-        E_Z_var = bq.expected_Z_var(np.array([x]))
-        assert np.allclose(E_Z_var, Z_var)
+    E_Z_var = bq.expected_Z_var(bq.x_s[:, None])
+    assert np.allclose(E_Z_var, Z_var)
 
 
 def test_expected_squared_mean():
