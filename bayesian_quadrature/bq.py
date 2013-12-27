@@ -332,20 +332,13 @@ class BQ(object):
 
     def _expected_squared_mean(self, x_a):
         # include new x_a
-        # x_sa = np.concatenate([self.x_s, x_a])
         x_sca = np.concatenate([self.x_sc, x_a])
-        tl_a = self.gp_log_l.mean(x_a)
-
-        # # update gp over log(l)
-        # gp_log_la = self.gp_log_l.copy()
-        # gp_log_la.x = x_sa
-        # gp_log_la.y = np.concatenate([self.tl_s, tl_a])
-        # gp_log_la.Kxx[:-1, :-1] = self.gp_log_l.Kxx.copy()
+        l_a = np.exp(self.gp_log_l.mean(x_a))
 
         # update gp over l
         gp_la = self.gp_l.copy()
         gp_la.x = x_sca
-        gp_la.y = np.concatenate([self.l_sc, np.exp(tl_a)])
+        gp_la.y = np.concatenate([self.l_sc, l_a])
         gp_la.Kxx[:-1, :-1] = self.gp_l.Kxx.copy()
         try:
             inv_K_l = gp_la.inv_Kxx
@@ -359,7 +352,7 @@ class BQ(object):
         tm_a = self.gp_log_l.mean(x_a)
 
         # compute expected transformed covariance
-        tC_a = self.l_var(x_a)
+        tC_a = self.gp_log_l.cov(x_a)
 
         expected_sqd_mean = bq_c.expected_squared_mean(
             x_sca[:, None], self.l_sc,
