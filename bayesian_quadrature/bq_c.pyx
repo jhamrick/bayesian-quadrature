@@ -447,6 +447,13 @@ def approx_int_K1_dK2(xo, gp1, gp2, mu, cov):
 
 
 def int_dK(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE_t h, np.ndarray[DTYPE_t, ndim=1] w, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
+    """Computes integrals of the form:
+
+    int dK(x', x)/dw N(x' | mu, cov) dx'
+
+    where K is a Gaussian kernel matrix parameterized by `h` and `w`.
+
+    """
 
     cdef np.ndarray[DTYPE_t, ndim=1] int_K_vec
     cdef np.ndarray[DTYPE_t, ndim=2] Wcov
