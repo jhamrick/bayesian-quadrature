@@ -62,6 +62,8 @@ class BQ(object):
         self.x_s = np.array(x, dtype=DTYPE, copy=True)
         self.l_s = np.array(l, dtype=DTYPE, copy=True)
 
+        self.ns = self.x_s.shape[0]
+
         if self.x_s.ndim > 1:
             raise ValueError("invalid number of dimensions for x")
         if self.l_s.ndim > 1:
@@ -169,6 +171,8 @@ class BQ(object):
             self.l_s,
             np.exp(self.gp_log_l.mean(self.x_c))
         ], axis=0)
+
+        self.nsc = self.ns + self.x_c.shape[0]
 
         logger.debug("Fitting parameters for GP over exp(log(l))")
         self.gp_l = self._fit_gp(self.x_sc, self.l_sc)
@@ -308,7 +312,7 @@ class BQ(object):
         gp_tl = self.gp_log_l.copy()
         gp_tl.x = self.x_sc
         gp_tl.y = np.log(self.l_sc)
-        gp_tl.Kxx[:self.x_s.size, :self.x_s.size] = self.gp_log_l.Kxx.copy()
+        gp_tl.Kxx[:self.ns, :self.ns] = self.gp_log_l.Kxx.copy()
         self._improve_gp_conditioning(gp_tl)
         inv_L_tl = gp_tl.inv_Lxx
 
