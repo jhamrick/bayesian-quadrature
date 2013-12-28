@@ -165,7 +165,10 @@ class BQ(object):
     def _fit_l(self, params=None):
         self.x_c = self._choose_candidates()
         self.x_sc = np.concatenate([self.x_s, self.x_c], axis=0)
-        self.l_sc = np.exp(self.gp_log_l.mean(self.x_sc))
+        self.l_sc = np.concatenate([
+            self.l_s,
+            np.exp(self.gp_log_l.mean(self.x_c))
+        ], axis=0)
 
         logger.debug("Fitting parameters for GP over exp(log(l))")
         self.gp_l = self._fit_gp(self.x_sc, self.l_sc)
