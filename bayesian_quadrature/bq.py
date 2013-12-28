@@ -340,20 +340,20 @@ class BQ(object):
     def _expected_squared_mean(self, x_a):
         # include new x_a
         x_sca = np.concatenate([self.x_sc, x_a])
-        l_a = np.exp(self.gp_log_l.mean(x_a))
 
         # update gp over l
-        gp_la = self.gp_l.copy()
-        gp_la.x = x_sca
-        gp_la.y = np.concatenate([self.l_sc, l_a])
-        gp_la.Kxx[:-1, :-1] = self.gp_l.Kxx.copy()
+        Kxx = np.empty((self.nsc + 1, self.nsc + 1), dtype=DTYPE)
+        Kxx[:-1, :-1] = self.gp_l.Kxx.copy()
+        Kxx[:-1, -1:] = self.gp_l.Kxxo(x_a)
+        Kxx[-1:, :-1] = self.gp_l.Kxox(x_a)
+        Kxx[-1:, -1:] = self.gp_l.Kxoxo(x_a)
+
         try:
-            inv_K_l = gp_la.inv_Kxx
+            inv_K_l = np.linalg.inv(Kxx)
         except np.linalg.LinAlgError:
-            Kxx = gp_la.Kxx
-            gp_la._memoized = {'Kxx': Kxx}
-            bq_c.improve_covariance_conditioning(Kxx, idx=np.array([-1]))
-            inv_K_l = gp_la.inv_Kxx
+            idx = np.array([-1])
+            bq_c.improve_covariance_conditioning(Kxx, idx=idx)
+            inv_K_l = np.linalg.inv(Kxx)
 
         # compute expected transformed mean
         tm_a = self.gp_log_l.mean(x_a)
@@ -364,7 +364,7 @@ class BQ(object):
         expected_sqd_mean = bq_c.expected_squared_mean(
             x_sca[:, None], self.l_sc,
             inv_K_l, tm_a, tC_a,
-            gp_la.K.h, np.array([gp_la.K.w]),
+            self.gp_l.K.h, np.array([self.gp_l.K.w]),
             self.x_mean, self.x_cov)
 
         if np.isnan(expected_sqd_mean) or expected_sqd_mean < 0:
@@ -377,7 +377,7 @@ class BQ(object):
     def expected_squared_mean(self, x_a):
         esm = np.empty(x_a.shape[0])
         for i in xrange(x_a.shape[0]):
-            esm[i] = self._expected_squared_mean(x_a[i])
+            esm[i] = self._expected_squared_mean(x_a[[i]])
         return esm
 
     def expected_Z_var(self, x_a):
