@@ -474,8 +474,8 @@ class BQ(object):
         if xmax is None:
             xmax = self.x_s.max()
 
-        x_a = np.linspace(xmin, xmax, 100)
-        exp_sq_m = self.expected_squared_mean(x_a[:, None])
+        x_a = np.linspace(xmin, xmax, 1000)
+        exp_sq_m = self.expected_squared_mean(x_a)
 
         # plot the expected variance
         ax.plot(x_a, exp_sq_m,
@@ -491,7 +491,7 @@ class BQ(object):
 
         # plot lines where there are observatiosn
         ax.vlines(
-            self.x_sc, ymin, ymax,
+            self.x_s, ymin, ymax,
             color='k', linestyle='--', alpha=0.5)
 
         ax.set_ylim(ymin, ymax)
@@ -504,8 +504,8 @@ class BQ(object):
         if xmax is None:
             xmax = self.x_s.max()
 
-        x_a = np.linspace(xmin, xmax, 100)
-        exp_Z_var = self.expected_Z_var(x_a[:, None])
+        x_a = np.linspace(xmin, xmax, 1000)
+        exp_Z_var = self.expected_Z_var(x_a)
 
         # plot the expected variance
         ax.plot(x_a, exp_Z_var,
@@ -521,7 +521,7 @@ class BQ(object):
 
         # plot lines where there are observatiosn
         ax.vlines(
-            self.x_sc, ymin, ymax,
+            self.x_s, ymin, ymax,
             color='k', linestyle='--', alpha=0.5)
 
         ax.set_ylim(ymin, ymax)
