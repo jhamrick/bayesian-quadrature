@@ -534,7 +534,7 @@ class BQ(object):
         for ax in axes[1:]:
             ax.set_ylim(ymin, ymax)
 
-        fig.set_figwidth(12)
+        fig.set_figwidth(14)
         fig.set_figheight(3.5)
 
         return fig, axes
