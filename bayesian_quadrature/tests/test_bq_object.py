@@ -169,7 +169,7 @@ def test_int_K():
         calc_int, bq.gp_l.x[:, None],
         bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
         bq.x_mean, bq.x_cov)
-    assert np.allclose(calc_int, approx_int, atol=1e-3)
+    assert np.allclose(calc_int, approx_int, atol=1e-5)
 
 
 def test_int_K_same():
@@ -294,7 +294,7 @@ def test_int_int_K():
     calc_int = bq_c.int_int_K(
         1, bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
         bq.x_mean, bq.x_cov)
-    assert np.allclose(calc_int, approx_int, atol=1e-4)
+    assert np.allclose(calc_int, approx_int, atol=1e-6)
 
 
 def test_int_int_K_same():
@@ -326,7 +326,7 @@ def test_int_K1_dK2():
         bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
         bq.x_mean, bq.x_cov)
 
-    assert np.allclose(calc_int, approx_int, atol=1e-5)
+    assert np.allclose(calc_int, approx_int)
 
 
 def test_int_dK():
@@ -340,7 +340,7 @@ def test_int_dK():
         calc_int, bq.gp_l.x[:, None],
         bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
         bq.x_mean, bq.x_cov)
-    assert np.allclose(calc_int, approx_int, atol=1e-3)
+    assert np.allclose(calc_int, approx_int, atol=1e-5)
 
 
 def test_Z_mean():
@@ -399,7 +399,7 @@ def test_expected_Z_var_close():
     npseed()
     bq = make_bq()
     Z_var = bq.Z_var()
-    E_Z_var = bq.expected_Z_var(bq.x_s[:, None])
+    E_Z_var = bq.expected_Z_var(bq.x_s)
     assert np.allclose(E_Z_var, Z_var)
 
 
@@ -408,7 +408,7 @@ def test_expected_squared_mean():
     npseed()
     bq = make_bq()
     x_a = np.random.uniform(-10, 10, 10)
-    esm = bq.expected_squared_mean(x_a[:, None])
+    esm = bq.expected_squared_mean(x_a)
     assert (esm >= 0).all()
 
 
