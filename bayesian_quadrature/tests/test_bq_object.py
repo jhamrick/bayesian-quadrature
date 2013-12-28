@@ -503,3 +503,11 @@ def test_plot_expected_squared_mean():
     ax.cla()
 
     plt.close('all')
+
+
+def test_l():
+    npseed()
+    bq = make_bq()
+    assert (np.log(bq.l_s) == bq.tl_s).all()
+    assert (bq.l_s == bq.l_sc[:bq.ns]).all()
+    assert (bq.l_sc[bq.ns:] == np.exp(bq.gp_log_l.mean(bq.x_c))).all()
