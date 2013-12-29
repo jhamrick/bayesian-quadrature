@@ -28,6 +28,15 @@ class BQ(object):
         size :math:`s` array of sample locations
     l : numpy.ndarray
         size :math:`s` array of sample observations
+
+    Other options are:
+
+    ntry : int
+        number of times to try fitting MLII parameters for GPs
+    n_candidate : int
+        (maximum) number of candidate points
+    candidate_thresh : float
+        minimum allowed space between candidates
     x_mean : float
         prior mean, :math:`\mu`
     x_var : float
@@ -44,20 +53,21 @@ class BQ(object):
 
     """
 
-    def __init__(self, x, l,
-                 ntry, n_candidate,
-                 x_mean, x_var,
-                 h=None, w=None, s=None):
+    def __init__(self, x, l, **options):
         """Initialize the Bayesian Quadrature object."""
 
         # save the given parameters
-        self.ntry = int(ntry)
-        self.n_candidate = int(n_candidate)
-        self.x_mean = np.array([x_mean], dtype=DTYPE)
-        self.x_cov = np.array([[x_var]], dtype=DTYPE)
+        self.ntry = int(options['ntry'])
+        self.n_candidate = int(options['n_candidate'])
+        self.candidate_thresh = float(options['candidate_thresh'])
+        self.x_mean = np.array([options['x_mean']], dtype=DTYPE)
+        self.x_cov = np.array([[options['x_var']]], dtype=DTYPE)
 
         # default kernel parameter values
-        self.default_params = dict(h=h, w=w, s=s)
+        self.default_params = dict(
+            h=options.get('h', None),
+            w=options.get('w', None),
+            s=options.get('s', None))
 
         self.x_s = np.array(x, dtype=DTYPE, copy=True)
         self.l_s = np.array(l, dtype=DTYPE, copy=True)

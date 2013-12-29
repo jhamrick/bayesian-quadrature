@@ -12,10 +12,16 @@ logger.setLevel("DEBUG")
 
 DTYPE = np.dtype('float64')
 
-ntry = 10
-n_candidate = 10
-x_mean = 0.0
-x_var = 10.0
+options = {
+    'ntry': 10,
+    'n_candidate': 10,
+    'x_mean': 0.0,
+    'x_var': 10.0,
+    'candidate_thresh': 0.5,
+    's': 0,
+    'h': 30,
+    'w': 1
+}
 
 
 def npseed():
@@ -44,10 +50,11 @@ def make_bq(n=9, x=None, nc=None):
     else:
         y = f_x(x)
 
-    if nc is None:
-        nc = n_candidate
+    opt = options.copy()
+    if nc is not None:
+        opt['n_candidate'] = nc
 
-    bq = BQ(x, y, ntry, nc, x_mean, x_var, s=0, h=30, w=1)
+    bq = BQ(x, y, **opt)
     bq._fit_log_l(params=(30, 5, 0))
     bq._fit_l(params=(y.max(), 1, 0))
     return bq
@@ -83,18 +90,18 @@ def test_improve_covariance_conditioning():
 def test_init():
     npseed()
     x, y = make_xy()
-    bq = BQ(x, y, ntry, n_candidate, x_mean, x_var, s=0)
+    bq = BQ(x, y, **options)
     assert (x == bq.x_s).all()
     assert (y == bq.l_s).all()
 
     with pytest.raises(ValueError):
-        BQ(x[:, None], y, ntry, n_candidate, x_mean, x_var, s=0)
+        BQ(x[:, None], y, **options)
     with pytest.raises(ValueError):
-        BQ(x, y[:, None], ntry, n_candidate, x_mean, x_var, s=0)
+        BQ(x, y[:, None], **options)
     with pytest.raises(ValueError):
-        BQ(x[:-1], y, ntry, n_candidate, x_mean, x_var, s=0)
+        BQ(x[:-1], y, **options)
     with pytest.raises(ValueError):
-        BQ(x, y[:-1], ntry, n_candidate, x_mean, x_var, s=0)
+        BQ(x, y[:-1], **options)
 
 
 def test_choose_candidates():
@@ -112,7 +119,7 @@ def test_fit_l_same():
     params = None
     npseed()
     x, y = make_xy()
-    bq = BQ(x, y, ntry, n_candidate, x_mean, x_var, s=0)
+    bq = BQ(x, y, **options)
 
     for i in xrange(10):
         npseed()
@@ -127,7 +134,7 @@ def test_fit_log_l_same():
     params = None
     npseed()
     x, y = make_xy()
-    bq = BQ(x, y, ntry, n_candidate, x_mean, x_var, s=0)
+    bq = BQ(x, y, **options)
 
     for i in xrange(10):
         npseed()
@@ -147,6 +154,9 @@ def test_l_mean():
 
 
 def test_mvn_logpdf():
+    x_mean = options['x_mean']
+    x_var = options['x_var']
+
     npseed()
     x = np.random.uniform(-10, 10, 20)
     y = scipy.stats.norm.pdf(x, x_mean, np.sqrt(x_var))
@@ -158,6 +168,9 @@ def test_mvn_logpdf():
 
 
 def test_mvn_logpdf_same():
+    x_mean = options['x_mean']
+    x_var = options['x_var']
+
     npseed()
     x = np.random.uniform(-10, 10, 20)
     mu = np.array([x_mean])
