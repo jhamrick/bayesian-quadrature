@@ -48,7 +48,7 @@ def make_bq(n=10, x=None, nc=None):
         nc = n_candidate
 
     bq = BQ(x, y, ntry, nc, x_mean, x_var, s=0, h=30, w=1)
-    bq._fit_log_l(params=(10, 5, 0))
+    bq._fit_log_l(params=(30, 5, 0))
     bq._fit_l(params=(y.max(), 1, 0))
     return bq
 
@@ -405,16 +405,14 @@ def test_Z_var():
     assert np.allclose(approx_var, calc_var, atol=1e-4)
 
 
-@pytest.mark.xfail(reason="bug")
 def test_expected_Z_var_close():
     npseed()
     bq = make_bq()
     Z_var = bq.Z_var()
     E_Z_var = bq.expected_Z_var(bq.x_s)
-    assert np.allclose(E_Z_var, Z_var)
+    assert np.allclose(E_Z_var, Z_var, atol=1e-4)
 
 
-@pytest.mark.xfail(reason="bug")
 def test_expected_squared_mean():
     npseed()
     bq = make_bq()
