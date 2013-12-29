@@ -8,6 +8,7 @@ docs/source/bq_var.rst
 docs/source/bq_expected_variance.rst
 docs/source/visual-tests.rst
 docs/source/example.rst
+docs/source/active-sampling-example.rst
 docs/source/*_files/
 docs/ipynb/*.rst
 docs/ipynb/*_files/
