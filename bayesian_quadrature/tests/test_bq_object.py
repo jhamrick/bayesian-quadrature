@@ -61,17 +61,23 @@ def test_improve_covariance_conditioning():
     npseed()
     bq = make_bq()
 
-    K_l = bq.gp_l.Kxx
+    K = bq.gp_l.Kxx
+    K_old = K.copy()
+    jitter = np.zeros(K.shape[0], dtype=DTYPE)
     bq_c.improve_covariance_conditioning(
-        K_l, np.arange(K_l.shape[0]))
-    assert (K_l == bq.gp_l.Kxx).all()
-    assert K_l is bq.gp_l.Kxx
+        K, jitter, np.arange(K.shape[0]))
+    assert (K == bq.gp_l.Kxx).all()
+    assert K is bq.gp_l.Kxx
+    assert (K_old == (K - (np.eye(K.shape[0]) * jitter))).all()
 
-    K_tl = bq.gp_log_l.Kxx
+    K = bq.gp_log_l.Kxx
+    K_old = K.copy()
+    jitter = np.zeros(K.shape[0], dtype=DTYPE)
     bq_c.improve_covariance_conditioning(
-        K_tl, np.arange(K_tl.shape[0]))
-    assert (K_tl == bq.gp_log_l.Kxx).all()
-    assert K_tl is bq.gp_log_l.Kxx
+        K, jitter, np.arange(K.shape[0]))
+    assert (K == bq.gp_log_l.Kxx).all()
+    assert K is bq.gp_log_l.Kxx
+    assert (K_old == (K - (np.eye(K.shape[0]) * jitter))).all()
 
 
 def test_init():
