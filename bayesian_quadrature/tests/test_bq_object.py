@@ -38,12 +38,16 @@ def make_xy(n=10):
     return x, y
 
 
-def make_bq(n=10, x=None):
+def make_bq(n=10, x=None, nc=None):
     if x is None:
         x, y = make_xy(n=n)
     else:
         y = f_x(x)
-    bq = BQ(x, y, ntry, n_candidate, x_mean, x_var, s=0, h=30, w=1)
+
+    if nc is None:
+        nc = n_candidate
+
+    bq = BQ(x, y, ntry, nc, x_mean, x_var, s=0, h=30, w=1)
     bq._fit_log_l(params=(50, 5, 0))
     bq._fit_l(params=(y.max(), 1, 0))
     return bq
@@ -517,10 +521,12 @@ def test_l():
 def test_expected_squared_mean_1():
     X = np.linspace(-5, 5, 20)[:, None]
     for x in X:
-        bq = make_bq(x=x)
+        bq = make_bq(x=x, nc=0)
         m2 = bq.Z_mean() ** 2
         E_m2 = bq.expected_squared_mean(x)
+        E_m2_close = bq.expected_squared_mean(x - 1e-10)
         assert np.allclose(m2, E_m2, atol=1e-4)
+        assert np.allclose(m2, E_m2_close, atol=1e-4)
 
 
 def test_remove_jitter():

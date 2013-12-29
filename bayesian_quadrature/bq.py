@@ -358,19 +358,25 @@ class BQ(object):
         jitter[:-1] = self.gp_l.jitter
         jitter[-1] = 0
 
-        # remove jitter from points that are close to x_a
-        close = np.isclose(Kxx[-1, :-1], Kxx[-1, -1])
+        # remove jitter from the x_sc which are close to x_a
+        close = np.isclose(Kxx[:self.ns, :self.ns], Kxx[-1, -1], atol=1e-6)
         if close.any():
             idx = np.nonzero(close)[0]
             bq_c.remove_jitter(Kxx, jitter, idx)
 
-        # only apply jitter to x_a
-        try:
-            inv_K_l = np.linalg.inv(Kxx)
-        except np.linalg.LinAlgError:
-            idx = np.array([-1])
-            bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
-            inv_K_l = np.linalg.inv(Kxx)
+        # apply jitter to the x_a -- this is so that when x_a
+        # is close to some x_s, our matrix will (hopefully) still be
+        # well-conditioned
+        idx = np.array([-1])
+        bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
+        inv_K_l = np.linalg.inv(Kxx)
+
+        # apply jitter to the x_c -- this is because the x_c will
+        # probably change with the addition of x_a
+        idx = np.arange(self.ns, self.nsc - 1)
+        bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
+        bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
+        inv_K_l = np.linalg.inv(Kxx)
 
         # compute expected transformed mean
         tm_a = self.gp_log_l.mean(x_a)
