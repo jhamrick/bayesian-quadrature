@@ -7,7 +7,7 @@ from .. import BQ
 from .. import bq_c
 
 import logging
-logger = logging.getLogger("bayesian_quadrature.tests")
+logger = logging.getLogger("bayesian_quadrature")
 logger.setLevel("DEBUG")
 
 DTYPE = np.dtype('float64')
@@ -48,7 +48,7 @@ def make_bq(n=10, x=None, nc=None):
         nc = n_candidate
 
     bq = BQ(x, y, ntry, nc, x_mean, x_var, s=0, h=30, w=1)
-    bq._fit_log_l(params=(50, 5, 0))
+    bq._fit_log_l(params=(10, 5, 0))
     bq._fit_l(params=(y.max(), 1, 0))
     return bq
 
