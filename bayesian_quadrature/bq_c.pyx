@@ -581,26 +581,20 @@ def Z_var(np.ndarray[DTYPE_t, ndim=2] x_sc, np.ndarray[DTYPE_t, ndim=1] alpha_l,
 def expected_squared_mean(np.ndarray[DTYPE_t, ndim=2] x_sca, np.ndarray[DTYPE_t, ndim=1] l_sc, np.ndarray[DTYPE_t, ndim=2] inv_K_l, DTYPE_t tm_a, DTYPE_t tC_a, DTYPE_t h_l, np.ndarray[DTYPE_t, ndim=1] w_l, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
 
     cdef np.ndarray[DTYPE_t, ndim=1] int_K_l
-    cdef np.ndarray[DTYPE_t, ndim=1] nlsa
-    cdef DTYPE_t nla, nls, nlsnla, nla2, expected_sqd_mean
-    cdef int nsca
+    cdef np.ndarray[DTYPE_t, ndim=1] A_sca
+    cdef DTYPE_t A_a, A_sc, e1, e2, E_m2
 
-    nsca = x_sca.shape[0]
-    
     # int K_l(x, x_s) p(x) dx inv(K_l(x_s, x_s))
-    int_K_l = np.empty(nsca, dtype=DTYPE)
+    int_K_l = np.empty(x_sca.shape[0], dtype=DTYPE)
     int_K(int_K_l, x_sca, h_l, w_l, mu, cov)
 
-    # nlsa is the vector of weights, which, when multipled with
-    # the likelihoods, gives us our mean estimate for the evidence
-    nlsa = dot(int_K_l, inv_K_l)
-    nla = nlsa[-1]
-    nls = dot(nlsa[:-1], l_sc)
+    A_sca = dot(int_K_l, inv_K_l)
+    A_a = A_sca[-1]
+    A_sc_l = dot(A_sca[:-1], l_sc)
 
-    # put it all together
-    nlsnla = 2 * nls * nla * exp(tm_a + 0.5 * tC_a)
-    nla2 = (nla ** 2) * exp(2 * tm_a + 2 * tC_a)
-    expected_sqd_mean = nls ** 2 + nlsnla + nla2
+    e1 = int_exp_norm(1, tm_a, tC_a)
+    e2 = int_exp_norm(2, tm_a, tC_a)
 
-    return expected_sqd_mean
+    E_m2 = (A_sc_l**2) + (2*A_sc_l*A_a * e1) + (A_a**2 * e2)
 
+    return E_m2
