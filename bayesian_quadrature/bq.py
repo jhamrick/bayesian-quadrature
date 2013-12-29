@@ -514,7 +514,7 @@ class BQ(object):
 
         # plot lines where there are observatiosn
         ax.vlines(
-            self.x_s, ymin, ymax,
+            self.x_sc, ymin, ymax,
             color='k', linestyle='--', alpha=0.5)
 
         ax.set_ylim(ymin, ymax)
@@ -544,7 +544,7 @@ class BQ(object):
 
         # plot lines where there are observatiosn
         ax.vlines(
-            self.x_s, ymin, ymax,
+            self.x_sc, ymin, ymax,
             color='k', linestyle='--', alpha=0.5)
 
         ax.set_ylim(ymin, ymax)
