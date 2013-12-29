@@ -38,13 +38,14 @@ def make_xy(n=10):
     return x, y
 
 
-def make_bq(n=10):
-    x, y = make_xy(n=n)
+def make_bq(n=10, x=None):
+    if x is None:
+        x, y = make_xy(n=n)
+    else:
+        y = f_x(x)
     bq = BQ(x, y, ntry, n_candidate, x_mean, x_var, s=0, h=30, w=1)
-    bq._fit_log_l()
-    bq.gp_log_l.params = (50, 5, 0)
-    bq._fit_l()
-    bq.gp_l.params = (y.max(), 1, 0)
+    bq._fit_log_l(params=(50, 5, 0))
+    bq._fit_l(params=(y.max(), 1, 0))
     return bq
 
 
@@ -511,3 +512,60 @@ def test_l():
     assert (np.log(bq.l_s) == bq.tl_s).all()
     assert (bq.l_s == bq.l_sc[:bq.ns]).all()
     assert (bq.l_sc[bq.ns:] == np.exp(bq.gp_log_l.mean(bq.x_c))).all()
+
+
+def test_expected_squared_mean_1():
+    X = np.linspace(-5, 5, 20)[:, None]
+    for x in X:
+        bq = make_bq(x=x)
+        m2 = bq.Z_mean() ** 2
+        E_m2 = bq.expected_squared_mean(x)
+        assert np.allclose(m2, E_m2, atol=1e-4)
+
+
+def test_remove_jitter():
+    n = 2
+
+    arr = np.ones((n, n))
+    jitter = np.zeros(n)
+    idx = np.arange(n)
+    bq_c.improve_covariance_conditioning(arr, jitter, idx)
+    bq_c.remove_jitter(arr, jitter, idx)
+    assert (arr == np.ones((n, n))).all()
+    assert (jitter == np.zeros(n)).all()
+
+    bq_c.improve_covariance_conditioning(arr, jitter, idx)
+    j = jitter[-1]
+    aj = arr[-1, -1]
+    bq_c.remove_jitter(arr, jitter, idx[:-1])
+    assert (arr[:-1, :-1] == np.ones((n - 1, n - 1))).all()
+    assert (arr[:-1, -1] == np.ones(n - 1)).all()
+    assert (arr[-1, :-1] == np.ones(n - 1)).all()
+    assert arr[-1, -1] == aj
+    assert (jitter[:-1] == np.zeros(n - 1)).all()
+    assert jitter[-1] == j
+
+
+def test_int_exp_norm():
+    def approx_int_exp_norm(xo, c, m, S):
+        e = np.exp(xo * c)
+        p = scipy.stats.norm.pdf(xo, m, np.sqrt(S))
+        return np.trapz(e * p, xo)
+
+    xo = np.linspace(-20, 20, 1000)
+
+    approx = approx_int_exp_norm(xo, 2, 0, 1)
+    calc = bq_c.int_exp_norm(2, 0, 1)
+    assert np.allclose(approx, calc)
+
+    approx = approx_int_exp_norm(xo, 1, 0, 1)
+    calc = bq_c.int_exp_norm(1, 0, 1)
+    assert np.allclose(approx, calc)
+
+    approx = approx_int_exp_norm(xo, 2, 1, 1)
+    calc = bq_c.int_exp_norm(2, 1, 1)
+    assert np.allclose(approx, calc)
+
+    approx = approx_int_exp_norm(xo, 2, 1, 2)
+    calc = bq_c.int_exp_norm(2, 1, 2)
+    assert np.allclose(approx, calc)
