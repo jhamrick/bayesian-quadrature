@@ -144,6 +144,7 @@ class BQ(object):
         # a little for all the elements until it's less bad
         idx = np.arange(Kxx.shape[0])
         while np.log10(cond) > PREC:
+            logger.debug("Adding jitter to all elements")
             bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
             cond = np.linalg.cond(Kxx)
             logger.debug("Kxx conditioning number is now %s", cond)
@@ -155,6 +156,8 @@ class BQ(object):
         var = np.diag(gp.cov(gp._x))
         while (var < 0).any():
             idx = np.nonzero(var < 0)[0]
+
+            logger.debug("Adding jitter to indices %s", idx)
             bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
 
             Kxx = gp.Kxx
@@ -247,9 +250,10 @@ class BQ(object):
 
         """
         # the estimated variance of l
-        v_log_l = np.diag(self.gp_log_l.cov(x))
+        v_log_l = np.diag(self.gp_log_l.cov(x)).copy()
         m_l = self.l_mean(x)
         l_var = v_log_l * m_l ** 2
+        l_var[l_var < 0] = 0
         return l_var
 
     def Z_mean(self):
@@ -417,7 +421,8 @@ class BQ(object):
 
         x = np.linspace(xmin, xmax, 1000)
         l_mean = self.gp_log_l.mean(x)
-        l_var = np.diag(self.gp_log_l.cov(x))
+        l_var = np.diag(self.gp_log_l.cov(x)).copy()
+        l_var[l_var < 0] = 0
         l_int = 1.96 * np.sqrt(l_var)
         lower = l_mean - l_int
         upper = l_mean + l_int
@@ -442,7 +447,8 @@ class BQ(object):
 
         x = np.linspace(xmin, xmax, 1000)
         l_mean = self.l_mean(x)
-        l_var = np.diag(self.gp_l.cov(x))
+        l_var = np.diag(self.gp_l.cov(x)).copy()
+        l_var[l_var < 0] = 0
         l_int = 1.96 * np.sqrt(l_var)
         lower = l_mean - l_int
         upper = l_mean + l_int
