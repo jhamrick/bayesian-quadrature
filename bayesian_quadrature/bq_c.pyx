@@ -40,11 +40,29 @@ def mvn_logpdf(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x, n
         out[i] = c - 0.5 * dot(dot(x[i] - m, Ci), x[i] - m)
 
 
-def improve_covariance_conditioning(np.ndarray[DTYPE_t, ndim=2] M, np.ndarray[long, ndim=1] idx):
+def int_exp_norm(DTYPE_t c, DTYPE_t m, DTYPE_t S):
+    """Computes integrals of the form:
+
+    int exp(cx) N(x | m, S) = exp(cm + (1/2) c^2 S)
+
+    """
+    return exp((c * m) + (0.5 * c ** 2 * S))
+
+
+def improve_covariance_conditioning(np.ndarray[DTYPE_t, ndim=2] M, np.ndarray[DTYPE_t, ndim=1] jitters, np.ndarray[long, ndim=1] idx):
     cdef DTYPE_t sqd_jitter = fmax(EPS, np.max(M)) * 1e-4
-    cdef int n, i
+    cdef int i
+
     for i in xrange(len(idx)):
+        jitters[idx[i]] += sqd_jitter
         M[idx[i], idx[i]] += sqd_jitter
+
+
+def remove_jitter(np.ndarray[DTYPE_t, ndim=2] M, np.ndarray[DTYPE_t, ndim=1] jitters, np.ndarray[long, ndim=1] idx):
+    cdef int i
+    for i in xrange(len(idx)):
+        M[idx[i], idx[i]] -= jitters[idx[i]]
+        jitters[idx[i]] = 0
 
 
 def int_K(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE_t h, np.ndarray[DTYPE_t, ndim=1] w, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
