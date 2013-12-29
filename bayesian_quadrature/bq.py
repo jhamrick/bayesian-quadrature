@@ -83,7 +83,6 @@ class BQ(object):
             raise ValueError("shape mismatch for x and l")
 
         self.tl_s = np.log(self.l_s)
-        self.n_sample = self.x_s.size
 
     def _fit_gp(self, x, y, **kwargs):
         # figure out which parameters we are fitting and how to
@@ -124,6 +123,8 @@ class BQ(object):
         return gp
 
     def _choose_candidates(self):
+        logger.debug("Choosing candidate points")
+
         # compute the candidate points
         w = self.gp_log_l.K.w
         xmin = self.x_s.min() - w
@@ -134,6 +135,15 @@ class BQ(object):
         bq_c.filter_candidates(xc, self.x_s, self.candidate_thresh)
         xc = np.sort(xc[~np.isnan(xc)])
         return xc
+
+    def choose_candidates(self):
+        self.x_c = self._choose_candidates()
+        self.x_sc = np.concatenate([self.x_s, self.x_c], axis=0)
+        self.l_sc = np.concatenate([
+            self.l_s,
+            np.exp(self.gp_log_l.mean(self.x_c))
+        ], axis=0)
+        self.nsc = self.ns + self.x_c.shape[0]
 
     def _improve_gp_conditioning(self, gp):
         Kxx = gp.Kxx
@@ -177,17 +187,12 @@ class BQ(object):
         self.gp_log_l = self._fit_gp(self.x_s, self.tl_s)
         if params is not None:
             self.gp_log_l.params = params
+
+        self._improve_tail_covariance()
         self._improve_gp_conditioning(self.gp_log_l)
 
     def _fit_l(self, params=None):
-        self.x_c = self._choose_candidates()
-        self.x_sc = np.concatenate([self.x_s, self.x_c], axis=0)
-        self.l_sc = np.concatenate([
-            self.l_s,
-            np.exp(self.gp_log_l.mean(self.x_c))
-        ], axis=0)
-
-        self.nsc = self.ns + self.x_c.shape[0]
+        self.choose_candidates()
 
         logger.debug("Fitting parameters for GP over exp(log(l))")
         self.gp_l = self._fit_gp(self.x_sc, self.l_sc)
@@ -589,3 +594,33 @@ class BQ(object):
         fig.set_figheight(3.5)
 
         return fig, axes
+
+    def _improve_tail_covariance(self):
+        Kxx = self.gp_log_l.Kxx
+        self.gp_log_l._memoized = {'Kxx': Kxx}
+        max_jitter = np.diag(Kxx).max() * 1e-2
+        jitter = np.clip(-self.tl_s * 1e-2, 0, max_jitter)
+        Kxx += np.eye(self.ns) * jitter
+        self.gp_log_l.jitter = jitter
+
+    def add_observation(self, x_a, l_a, update_hypers=True):
+        self.x_s = np.concatenate([self.x_s, x_a])
+        self.l_s = np.concatenate([self.l_s, l_a])
+        self.ns += x_a.shape[0]
+        self.tl_s = np.concatenate([self.tl_s, np.log(l_a)])
+
+        if update_hypers:
+            self.fit()
+
+        else:
+            self.gp_log_l.x = self.x_s
+            self.gp_log_l.y = self.tl_s
+            self.gp_log_l.jitter = np.zeros(self.ns, dtype=DTYPE)
+            self._improve_tail_covariance()
+            self._improve_gp_conditioning(self.gp_log_l)
+
+            self.choose_candidates()
+            self.gp_l.x = self.x_sc
+            self.gp_l.y = self.l_sc
+            self.gp_l.jitter = np.zeros(self.nsc, dtype=DTYPE)
+            self._improve_gp_conditioning(self.gp_l)
