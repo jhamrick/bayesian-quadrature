@@ -617,8 +617,6 @@ def filter_candidates(np.ndarray[DTYPE_t, ndim=1] x_c, np.ndarray[DTYPE_t, ndim=
 
                 diff = fabs(x_c[i] - x_c[j])
                 if diff < thresh:
-                    print i, j, x_c[i], x_c[j]
-                    print diff, thresh
                     x_c[i] = (x_c[i] + x_c[j]) / 2.0
                     x_c[j] = NAN
                     done = False
@@ -627,7 +625,5 @@ def filter_candidates(np.ndarray[DTYPE_t, ndim=1] x_c, np.ndarray[DTYPE_t, ndim=
             for j in xrange(ns):
                 diff = fabs(x_c[i] - x_s[j])
                 if diff < thresh:
-                    print i, j, x_c[i], x_s[j]
-                    print diff, thresh
                     x_c[i] = NAN
 
