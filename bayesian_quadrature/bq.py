@@ -444,7 +444,7 @@ class BQ(object):
 
         ax.set_title(r"GP over $\log(\ell)$")
         ax.set_xlim(xmin, xmax)
-        util.set_scientific(-5, 4, ax=ax)
+        util.set_scientific(ax, -5, 4)
 
     def plot_gp_l(self, ax, f_l=None, xmin=None, xmax=None):
         if xmin is None:
@@ -471,7 +471,7 @@ class BQ(object):
 
         ax.set_title(r"GP over $\exp(\log(\ell))$")
         ax.set_xlim(xmin, xmax)
-        util.set_scientific(-5, 4, ax=ax)
+        util.set_scientific(ax, -5, 4)
 
     def plot_l(self, ax, f_l=None, xmin=None, xmax=None):
         if xmin is None:
@@ -502,7 +502,7 @@ class BQ(object):
 
         ax.set_title("Final Approximation")
         ax.set_xlim(xmin, xmax)
-        util.set_scientific(-5, 4, ax=ax)
+        util.set_scientific(ax, -5, 4)
 
         ax.legend(loc=0, fontsize=10)
 
@@ -534,7 +534,7 @@ class BQ(object):
 
         ax.set_ylim(ymin, ymax)
         ax.set_xlim(xmin, xmax)
-        util.set_scientific(-5, 4, ax=ax)
+        util.set_scientific(ax, -5, 4)
 
         ax.legend(loc=0, fontsize=10)
         ax.set_title(r"Expected squared mean of $Z$")
@@ -567,7 +567,7 @@ class BQ(object):
 
         ax.set_ylim(ymin, ymax)
         ax.set_xlim(xmin, xmax)
-        util.set_scientific(-5, 4, ax=ax)
+        util.set_scientific(ax, -5, 4)
 
         ax.legend(loc=0, fontsize=10)
         ax.set_title(r"Expected variance of $Z$")
