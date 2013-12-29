@@ -22,7 +22,7 @@ def npseed():
     np.random.seed(8728)
 
 
-def make_x(n=10):
+def make_x(n=9):
     x = np.linspace(-5, 5, n)
     return x
 
@@ -32,13 +32,13 @@ def f_x(x):
     return y
 
 
-def make_xy(n=10):
+def make_xy(n=9):
     x = make_x(n=n)
     y = f_x(x)
     return x, y
 
 
-def make_bq(n=10, x=None, nc=None):
+def make_bq(n=9, x=None, nc=None):
     if x is None:
         x, y = make_xy(n=n)
     else:
@@ -351,7 +351,7 @@ def test_int_dK():
         calc_int, bq.gp_l.x[:, None],
         bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
         bq.x_mean, bq.x_cov)
-    assert np.allclose(calc_int, approx_int, atol=1e-5)
+    assert np.allclose(calc_int, approx_int, atol=1e-4)
 
 
 def test_Z_mean():
