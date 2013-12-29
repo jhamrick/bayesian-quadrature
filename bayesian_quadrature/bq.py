@@ -134,11 +134,17 @@ class BQ(object):
         cond = np.linalg.cond(Kxx)
         logger.debug("Kxx conditioning number is %s", cond)
 
+        if hasattr(gp, "jitter"):
+            jitter = gp.jitter
+        else:
+            jitter = np.zeros(Kxx.shape[0], dtype=DTYPE)
+            gp.jitter = jitter
+
         # the conditioning is really bad -- just increase the variance
         # a little for all the elements until it's less bad
         idx = np.arange(Kxx.shape[0])
         while np.log10(cond) > PREC:
-            bq_c.improve_covariance_conditioning(Kxx, idx=idx)
+            bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
             cond = np.linalg.cond(Kxx)
             logger.debug("Kxx conditioning number is now %s", cond)
 
@@ -149,7 +155,7 @@ class BQ(object):
         var = np.diag(gp.cov(gp._x))
         while (var < 0).any():
             idx = np.nonzero(var < 0)[0]
-            bq_c.improve_covariance_conditioning(Kxx, idx=idx)
+            bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
 
             Kxx = gp.Kxx
             gp._memoized = {'Kxx': Kxx}
@@ -348,11 +354,22 @@ class BQ(object):
         Kxx[-1:, :-1] = self.gp_l.Kxox(x_a)
         Kxx[-1:, -1:] = self.gp_l.Kxoxo(x_a)
 
+        jitter = np.empty(self.nsc + 1, dtype=DTYPE)
+        jitter[:-1] = self.gp_l.jitter
+        jitter[-1] = 0
+
+        # remove jitter from points that are close to x_a
+        close = np.isclose(Kxx[-1, :-1], Kxx[-1, -1])
+        if close.any():
+            idx = np.nonzero(close)[0]
+            bq_c.remove_jitter(Kxx, jitter, idx)
+
+        # only apply jitter to x_a
         try:
             inv_K_l = np.linalg.inv(Kxx)
         except np.linalg.LinAlgError:
             idx = np.array([-1])
-            bq_c.improve_covariance_conditioning(Kxx, idx=idx)
+            bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
             inv_K_l = np.linalg.inv(Kxx)
 
         # compute expected transformed mean
