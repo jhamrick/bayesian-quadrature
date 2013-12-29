@@ -11,7 +11,7 @@ logger = logging.getLogger("bayesian_quadrature")
 
 DTYPE = np.dtype('float64')
 EPS = np.finfo(DTYPE).eps
-PREC = np.finfo(DTYPE).precision
+PREC = np.finfo(DTYPE).precision / 2.0
 
 
 class BQ(object):
