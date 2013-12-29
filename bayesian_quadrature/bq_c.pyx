@@ -18,6 +18,7 @@ ctypedef np.float64_t DTYPE_t
 
 cdef DTYPE_t MIN = log(np.exp2(DTYPE(np.finfo(DTYPE).minexp + 4)))
 cdef DTYPE_t EPS = np.finfo(DTYPE).eps
+cdef DTYPE_t NAN = np.nan
 
 
 def mvn_logpdf(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x, np.ndarray[DTYPE_t, ndim=1] m, np.ndarray[DTYPE_t, ndim=2] C):
@@ -598,3 +599,35 @@ def expected_squared_mean(np.ndarray[DTYPE_t, ndim=2] x_sca, np.ndarray[DTYPE_t,
     E_m2 = (A_sc_l**2) + (2*A_sc_l*A_a * e1) + (A_a**2 * e2)
 
     return E_m2
+
+
+def filter_candidates(np.ndarray[DTYPE_t, ndim=1] x_c, np.ndarray[DTYPE_t, ndim=1] x_s, DTYPE_t thresh):
+    cdef int nc = x_c.shape[0]
+    cdef int ns = x_s.shape[0]
+    cdef int i, j
+    cdef bool done = False
+    cdef DTYPE_t diff
+
+    while not done:
+        done = True
+        for i in xrange(nc):
+            for j in xrange(i+1, nc):
+                if np.isnan(x_c[i]) or np.isnan(x_c[j]):
+                    continue
+
+                diff = fabs(x_c[i] - x_c[j])
+                if diff < thresh:
+                    print i, j, x_c[i], x_c[j]
+                    print diff, thresh
+                    x_c[i] = (x_c[i] + x_c[j]) / 2.0
+                    x_c[j] = NAN
+                    done = False
+
+        for i in xrange(nc):
+            for j in xrange(ns):
+                diff = fabs(x_c[i] - x_s[j])
+                if diff < thresh:
+                    print i, j, x_c[i], x_s[j]
+                    print diff, thresh
+                    x_c[i] = NAN
+

@@ -125,18 +125,13 @@ class BQ(object):
     def _choose_candidates(self):
         # compute the candidate points
         w = self.gp_log_l.K.w
-        # TODO: make this threshold be a configuration parameter
-        thresh = 1e-1
-        xmin = (self.x_s.min() - w) * thresh
-        xmax = (self.x_s.max() + w) * thresh
-        xc_all = np.random.uniform(xmin, xmax, self.n_candidate) / thresh
+        xmin = self.x_s.min() - w
+        xmax = self.x_s.max() + w
+        xc = np.random.uniform(xmin, xmax, self.n_candidate)
 
         # make sure they don't overlap with points we already have
-        xc = []
-        for i in xrange(self.n_candidate):
-            if (np.abs(xc_all[i] - self.x_s) >= thresh).all():
-                xc.append(xc_all[i])
-        xc = np.array(sorted(xc))
+        bq_c.filter_candidates(xc, self.x_s, self.candidate_thresh)
+        xc = np.sort(xc[~np.isnan(xc)])
         return xc
 
     def _improve_gp_conditioning(self, gp):
