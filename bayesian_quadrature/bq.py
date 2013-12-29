@@ -466,7 +466,7 @@ class BQ(object):
 
         ax.fill_between(x, lower, upper, color='r', alpha=0.2)
         ax.plot(x, l_mean, 'r-', lw=2)
-        ax.plot(self.x_sc, self.l_sc, 'ro', markersize=5)
+        ax.plot(self.x_s, self.l_s, 'ro', markersize=5)
         ax.plot(self.x_c, self.l_mean(self.x_c), 'bs', markersize=4)
 
         ax.set_title(r"GP over $\exp(\log(\ell))$")
@@ -494,7 +494,7 @@ class BQ(object):
             x, l_mean,
             'r-', lw=2, label="final approx")
         ax.plot(
-            self.x_sc, self.l_sc,
+            self.x_s, self.l_s,
             'ro', markersize=5, label="$\ell(x_s)$")
         ax.plot(
             self.x_c, self.l_mean(self.x_c),
