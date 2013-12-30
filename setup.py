@@ -10,6 +10,12 @@ extensions = [
         "bayesian_quadrature.bq_c", ["bayesian_quadrature/bq_c.pyx"],
         include_dirs=[np.get_include()],
         libraries=["m"]
+    ),
+
+    Extension(
+        "bayesian_quadrature.util_c", ["bayesian_quadrature/util_c.pyx"],
+        include_dirs=[np.get_include()],
+        libraries=["m"]
     )
 ]
 
