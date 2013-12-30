@@ -34,7 +34,7 @@ def set_scientific(ax, low, high, axis=None):
         ax.get_yaxis().set_major_formatter(fmt)
 
 
-def slice_sample(logpdf, niter, xval=None, nburn=0, freq=1, window=10.0):
+def slice_sample(logpdf, niter, w, xval=None, nburn=0, freq=1):
     """Draws samples from 'logpdf', optionally starting from 'xval'.  The
     pdf should return log values.
 
@@ -44,6 +44,8 @@ def slice_sample(logpdf, niter, xval=None, nburn=0, freq=1, window=10.0):
         Target distribution. logpdf(xval) should return ln(Pr(xval))
     niter : int
         Number of iterations to run
+    w : float
+        The step by which to adjust the window size.
     xval : float
         The initial starting value.  If not given, rejection sampling
         is used within [-window, window] until a value with
@@ -52,11 +54,6 @@ def slice_sample(logpdf, niter, xval=None, nburn=0, freq=1, window=10.0):
         Number of samples to skip at the beginning
     freq : int (default 1)
         How often to record samples
-    window : float (default 10.0)
-        The interval to sample from.  Samples are drawn initially from
-        [xval-window, xval+window], and this range is shortened when
-        samples have zero probability.  The window is reset when
-        starting each sample.
 
     """
 
@@ -66,7 +63,7 @@ def slice_sample(logpdf, niter, xval=None, nburn=0, freq=1, window=10.0):
     else:
         samples[0] = xval
 
-    _slice_sample(samples, logpdf, xval, window)
+    _slice_sample(samples, logpdf, xval, w)
 
     # don't return burnin samples or inbetween samples
     out = samples[nburn:][::freq]

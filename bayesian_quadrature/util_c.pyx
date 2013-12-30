@@ -17,7 +17,7 @@ cdef DTYPE_t uniform(DTYPE_t lo, DTYPE_t hi):
     return (rand() / float(RAND_MAX)) * (hi - lo) + lo
 
 
-def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, DTYPE_t xval, DTYPE_t window):
+def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, DTYPE_t xval, DTYPE_t w):
     cdef DTYPE_t xpr, pr, yval, logyval, left, right
     cdef int pct, newpct, i, n
 
@@ -35,32 +35,34 @@ def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, DTYPE_t xval, DTYP
         yval = uniform(0, exp(xpr))
         logyval = log(yval)
 
-        # compute the window bounds
-        left = samples[i] - window
-        right = samples[i] + window
+        # compute the initial window bounds
+        left = samples[i] - w
+        right = samples[i] + w
 
-        # narrow the window
+        # widen the bounds until they're outside the slice
+        while logpdf(left) > logyval:
+            left -= w
+        while logpdf(right) > logyval:
+            right += w
+
+        # now sample a new x value
         while True:
 
             # check the window size to make sure it's not too small
             if (right - left) < 1e-9:
                 raise RuntimeError("sampling window is too small")
 
-            # choose a new x and evaluate its probability
+            # choose the x and evaluate its probability
             samples[i + 1] = uniform(left, right)
             pr = logpdf(samples[i + 1])
 
-            # if it is above our cutoff, then break
+            # if it is within the slice, then we're done
             if pr > logyval:
                 break
 
-            # set the new window bounds
+            # otherwise, shrink the window bounds so we don't sample
+            # beyond this value again
             if samples[i + 1] < samples[i]:
                 left = samples[i + 1]
             else:
                 right = samples[i + 1]
-
-        newpct = 100 * i / n
-        if newpct > pct:
-            pct = newpct
-            print "%d samples, %d%%" % (i, pct)
