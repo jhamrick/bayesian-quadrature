@@ -331,11 +331,6 @@ class BQ(object):
         x_sc = self.x_sc[:, None]
 
         alpha_l = self.gp_l.inv_Kxx_y
-        # gp_tl = self.gp_log_l.copy()
-        # gp_tl.x = self.x_sc
-        # gp_tl.y = np.log(self.l_sc)
-        # gp_tl.Kxx[:self.ns, :self.ns] = self.gp_log_l.Kxx.copy()
-        # self._improve_gp_conditioning(gp_tl)
         inv_L_tl = self.gp_log_l.inv_Lxx
 
         h_l, w_l = self.gp_l.K.params
@@ -385,14 +380,17 @@ class BQ(object):
         # well-conditioned
         idx = np.array([-1])
         bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
-        inv_K_l = np.linalg.inv(Kxx)
 
         # apply jitter to the x_c -- this is because the x_c will
         # probably change with the addition of x_a
         idx = np.arange(self.ns, self.nsc - 1)
         bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
-        bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
-        inv_K_l = np.linalg.inv(Kxx)
+
+        try:
+            inv_K_l = np.linalg.inv(Kxx)
+        except np.linalg.LinAlgError:
+            raise RuntimeError(
+                "cannot invert covariance matrix with x_a=%s" % x_a)
 
         # compute expected transformed mean
         tm_a = self.gp_log_l.mean(x_a)
@@ -407,9 +405,9 @@ class BQ(object):
             self.x_mean, self.x_cov)
 
         if np.isnan(expected_sqd_mean) or expected_sqd_mean < 0:
-            logger.error(
-                "invalid expected squared mean: %s",
-                expected_sqd_mean)
+            raise RuntimeError(
+                "invalid expected squared mean for x_a=%s: %s" % (
+                    x_a, expected_sqd_mean))
 
         return expected_sqd_mean
 
