@@ -65,12 +65,6 @@ class BQ(object):
         self.x_mean = np.array([options['x_mean']], dtype=DTYPE)
         self.x_cov = np.array([[options['x_var']]], dtype=DTYPE)
 
-        # default kernel parameter values
-        self.default_params = dict(
-            h=options.get('h', None),
-            w=options.get('w', None),
-            s=options.get('s', None))
-
         self.x_s = np.array(x, dtype=DTYPE, copy=True)
         self.l_s = np.array(l, dtype=DTYPE, copy=True)
 
@@ -84,44 +78,6 @@ class BQ(object):
             raise ValueError("shape mismatch for x and l")
 
         self.tl_s = np.log(self.l_s)
-
-    def _fit_gp(self, x, y, **kwargs):
-        # figure out which parameters we are fitting and how to
-        # generate them
-        randf = []
-        fitmask = np.empty(3, dtype=bool)
-        for i, p in enumerate(['h', 'w', 's']):
-            # are we fitting the parameter?
-            p_v = kwargs.get(p, self.default_params.get(p, None))
-            if p_v is None:
-                fitmask[i] = True
-
-            # what should we use as an initial parameter?
-            p0 = kwargs.get('%s0' % p, p_v)
-            if p0 is None:
-                randf.append(lambda: np.abs(np.random.normal()))
-            else:
-                # need to use keyword argument, because python does
-                # not assign new values to closure variables in loop
-                def f(p=p0):
-                    return p
-                randf.append(f)
-
-        # generate initial parameter values
-        randf = np.array(randf)
-        h, w, s = [f() for f in randf]
-
-        # number of restarts
-        ntry = kwargs.get('ntry', self.ntry)
-
-        # create the GP object
-        gp = GP(GaussianKernel(h, w), x, y, s=s)
-
-        # fit the parameters
-        if fitmask.any():
-            gp.fit_MLII(fitmask, randf=randf[fitmask], nrestart=ntry)
-
-        return gp
 
     def _choose_candidates(self):
         logger.debug("Choosing candidate points")
@@ -183,22 +139,20 @@ class BQ(object):
             cond = np.linalg.cond(Kxx)
             logger.debug("Kxx conditioning number is now %s", cond)
 
-    def _fit_log_l(self, params=None):
-        logger.debug("Fitting parameters for GP over log(l)")
-        self.gp_log_l = self._fit_gp(self.x_s, self.tl_s)
-        if params is not None:
-            self.gp_log_l.params = params
+    def fit_log_l(self, params):
+        logger.debug("Setting parameters for GP over log(l)")
+        K = self.kernel(*params[:-1])
+        self.gp_log_l = GP(K, self.x_s, self.tl_s, s=params[-1])
 
         self._improve_tail_covariance()
         self._improve_gp_conditioning(self.gp_log_l)
 
-    def _fit_l(self, params=None):
+    def fit_l(self, params):
         self.choose_candidates()
 
-        logger.debug("Fitting parameters for GP over exp(log(l))")
-        self.gp_l = self._fit_gp(self.x_sc, self.l_sc)
-        if params is not None:
-            self.gp_l.params = params
+        logger.debug("Setting parameters for GP over exp(log(l))")
+        K = self.kernel(*params[:-1])
+        self.gp_l = GP(K, self.x_sc, self.l_sc, s=params[-1])
         self._improve_gp_conditioning(self.gp_l)
 
     def fit(self):

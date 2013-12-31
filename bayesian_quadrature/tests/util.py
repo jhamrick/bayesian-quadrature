@@ -14,9 +14,6 @@ options = {
     'x_mean': 0.0,
     'x_var': 10.0,
     'candidate_thresh': 0.5,
-    's': 0,
-    'h': 30,
-    'w': 1
 }
 
 
