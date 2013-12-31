@@ -327,15 +327,16 @@ class BQ(object):
         """
 
         # values for the GPs over l(x) and log(l(x))
+        x_s = self.x_s[:, None]
         x_sc = self.x_sc[:, None]
 
         alpha_l = self.gp_l.inv_Kxx_y
-        gp_tl = self.gp_log_l.copy()
-        gp_tl.x = self.x_sc
-        gp_tl.y = np.log(self.l_sc)
-        gp_tl.Kxx[:self.ns, :self.ns] = self.gp_log_l.Kxx.copy()
-        self._improve_gp_conditioning(gp_tl)
-        inv_L_tl = gp_tl.inv_Lxx
+        # gp_tl = self.gp_log_l.copy()
+        # gp_tl.x = self.x_sc
+        # gp_tl.y = np.log(self.l_sc)
+        # gp_tl.Kxx[:self.ns, :self.ns] = self.gp_log_l.Kxx.copy()
+        # self._improve_gp_conditioning(gp_tl)
+        inv_L_tl = self.gp_log_l.inv_Lxx
 
         h_l, w_l = self.gp_l.K.params
         w_l = np.array([w_l])
@@ -343,7 +344,7 @@ class BQ(object):
         w_tl = np.array([w_tl])
 
         V_Z = bq_c.Z_var(
-            x_sc, alpha_l, inv_L_tl,
+            x_s, x_sc, alpha_l, inv_L_tl,
             h_l, w_l, h_tl, w_tl,
             self.x_mean, self.x_cov)
 
@@ -599,7 +600,7 @@ class BQ(object):
         Kxx = self.gp_log_l.Kxx
         self.gp_log_l._memoized = {'Kxx': Kxx}
         max_jitter = np.diag(Kxx).max() * 1e-2
-        jitter = np.clip(-self.tl_s * 1e-2, 0, max_jitter)
+        jitter = np.clip(-self.tl_s * 1e-4, 0, max_jitter)
         Kxx += np.eye(self.ns) * jitter
         self.gp_log_l.jitter = jitter
 

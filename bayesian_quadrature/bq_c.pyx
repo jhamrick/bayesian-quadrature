@@ -545,14 +545,15 @@ def Z_mean(np.ndarray[DTYPE_t, ndim=2] x_sc, np.ndarray[DTYPE_t, ndim=1] alpha_l
     return m_Z
 
 
-def Z_var(np.ndarray[DTYPE_t, ndim=2] x_sc, np.ndarray[DTYPE_t, ndim=1] alpha_l, np.ndarray[DTYPE_t, ndim=2] inv_L_tl, DTYPE_t h_l, np.ndarray[DTYPE_t, ndim=1] w_l, DTYPE_t h_tl, np.ndarray[DTYPE_t, ndim=1] w_tl, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
+def Z_var(np.ndarray[DTYPE_t, ndim=2] x_s, np.ndarray[DTYPE_t, ndim=2] x_sc, np.ndarray[DTYPE_t, ndim=1] alpha_l, np.ndarray[DTYPE_t, ndim=2] inv_L_tl, DTYPE_t h_l, np.ndarray[DTYPE_t, ndim=1] w_l, DTYPE_t h_tl, np.ndarray[DTYPE_t, ndim=1] w_tl, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
 
     cdef np.ndarray[DTYPE_t, ndim=2] int_K_l_K_tl_K_l
     cdef np.ndarray[DTYPE_t, ndim=2] int_K_tl_K_l_mat
     cdef np.ndarray[DTYPE_t, ndim=1] beta
     cdef DTYPE_t beta2, alpha_int_alpha, V_Z
-    cdef int nc, d
+    cdef int ns, nc, d
 
+    ns = x_s.shape[0]
     nc = x_sc.shape[0]
     d = x_sc.shape[1]
 
@@ -560,14 +561,14 @@ def Z_var(np.ndarray[DTYPE_t, ndim=2] x_sc, np.ndarray[DTYPE_t, ndim=1] alpha_l,
     #    int int K_l(x_sc, x) K_tl(x, x') K_l(x', x_sc) p(x) p(x') dx dx' *
     #    alpha_l(x_sc) - beta(x_sc)'beta(x_sc)
     # Where beta is defined as:
-    # beta(x_sc) = inv(L_tl(x_sc, x_sc)) *
-    #    int K_tl(x_sc, x) K_l(x, x_sc) p(x) dx *
+    # beta(x_sc) = inv(L_tl(x_s, x_s)) *
+    #    int K_tl(x_s, x) K_l(x, x_sc) p(x) dx *
     #    alpha_l(x_sc)
     int_K_l_K_tl_K_l = np.empty((nc, nc), dtype=DTYPE)
     int_int_K1_K2_K1(int_K_l_K_tl_K_l, x_sc, h_l, w_l, h_tl, w_tl, mu, cov)
 
-    int_K_tl_K_l_mat = np.empty((nc, nc), dtype=DTYPE)
-    int_K1_K2(int_K_tl_K_l_mat, x_sc, x_sc, h_tl, w_tl, h_l, w_l, mu, cov)
+    int_K_tl_K_l_mat = np.empty((ns, nc), dtype=DTYPE)
+    int_K1_K2(int_K_tl_K_l_mat, x_s, x_sc, h_tl, w_tl, h_l, w_l, mu, cov)
 
     beta = dot(dot(inv_L_tl, int_K_tl_K_l_mat), alpha_l)
     beta2 = dot(beta, beta)
