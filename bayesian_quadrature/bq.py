@@ -2,6 +2,7 @@ import numpy as np
 import logging
 import matplotlib.pyplot as plt
 import scipy.stats
+import scipy.optimize as optim
 from gp import GP, GaussianKernel
 
 from . import bq_c
@@ -623,3 +624,35 @@ class BQ(object):
             self.gp_l.y = self.l_sc
             self.gp_l.jitter = np.zeros(self.nsc, dtype=DTYPE)
             self._improve_gp_conditioning(self.gp_l)
+
+    def choose_next(self, cost_fun=None, n=5):
+        x = np.empty(n)
+        y = np.empty(n)
+
+        if cost_fun is None:
+            def cost(x):
+                if np.isnan(x):
+                    return np.inf
+                return -self.expected_squared_mean(x)
+
+        else:
+            def cost(x):
+                if np.isnan(x):
+                    return np.inf
+                nesm = -self.expected_squared_mean(x)
+                return nesm * cost_fun(x)
+
+        for i in xrange(n):
+            xmin, xmax = self.x_s.min(), self.x_s.max()
+            x0 = np.array([np.random.uniform(xmin, xmax)])
+            res = optim.minimize(
+                fun=cost,
+                x0=x0,
+                tol=1e-10,
+                method='Anneal')
+
+            x[i] = float(res['x'])
+            y[i] = float(res['fun'])
+
+        target = x[np.argmin(y)]
+        return target
