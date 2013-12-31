@@ -33,8 +33,8 @@ class BQ(object):
 
     Other options are:
 
-    ntry : int
-        number of times to try fitting MLII parameters for GPs
+    kernel : Kernel
+        the type of kernel to use
     n_candidate : int
         (maximum) number of candidate points
     candidate_thresh : float
@@ -64,6 +64,14 @@ class BQ(object):
         self.candidate_thresh = float(options['candidate_thresh'])
         self.x_mean = np.array([options['x_mean']], dtype=DTYPE)
         self.x_cov = np.array([[options['x_var']]], dtype=DTYPE)
+        self.kernel = options.get('kernel', GaussianKernel)
+
+        # we only have an analytic solution for Gaussian kernels, so
+        # we have to use a slower approximation for any other type of
+        # kernel
+        self.use_approx = not (self.kernel is GaussianKernel)
+        # x points to use if using an approximation
+        self._approx_x = None
 
         self.x_s = np.array(x, dtype=DTYPE, copy=True)
         self.l_s = np.array(l, dtype=DTYPE, copy=True)
@@ -155,13 +163,11 @@ class BQ(object):
         self.gp_l = GP(K, self.x_sc, self.l_sc, s=params[-1])
         self._improve_gp_conditioning(self.gp_l)
 
-    def fit(self):
-        """Run the GP regressions to fit the likelihood function."""
-
-        logger.info("Fitting likelihood")
-
-        self._fit_log_l()
-        self._fit_l()
+        if self.use_approx:
+            w = self.gp_l.K.w
+            xmin = self.x_sc.min() - w
+            xmax = self.x_sc.max() + w
+            self._approx_x = np.linspace(xmin, xmax, 300)
 
     def l_mean(self, x):
         r"""
@@ -222,18 +228,16 @@ class BQ(object):
         l_var[l_var < 0] = 0
         return l_var
 
-    def Z_mean(self):
+    def _approx_Z_mean(self, xo):
+        p_xo = scipy.stats.norm.pdf(
+            xo, self.x_mean[0], np.sqrt(self.x_cov[0, 0]))
+        l = self.l_mean(xo)
+        approx = np.trapz(l * p_xo, xo)
+        return approx
+
+    def _exact_Z_mean(self):
         r"""
-        Approximate mean of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x`.
-
-        Returns
-        -------
-        mean : float
-            approximate mean
-
-        Notes
-        -----
-        This is equivalent to:
+        Equivalent to:
 
         .. math::
 
@@ -255,25 +259,34 @@ class BQ(object):
 
         return m_Z
 
-    def approx_Z_mean(self, xo):
-        p_xo = scipy.stats.norm.pdf(
-            xo, self.x_mean[0], np.sqrt(self.x_cov[0, 0]))
-        l = self.l_mean(xo)
-        approx = np.trapz(l * p_xo, xo)
-        return approx
-
-    def Z_var(self):
+    def Z_mean(self):
         r"""
-        Approximate variance of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x`.
+        Approximate mean of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x`.
 
         Returns
         -------
-        var : float
-            approximate variance
+        mean : float
+            approximate mean
 
-        Notes
-        -----
-        This is equivalent to:
+        """
+
+        if self.use_approx:
+            return self._approx_Z_mean(self._approx_x)
+        else:
+            return self._exact_Z_mean()
+
+    def _approx_Z_var(self, xo):
+        p_xo = scipy.stats.norm.pdf(
+            xo, self.x_mean[0], np.sqrt(self.x_cov[0, 0]))
+        m_l = self.l_mean(xo)
+        C_tl = self.gp_log_l.cov(xo)
+        approx = np.trapz(
+            np.trapz(C_tl * m_l * p_xo, xo) * m_l * p_xo, xo)
+        return approx
+
+    def _exact_Z_var(self):
+        r"""
+        Equivalent to:
 
         .. math::
 
@@ -300,14 +313,21 @@ class BQ(object):
 
         return V_Z
 
-    def approx_Z_var(self, xo):
-        p_xo = scipy.stats.norm.pdf(
-            xo, self.x_mean[0], np.sqrt(self.x_cov[0, 0]))
-        m_l = self.l_mean(xo)
-        C_tl = self.gp_log_l.cov(xo)
-        approx = np.trapz(
-            np.trapz(C_tl * m_l * p_xo, xo) * m_l * p_xo, xo)
-        return approx
+    def Z_var(self):
+        r"""
+        Approximate variance of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x`.
+
+        Returns
+        -------
+        var : float
+            approximate variance
+
+        """
+
+        if self.use_approx:
+            return self._approx_Z_var(self._approx_x)
+        else:
+            return self._exact_Z_var()
 
     def _expected_squared_mean(self, x_a):
         # include new x_a
@@ -578,6 +598,12 @@ class BQ(object):
             self.gp_l.y = self.l_sc
             self.gp_l.jitter = np.zeros(self.nsc, dtype=DTYPE)
             self._improve_gp_conditioning(self.gp_l)
+
+            if self.use_approx:
+                w = self.gp_l.K.w
+                xmin = self.x_sc.min() - w
+                xmax = self.x_sc.max() + w
+                self._approx_x = np.linspace(xmin, xmax, 300)
 
     def choose_next(self, cost_fun=None, n=5):
         x = np.empty(n)
