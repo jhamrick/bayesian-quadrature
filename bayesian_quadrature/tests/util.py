@@ -48,8 +48,8 @@ def make_bq(n=9, x=None, nc=None):
         opt['n_candidate'] = nc
 
     bq = BQ(x, y, **opt)
-    bq._fit_log_l(params=(30, 5, 0))
-    bq._fit_l(params=(y.max(), 1, 0))
+    bq.fit_log_l((30, 5, 0))
+    bq.fit_l((y.max(), 1, 0))
     return bq
 
 

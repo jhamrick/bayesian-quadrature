@@ -40,36 +40,6 @@ def test_choose_candidates():
     assert ((diff > 1e-1) | (diff == 0)).all()
 
 
-@pytest.mark.xfail
-def test_fit_l_same():
-    params = None
-    util.npseed()
-    x, y = util.make_xy()
-    bq = BQ(x, y, **options)
-
-    for i in xrange(10):
-        util.npseed()
-        bq.fit()
-        if params is None:
-            params = bq.gp_l.params.copy()
-        assert (params == bq.gp_l.params).all()
-
-
-@pytest.mark.xfail
-def test_fit_log_l_same():
-    params = None
-    util.npseed()
-    x, y = util.make_xy()
-    bq = BQ(x, y, **options)
-
-    for i in xrange(10):
-        util.npseed()
-        bq.fit()
-        if params is None:
-            params = bq.gp_log_l.params.copy()
-        assert (params == bq.gp_log_l.params).all()
-
-
 def test_l_mean():
     util.npseed()
     bq = util.make_bq()
@@ -83,8 +53,8 @@ def test_Z_mean():
     util.npseed()
     bq = util.make_bq()
     xo = util.make_xo()
-    approx_Z = bq.approx_Z_mean(xo)
-    calc_Z = bq.Z_mean()
+    approx_Z = bq._approx_Z_mean(xo)
+    calc_Z = bq._exact_Z_mean()
 
     assert np.allclose(approx_Z, calc_Z)
 
@@ -125,8 +95,8 @@ def test_Z_var():
     util.npseed()
     bq = util.make_bq()
     xo = util.make_xo()
-    approx_var = bq.approx_Z_var(xo)
-    calc_var = bq.Z_var()
+    approx_var = bq._approx_Z_var(xo)
+    calc_var = bq._exact_Z_var()
     assert np.allclose(approx_var, calc_var, atol=1e-4)
 
 
