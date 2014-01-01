@@ -3,7 +3,7 @@ import logging
 import matplotlib.pyplot as plt
 import scipy.stats
 import scipy.optimize as optim
-from gp import GP, GaussianKernel
+from gp import GP, GaussianKernel, PeriodicKernel
 
 from . import bq_c
 from . import util
@@ -73,8 +73,14 @@ class BQ(object):
         # x points to use if using an approximation
         self._approx_x = None
 
+        if self.use_approx:
+            logger.warn("Using approximate solutions for non-Gaussian kernel")
+
         self.x_s = np.array(x, dtype=DTYPE, copy=True)
         self.l_s = np.array(l, dtype=DTYPE, copy=True)
+
+        if (self.l_s <= 0).any():
+            raise ValueError("l_s contains zero or negative values")
 
         self.ns = self.x_s.shape[0]
 
@@ -147,6 +153,43 @@ class BQ(object):
             cond = np.linalg.cond(Kxx)
             logger.debug("Kxx conditioning number is now %s", cond)
 
+    def _improve_tail_covariance(self):
+        Kxx = self.gp_log_l.Kxx
+        self.gp_log_l._memoized = {'Kxx': Kxx}
+        max_jitter = np.diag(Kxx).max() * 1e-2
+        jitter = np.clip(-self.tl_s * 1e-4, 0, max_jitter)
+        Kxx += np.eye(self.ns) * jitter
+        self.gp_log_l.jitter = jitter
+
+    def _make_approx_x(self, xmin=None, xmax=None, n=300):
+        if xmin is None:
+            if self.kernel is PeriodicKernel:
+                xmin = 0
+            else:
+                xmin = self.x_sc.min() - self.gp_l.K.w
+
+        if xmax is None:
+            if self.kernel is PeriodicKernel:
+                xmax = 2 * np.pi * self.gp_l.K.p
+            else:
+                xmax = self.x_sc.max() + self.gp_l.K.w
+
+        self._approx_x = np.linspace(xmin, xmax, n)
+
+    def _make_approx_px(self, x):
+        if self.kernel is PeriodicKernel:
+            mu = float(self.x_mean)
+            kappa = 1. / float(self.x_cov)
+            C = -np.log(2 * np.pi * scipy.special.iv(0, kappa))
+            p = np.exp(C + (kappa * np.cos(x - mu)))
+
+        else:
+            mu = float(self.x_mean)
+            sigma = np.sqrt(float(self.x_cov))
+            p = scipy.stats.norm.pdf(x, mu, sigma)
+
+        return p
+
     def fit_log_l(self, params):
         logger.debug("Setting parameters for GP over log(l)")
         K = self.kernel(*params[:-1])
@@ -164,10 +207,7 @@ class BQ(object):
         self._improve_gp_conditioning(self.gp_l)
 
         if self.use_approx:
-            w = self.gp_l.K.w
-            xmin = self.x_sc.min() - w
-            xmax = self.x_sc.max() + w
-            self._approx_x = np.linspace(xmin, xmax, 300)
+            self._make_approx_x()
 
     def l_mean(self, x):
         r"""
@@ -229,9 +269,8 @@ class BQ(object):
         return l_var
 
     def _approx_Z_mean(self, xo):
-        p_xo = scipy.stats.norm.pdf(
-            xo, self.x_mean[0], np.sqrt(self.x_cov[0, 0]))
         l = self.l_mean(xo)
+        p_xo = self._make_approx_px(xo)
         approx = np.trapz(l * p_xo, xo)
         return approx
 
@@ -276,10 +315,9 @@ class BQ(object):
             return self._exact_Z_mean()
 
     def _approx_Z_var(self, xo):
-        p_xo = scipy.stats.norm.pdf(
-            xo, self.x_mean[0], np.sqrt(self.x_cov[0, 0]))
         m_l = self.l_mean(xo)
         C_tl = self.gp_log_l.cov(xo)
+        p_xo = self._make_approx_px(xo)
         approx = np.trapz(
             np.trapz(C_tl * m_l * p_xo, xo) * m_l * p_xo, xo)
         return approx
@@ -329,10 +367,7 @@ class BQ(object):
         else:
             return self._exact_Z_var()
 
-    def _expected_squared_mean(self, x_a):
-        # include new x_a
-        x_sca = np.concatenate([self.x_sc, x_a])
-
+    def _expected_inv_K_l(self, x_a):
         # update gp over l
         Kxx = np.empty((self.nsc + 1, self.nsc + 1), dtype=DTYPE)
         Kxx[:-1, :-1] = self.gp_l.Kxx.copy()
@@ -367,6 +402,41 @@ class BQ(object):
             raise RuntimeError(
                 "cannot invert covariance matrix with x_a=%s" % x_a)
 
+        return inv_K_l
+
+    def _approx_expected_squared_mean(self, x_a, xo):
+        # include new x_a
+        x_sca = np.concatenate([self.x_sc, x_a])
+
+        # compute K_l(x_sca, x_sca)^-1
+        inv_K_l = self._expected_inv_K_l(x_a)
+
+        # compute expected transformed mean
+        tm_a = self.gp_log_l.mean(x_a)
+
+        # compute expected transformed covariance
+        tC_a = self.gp_log_l.cov(x_a)
+
+        p_xo = self._make_approx_px(xo)
+        int_K_l = np.trapz(self.gp_l.K(x_sca, xo) * p_xo, xo)
+
+        A_sca = np.dot(int_K_l, inv_K_l)
+        A_a = A_sca[-1]
+        A_sc_l = np.dot(A_sca[:-1], self.l_sc)
+
+        e1 = bq_c.int_exp_norm(1, tm_a, tC_a)
+        e2 = bq_c.int_exp_norm(2, tm_a, tC_a)
+
+        E_m2 = (A_sc_l ** 2) + (2 * A_sc_l * A_a * e1) + (A_a ** 2 * e2)
+        return E_m2
+
+    def _exact_expected_squared_mean(self, x_a):
+        # include new x_a
+        x_sca = np.concatenate([self.x_sc, x_a])
+
+        # compute K_l(x_sca, x_sca)^-1
+        inv_K_l = self._expected_inv_K_l(x_a)
+
         # compute expected transformed mean
         tm_a = self.gp_log_l.mean(x_a)
 
@@ -387,9 +457,15 @@ class BQ(object):
         return expected_sqd_mean
 
     def expected_squared_mean(self, x_a):
+        if self.use_approx:
+            f = lambda x: self._approx_expected_squared_mean(
+                x, self._approx_x)
+        else:
+            f = self._exact_expected_squared_mean
+
         esm = np.empty(x_a.shape[0])
         for i in xrange(x_a.shape[0]):
-            esm[i] = self._expected_squared_mean(x_a[[i]])
+            esm[i] = f(x_a[[i]])
         return esm
 
     def expected_Z_var(self, x_a):
@@ -569,14 +645,6 @@ class BQ(object):
 
         return fig, axes
 
-    def _improve_tail_covariance(self):
-        Kxx = self.gp_log_l.Kxx
-        self.gp_log_l._memoized = {'Kxx': Kxx}
-        max_jitter = np.diag(Kxx).max() * 1e-2
-        jitter = np.clip(-self.tl_s * 1e-4, 0, max_jitter)
-        Kxx += np.eye(self.ns) * jitter
-        self.gp_log_l.jitter = jitter
-
     def add_observation(self, x_a, l_a, update_hypers=True):
         self.x_s = np.concatenate([self.x_s, x_a])
         self.l_s = np.concatenate([self.l_s, l_a])
@@ -600,10 +668,7 @@ class BQ(object):
             self._improve_gp_conditioning(self.gp_l)
 
             if self.use_approx:
-                w = self.gp_l.K.w
-                xmin = self.x_sc.min() - w
-                xmax = self.x_sc.max() + w
-                self._approx_x = np.linspace(xmin, xmax, 300)
+                self._make_approx_x()
 
     def choose_next(self, cost_fun=None, n=5):
         x = np.empty(n)
