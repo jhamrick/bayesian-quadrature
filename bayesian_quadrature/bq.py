@@ -59,7 +59,6 @@ class BQ(object):
         """Initialize the Bayesian Quadrature object."""
 
         # save the given parameters
-        self.ntry = int(options['ntry'])
         self.n_candidate = int(options['n_candidate'])
         self.candidate_thresh = float(options['candidate_thresh'])
         self.x_mean = np.array([options['x_mean']], dtype=DTYPE)
