@@ -96,9 +96,7 @@ class BQ(object):
         logger.debug("Choosing candidate points")
 
         # compute the candidate points
-        w = self.gp_log_l.K.w
-        xmin = self.x_s.min() - w
-        xmax = self.x_s.max() + w
+        xmin, xmax = self._make_approx_x(n=2)
         xc = np.random.uniform(xmin, xmax, self.n_candidate)
 
         # make sure they don't overlap with points we already have
@@ -163,17 +161,17 @@ class BQ(object):
     def _make_approx_x(self, xmin=None, xmax=None, n=300):
         if xmin is None:
             if self.kernel is PeriodicKernel:
-                xmin = 0
+                xmin = -np.pi * self.gp_log_l.K.p
             else:
-                xmin = self.x_sc.min() - self.gp_l.K.w
+                xmin = self.x_sc.min() - self.gp_log_l.K.w
 
         if xmax is None:
             if self.kernel is PeriodicKernel:
-                xmax = 2 * np.pi * self.gp_l.K.p
+                xmax = np.pi * self.gp_log_l.K.p
             else:
-                xmax = self.x_sc.max() + self.gp_l.K.w
+                xmax = self.x_sc.max() + self.gp_log_l.K.w
 
-        self._approx_x = np.linspace(xmin, xmax, n)
+        return np.linspace(xmin, xmax, n)
 
     def _make_approx_px(self, x):
         if self.kernel is PeriodicKernel:
@@ -206,7 +204,7 @@ class BQ(object):
         self._improve_gp_conditioning(self.gp_l)
 
         if self.use_approx:
-            self._make_approx_x()
+            self._approx_x = self._make_approx_x()
 
     def l_mean(self, x):
         r"""
@@ -644,30 +642,26 @@ class BQ(object):
 
         return fig, axes
 
-    def add_observation(self, x_a, l_a, update_hypers=True):
+    def add_observation(self, x_a, l_a):
         self.x_s = np.concatenate([self.x_s, x_a])
         self.l_s = np.concatenate([self.l_s, l_a])
         self.ns += x_a.shape[0]
         self.tl_s = np.concatenate([self.tl_s, np.log(l_a)])
 
-        if update_hypers:
-            self.fit()
+        self.gp_log_l.x = self.x_s
+        self.gp_log_l.y = self.tl_s
+        self.gp_log_l.jitter = np.zeros(self.ns, dtype=DTYPE)
+        self._improve_tail_covariance()
+        self._improve_gp_conditioning(self.gp_log_l)
 
-        else:
-            self.gp_log_l.x = self.x_s
-            self.gp_log_l.y = self.tl_s
-            self.gp_log_l.jitter = np.zeros(self.ns, dtype=DTYPE)
-            self._improve_tail_covariance()
-            self._improve_gp_conditioning(self.gp_log_l)
+        self.choose_candidates()
+        self.gp_l.x = self.x_sc
+        self.gp_l.y = self.l_sc
+        self.gp_l.jitter = np.zeros(self.nsc, dtype=DTYPE)
+        self._improve_gp_conditioning(self.gp_l)
 
-            self.choose_candidates()
-            self.gp_l.x = self.x_sc
-            self.gp_l.y = self.l_sc
-            self.gp_l.jitter = np.zeros(self.nsc, dtype=DTYPE)
-            self._improve_gp_conditioning(self.gp_l)
-
-            if self.use_approx:
-                self._make_approx_x()
+        if self.use_approx:
+            self._approx_x = self._make_approx_x()
 
     def choose_next(self, cost_fun=None, n=5):
         x = np.empty(n)
