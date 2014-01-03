@@ -95,8 +95,14 @@ class BQ(object):
     def _choose_candidates(self):
         logger.debug("Choosing candidate points")
 
+        if self.kernel is PeriodicKernel:
+            xmin = -np.pi * self.gp_log_l.K.p
+            xmax = np.pi * self.gp_log_l.K.p
+        else:
+            xmin = self.x_s.min() - self.gp_log_l.K.w
+            xmax = self.x_s.max() + self.gp_log_l.K.w
+
         # compute the candidate points
-        xmin, xmax = self._make_approx_x(n=2)
         xc = np.random.uniform(xmin, xmax, self.n_candidate)
 
         # make sure they don't overlap with points we already have
