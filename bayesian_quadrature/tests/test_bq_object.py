@@ -28,6 +28,8 @@ def test_init():
         BQ(x[:-1], y, **options)
     with pytest.raises(ValueError):
         BQ(x, y[:-1], **options)
+    with pytest.raises(ValueError):
+        BQ(x, -y, **options)
 
 
 def test_choose_candidates():
@@ -108,12 +110,23 @@ def test_expected_Z_var_close():
     assert np.allclose(E_Z_var, Z_var, atol=1e-4)
 
 
-def test_expected_squared_mean():
+def test_expected_squared_mean_valid():
     util.npseed()
     bq = util.make_bq()
     x_a = np.random.uniform(-10, 10, 10)
     esm = bq.expected_squared_mean(x_a)
     assert (esm >= 0).all()
+
+
+def test_expected_squared_mean():
+    util.npseed()
+    bq = util.make_bq()
+    x_a = np.random.uniform(-10, 10, 20)[:, None]
+    x = bq._make_approx_x()
+    for xa in x_a:
+        esm = bq._exact_expected_squared_mean(xa)
+        approx = bq._approx_expected_squared_mean(xa, x)
+        assert np.allclose(esm, approx)
 
 
 def test_plot_gp_log_l():
@@ -218,11 +231,128 @@ def test_l():
 
 
 def test_expected_squared_mean_1():
+    util.npseed()
     X = np.linspace(-5, 5, 20)[:, None]
     for x in X:
         bq = util.make_bq(x=x, nc=0)
         m2 = bq.Z_mean() ** 2
+
         E_m2 = bq.expected_squared_mean(x)
-        E_m2_close = bq.expected_squared_mean(x - 1e-10)
         assert np.allclose(m2, E_m2, atol=1e-4)
+
+        E_m2_close = bq.expected_squared_mean(x - 1e-10)
         assert np.allclose(m2, E_m2_close, atol=1e-4)
+
+        E_m2_close = bq.expected_squared_mean(x - 1e-8)
+        assert np.allclose(m2, E_m2_close, atol=1e-4)
+
+
+def test_periodic():
+    util.npseed()
+    bq = util.make_periodic_bq()
+    x = np.linspace(-np.pi, np.pi, 1000)
+    y = util.f_xp(x)
+    assert np.allclose(bq.l_mean(x), y, atol=1e-3)
+
+
+def test_periodic_z_mean():
+    util.npseed()
+    bq = util.make_periodic_bq()
+    x = np.linspace(-np.pi, np.pi, 1000)
+    l = bq.l_mean(x)
+    p_x = bq._make_approx_px(x)
+    approx_z = np.trapz(l * p_x, x)
+    assert np.allclose(bq.Z_mean(), approx_z)
+    
+
+def test_periodic_z_var():
+    util.npseed()
+    bq = util.make_periodic_bq()
+    x = np.linspace(-np.pi, np.pi, 1000)
+    l = bq.l_mean(x)
+    C = bq.gp_log_l.cov(x)
+    p_x = bq._make_approx_px(x)
+    approx_z = np.trapz(np.trapz(C * l * p_x, x) * l * p_x, x)
+    assert np.allclose(bq.Z_var(), approx_z)
+
+
+@pytest.mark.xfail(reason="poorly conditioned matrix")
+def test_periodic_expected_squared_mean():
+    util.npseed()
+    bq = util.make_periodic_bq(nc=0)
+    x_a = np.random.uniform(-np.pi, np.pi, 20)[:, None]
+    x = np.linspace(-np.pi, np.pi, 1000)
+
+    for xa in x_a:
+        esm = bq.expected_squared_mean(xa)
+        approx = bq._approx_expected_squared_mean(xa, x)
+        assert np.allclose(esm, approx)
+
+
+def test_periodic_expected_squared_mean_1():
+    util.npseed()
+    X = np.linspace(-np.pi, np.pi, 20)[:, None]
+    for x in X:
+        bq = util.make_periodic_bq(x=x, nc=0)
+        m2 = bq.Z_mean() ** 2
+        E_m2 = bq.expected_squared_mean(x)
+        assert np.allclose(m2, E_m2, atol=1e-4)
+
+        E_m2_close = bq.expected_squared_mean(x - 1e-10)
+        assert np.allclose(m2, E_m2_close, atol=1e-4)
+
+        E_m2_close = bq.expected_squared_mean(x - 1e-8)
+        assert np.allclose(m2, E_m2_close, atol=1e-4)
+
+
+def test_add_observation():
+    util.npseed()
+    bq = util.make_bq()
+    x = bq.x_s.copy()
+    l = bq.l_s.copy()
+    tl = bq.tl_s.copy()
+
+    x_a = np.random.randint(-5, 5, 2)
+    l_a = util.f_x(x_a)
+    tl_a = np.log(l_a)
+
+    bq.add_observation(x_a, l_a)
+    assert (bq.x_s == np.append(x, x_a)).all()
+    assert (bq.l_s == np.append(l, l_a)).all()
+    assert (bq.tl_s == np.append(tl, tl_a)).all()
+
+    assert (bq.x_s == bq.x_sc[:bq.ns]).all()
+    assert (bq.l_s == bq.l_sc[:bq.ns]).all()
+
+
+def test_approx_add_observation():
+    util.npseed()
+    bq = util.make_periodic_bq()
+    x = bq.x_s.copy()
+    l = bq.l_s.copy()
+    tl = bq.tl_s.copy()
+
+    x_a = np.random.randint(-np.pi, np.pi, 2)
+    l_a = util.f_x(x_a)
+    tl_a = np.log(l_a)
+
+    bq.add_observation(x_a, l_a)
+    assert (bq.x_s == np.append(x, x_a)).all()
+    assert (bq.l_s == np.append(l, l_a)).all()
+    assert (bq.tl_s == np.append(tl, tl_a)).all()
+
+    assert (bq.x_s == bq.x_sc[:bq.ns]).all()
+    assert (bq.l_s == bq.l_sc[:bq.ns]).all()
+
+
+def test_choose_next():
+    util.npseed()
+    bq = util.make_bq()
+    bq.choose_next(n=1)
+
+
+def test_choose_next_with_cost():
+    util.npseed()
+    bq = util.make_bq()
+    f = lambda x: x ** 2
+    bq.choose_next(cost_fun=f, n=1)
