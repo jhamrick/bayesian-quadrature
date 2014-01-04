@@ -18,8 +18,10 @@ def test_slice_sample_normal():
 
     def logpdf(x):
         return (-(x ** 2) / 2.) - 0.5 * np.log(2 * np.pi)
-
-    samples = util.slice_sample(logpdf, 10000, 0.5, xval=0, nburn=10, freq=1)
+        
+    w = np.array([1.0])
+    x0 = np.array([0.0])
+    samples = util.slice_sample(logpdf, 10000, w, xval=x0, nburn=10, freq=1)
     hist, bins = np.histogram(samples, bins=10, normed=True)
     centers = (bins[:-1] + bins[1:]) / 2.
     bin_pdf = np.exp(logpdf(centers))
@@ -35,7 +37,9 @@ def test_slice_sample_uniform():
             return -np.inf
         return 0
 
-    samples = util.slice_sample(logpdf, 10000, 0.5, xval=0, nburn=10, freq=1)
+    w = np.array([0.5])
+    x0 = np.array([0.0])
+    samples = util.slice_sample(logpdf, 10000, w, xval=x0, nburn=10, freq=1)
     hist, bins = np.histogram(samples, bins=5, normed=True, range=[0, 1])
 
     assert (np.abs(hist - 1) < 0.05).all()
