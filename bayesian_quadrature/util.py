@@ -58,7 +58,7 @@ def slice_sample(logpdf, niter, w, xval, nburn=1, freq=1):
     samples = np.empty((niter, xval.size))
     samples[0] = xval
 
-    _slice_sample(samples, logpdf, xval, w)
+    _slice_sample(samples, logpdf, xval, w, False)
 
     # don't return burnin samples or inbetween samples
     out = samples[nburn:][::freq]

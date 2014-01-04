@@ -4,6 +4,8 @@ cimport numpy as np
 from libc.math cimport exp, log
 from libc.stdlib cimport rand, srand, RAND_MAX
 from warnings import warn
+from cpython cimport bool
+
 
 DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
@@ -18,13 +20,13 @@ cdef DTYPE_t uniform(DTYPE_t lo, DTYPE_t hi):
     return (rand() / FRAND_MAX) * (hi - lo) + lo
 
 
-def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, np.ndarray[DTYPE_t, ndim=1] xval, np.ndarray[DTYPE_t, ndim=1] w):
+def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, np.ndarray[DTYPE_t, ndim=1] xval, np.ndarray[DTYPE_t, ndim=1] w, bool verbose):
     cdef np.ndarray[DTYPE_t, ndim=1] dir
     cdef np.ndarray[DTYPE_t, ndim=1] left
     cdef np.ndarray[DTYPE_t, ndim=1] right
     cdef np.ndarray[DTYPE_t, ndim=1] loc
     cdef DTYPE_t xpr, pr, yval, logyval
-    cdef int pct, newpct, i, n
+    cdef int pct, newpct, i, j, n
 
     # seed the random number generator
     srand(np.random.randint(0, RAND_MAX))
@@ -50,7 +52,8 @@ def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, np.ndarray[DTYPE_t
         # sample a value somewhere in that range
         yval = uniform(0, exp(xpr))
         logyval = log(yval)
-        # print "logyval is %s" % logyval
+        if verbose:
+            print "[%d] logyval is %s" % (i, logyval)
 
         # pick a direction
         dir[:] = np.random.rand(d) - 0.5
@@ -61,20 +64,32 @@ def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, np.ndarray[DTYPE_t
         right[:] = w.copy()
 
         # widen the bounds until they're outside the slice
-        # print "Adjusting left bound..."
+        if verbose:
+            print "[%d] Adjusting left bound..." % i
+        j = 0
         while logpdf(samples[i] + (left * dir)) > logyval:
             left -= w
+            j += 1
+            if j > 100:
+                warn("slice is too wide, stopping adjustment")
+                break
 
-        # print "Adjusting right bound..."
+        if verbose:
+            print "[%d] Adjusting right bound..." % i
+        j = 0
         while logpdf(samples[i] + (right * dir)) > logyval:
             right += w
+            j += 1
+            if j > 100:
+                warn("slice is too wide, stopping adjustment")
+                break
 
         # now sample a new x value
         while True:
 
             # check the window size to make sure it's not too small
             if ((right - left) < 1e-9).any():
-                warn("sampling window shrunk to zero")
+                warn("sampling window shrunk to zero on iter %d" % i)
                 break
 
             # choose the x and evaluate its probability
@@ -86,16 +101,19 @@ def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, np.ndarray[DTYPE_t
 
             # if it is within the slice, then we're done
             if pr > logyval:
-                # print "Got sample %s" % samples[i + 1]
+                if verbose:
+                    print "[%d] Got sample %s" % (i, samples[i + 1])
                 i += 1
                 break
 
             # otherwise, shrink the window bounds so we don't sample
             # beyond this value again
             if loc[0] < 0:
-                # print "Setting left bound to %s" % loc
+                if verbose:
+                    print "[%d] Setting left bound to %s" % (i, loc)
                 left[:] = loc
             else:
-                # print "Setting right bound to %s" % loc
+                if verbose:
+                    print "[%d] Setting right bound to %s" % (i, loc)
                 right[:] = loc
 
