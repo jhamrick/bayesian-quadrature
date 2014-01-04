@@ -1,7 +1,7 @@
 .. include:: ../../README.rst
 
-Documentation
--------------
+API Documentation
+-----------------
 
 .. toctree::
    :maxdepth: 4
@@ -10,6 +10,15 @@ Documentation
    bayesian_quadrature.util
    bayesian_quadrature.bq_c
    bayesian_quadrature.util_c
+
+Tests
+~~~~~
+
+.. toctree::
+   :maxdepth: 4
+
+   visual-tests
+   bayesian_quadrature.tests
 
 Examples
 --------
@@ -22,7 +31,7 @@ Examples
    active-sampling-example
 
 Derivations
-~~~~~~~~~~~
+-----------
 
 .. toctree::
    :maxdepth: 4
@@ -30,15 +39,6 @@ Derivations
    bq_mean
    bq_var
    bq_expected_variance
-
-Tests
-~~~~~
-
-.. toctree::
-   :maxdepth: 4
-
-   visual-tests
-   bayesian_quadrature.tests
 
 
 .. rubric:: Bibliography
