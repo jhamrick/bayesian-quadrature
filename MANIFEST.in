@@ -1,0 +1,7 @@
+include README.md
+include CHANGELOG.md
+include LICENSE
+include VERSION.txt
+recursive-include bayesian_quadrature *.py
+recursive-include bayesian_quadrature *.pyx
+recursive-include docs/ipynb *.ipynb

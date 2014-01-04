@@ -1,365 +1,702 @@
 import numpy as np
 import logging
-from gp import GP, GaussianKernel
+import matplotlib.pyplot as plt
+import scipy.stats
+import scipy.optimize as optim
+from gp import GP, GaussianKernel, PeriodicKernel
 
 from . import bq_c
+from . import util
 
 logger = logging.getLogger("bayesian_quadrature")
 
 DTYPE = np.dtype('float64')
 EPS = np.finfo(DTYPE).eps
+PREC = np.finfo(DTYPE).precision / 2.0
 
 
 class BQ(object):
-    """Estimate a likelihood function, S(y|x) using Gaussian Process
-    regressions, as in Osborne et al. (2012):
+    r"""
+    Estimate an integral of the following form using Bayesian
+    Quadrature with a Gaussian Process prior:
 
-    1) Estimate S using a GP
-    2) Estimate log(S) using second GP
-    3) Estimate delta_C using a third GP
+    .. math::
 
-    References
+        Z = \int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x
+
+    Parameters
     ----------
-    Osborne, M. A., Duvenaud, D., Garnett, R., Rasmussen, C. E.,
-        Roberts, S. J., & Ghahramani, Z. (2012). Active Learning of
-        Model Evidence Using Bayesian Quadrature. *Advances in Neural
-        Information Processing Systems*, 25.
+    x : numpy.ndarray
+        size :math:`s` array of sample locations
+    l : numpy.ndarray
+        size :math:`s` array of sample observations
+
+    Other options are:
+
+    kernel : Kernel
+        the type of kernel to use
+    n_candidate : int
+        (maximum) number of candidate points
+    candidate_thresh : float
+        minimum allowed space between candidates
+    x_mean : float
+        prior mean, :math:`\mu`
+    x_var : float
+        prior variance, :math:`\sigma^2`
+
+    Notes
+    -----
+    This algorithm is an updated version of the one described in
+    [OD12]_. The overall idea is:
+
+    1. Estimate :math:`\log\ell` using a GP.
+    2. Estimate :math:`\bar{\ell}=\exp(\log\ell)` using second GP.
+    3. Integrate exactly under :math:`\bar{\ell}`.
 
     """
 
-    def __init__(self, R, S,
-                 gamma, ntry, n_candidate,
-                 R_mean, R_var,
-                 h=None, w=None, s=None):
+    def __init__(self, x, l, **options):
+        """Initialize the Bayesian Quadrature object."""
 
         # save the given parameters
-        self.gamma = float(gamma)
-        self.ntry = int(ntry)
-        self.n_candidate = int(n_candidate)
-        self.R_mean = np.array([R_mean], dtype=DTYPE)
-        self.R_cov = np.array([[R_var]], dtype=DTYPE)
+        self.n_candidate = int(options['n_candidate'])
+        self.candidate_thresh = float(options['candidate_thresh'])
+        self.x_mean = np.array([options['x_mean']], dtype=DTYPE)
+        self.x_cov = np.array([[options['x_var']]], dtype=DTYPE)
+        self.kernel = options.get('kernel', GaussianKernel)
 
-        # default kernel parameter values
-        self.default_params = dict(h=h, w=w, s=s)
+        # we only have an analytic solution for Gaussian kernels, so
+        # we have to use a slower approximation for any other type of
+        # kernel
+        self.use_approx = not (self.kernel is GaussianKernel)
+        # x points to use if using an approximation
+        self._approx_x = None
 
-        self.R = np.array(R, dtype=DTYPE, copy=True)
-        self.S = np.array(S, dtype=DTYPE, copy=True)
+        if self.use_approx:
+            logger.warn("Using approximate solutions for non-Gaussian kernel")
 
-        if self.R.ndim > 1:
-            raise ValueError("invalid number of dimensions for R")
-        if self.S.ndim > 1:
-            raise ValueError("invalid number of dimensions for S")
-        if self.R.shape != self.S.shape:
-            raise ValueError("shape mismatch for R and S")
+        self.x_s = np.array(x, dtype=DTYPE, copy=True)
+        self.l_s = np.array(l, dtype=DTYPE, copy=True)
 
-        self.log_S = self.log_transform(self.S)
-        self.n_sample = self.R.size
+        if (self.l_s <= 0).any():
+            raise ValueError("l_s contains zero or negative values")
 
-        self.improve_covariance_conditioning = False
+        self.ns = self.x_s.shape[0]
 
-    def log_transform(self, x):
-        return np.log((x / self.gamma) + 1)
+        if self.x_s.ndim > 1:
+            raise ValueError("invalid number of dimensions for x")
+        if self.l_s.ndim > 1:
+            raise ValueError("invalid number of dimensions for l")
+        if self.x_s.shape != self.l_s.shape:
+            raise ValueError("shape mismatch for x and l")
 
-    def _fit_gp(self, x, y, **kwargs):
-        # figure out which parameters we are fitting and how to
-        # generate them
-        randf = []
-        fitmask = np.empty(3, dtype=bool)
-        for i, p in enumerate(['h', 'w', 's']):
-            # are we fitting the parameter?
-            p_v = kwargs.get(p, self.default_params.get(p, None))
-            if p_v is None:
-                fitmask[i] = True
-
-            # what should we use as an initial parameter?
-            p0 = kwargs.get('%s0' % p, p_v)
-            if p0 is None:
-                randf.append(lambda: np.abs(np.random.normal()))
-            else:
-                # need to use keyword argument, because python does
-                # not assign new values to closure variables in loop
-                def f(p=p0):
-                    return p
-                randf.append(f)
-
-        # generate initial parameter values
-        randf = np.array(randf)
-        h, w, s = [f() for f in randf]
-
-        # number of restarts
-        ntry = kwargs.get('ntry', self.ntry)
-
-        # create the GP object
-        gp = GP(GaussianKernel(h, w), x, y, s=s)
-
-        # fit the parameters
-        gp.fit_MLII(fitmask, randf=randf[fitmask], nrestart=ntry)
-        return gp
+        self.tl_s = np.log(self.l_s)
 
     def _choose_candidates(self):
-        ns = self.n_sample
-        nc = self.n_candidate
+        logger.debug("Choosing candidate points")
 
-        # choose anchor points
-        idx = np.random.randint(0, ns, nc)
+        if self.kernel is PeriodicKernel:
+            xmin = -np.pi * self.gp_log_l.K.p
+            xmax = np.pi * self.gp_log_l.K.p
+        else:
+            xmin = self.x_s.min() - self.gp_log_l.K.w
+            xmax = self.x_s.max() + self.gp_log_l.K.w
 
         # compute the candidate points
-        eps = np.random.choice([-1, 1], nc) * self.gp_S.K.w
-        Rc = self.R[idx] + eps
+        xc = np.random.uniform(xmin, xmax, self.n_candidate)
 
         # make sure they don't overlap with points we already have
-        Rsc = list(self.R.copy())
-        for i in xrange(nc):
-            if (np.abs(Rc[i] - np.array(Rsc)) > np.radians(1)).all():
-                Rsc.append(Rc[i])
-        Rsc = np.array(Rsc)
-        return Rsc
+        bq_c.filter_candidates(xc, self.x_s, self.candidate_thresh)
+        xc = np.sort(xc[~np.isnan(xc)])
+        return xc
 
-    def compute_delta(self, R):
-        # use a crude thresholding here as our tilde transformation
-        # will fail if the mean goes below zero
-        m_S = np.clip(self.gp_S.mean(R), EPS, np.inf)
-        mls = self.gp_log_S.mean(R)
-        lms = self.log_transform(m_S)
-        delta = mls - lms
-        return delta
+    def choose_candidates(self):
+        self.x_c = self._choose_candidates()
+        self.x_sc = np.concatenate([self.x_s, self.x_c], axis=0)
+        self.l_sc = np.concatenate([
+            self.l_s,
+            np.exp(self.gp_log_l.mean(self.x_c))
+        ], axis=0)
+        self.nsc = self.ns + self.x_c.shape[0]
 
-    def _fit_S(self):
-        # first figure out some sane parameters for h and w
-        logger.info("Fitting parameters for GP over S")
-        self.gp_S = self._fit_gp(self.R, self.S)
+    def _improve_gp_conditioning(self, gp):
+        Kxx = gp.Kxx
+        cond = np.linalg.cond(Kxx)
+        logger.debug("Kxx conditioning number is %s", cond)
 
-        # then refit just w using the h we found
-        logger.info("Fitting w parameter for GP over S")
-        self.gp_S = self._fit_gp(
-            self.R, self.S,
-            h=self.gp_S.K.h)
+        if hasattr(gp, "jitter"):
+            jitter = gp.jitter
+        else:
+            jitter = np.zeros(Kxx.shape[0], dtype=DTYPE)
+            gp.jitter = jitter
 
-    def _fit_log_S(self):
-        # use h based on the one we found for S
-        logger.info("Fitting parameters for GP over log(S)")
-        self.gp_log_S = self._fit_gp(
-            self.R, self.log_S,
-            h=np.log(self.gp_S.K.h + 1),
-            w0=self.gp_S.K.w)
+        # the conditioning is really bad -- just increase the variance
+        # a little for all the elements until it's less bad
+        idx = np.arange(Kxx.shape[0])
+        while np.log10(cond) > PREC:
+            logger.debug("Adding jitter to all elements")
+            bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
+            cond = np.linalg.cond(Kxx)
+            logger.debug("Kxx conditioning number is now %s", cond)
 
-    def _fit_Dc(self):
-        # choose candidate locations and compute delta, the difference
-        # between S and log(S)
-        self.Rc = self._choose_candidates()
-        self.Dc = self.compute_delta(self.Rc)
+        # now improve just for those elements which result in a
+        # negative variance, until there are no more negative elements
+        # in the diagonal
+        gp._memoized = {'Kxx': Kxx}
+        var = np.diag(gp.cov(gp._x))
+        while (var < 0).any():
+            idx = np.nonzero(var < 0)[0]
 
-        # fit gp parameters for delta
-        logger.info("Fitting parameters for GP over Delta_c")
-        self.gp_Dc = self._fit_gp(
-            self.Rc, self.Dc, h=None, s=0)
+            logger.debug("Adding jitter to indices %s", idx)
+            bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
 
-    def fit(self):
-        """Run the GP regressions to fit the likelihood function.
+            Kxx = gp.Kxx
+            gp._memoized = {'Kxx': Kxx}
+            var = np.diag(gp.cov(gp._x))
+            cond = np.linalg.cond(Kxx)
+            logger.debug("Kxx conditioning number is now %s", cond)
 
-        References
+    def _improve_tail_covariance(self):
+        Kxx = self.gp_log_l.Kxx
+        self.gp_log_l._memoized = {'Kxx': Kxx}
+        max_jitter = np.diag(Kxx).max() * 1e-2
+        jitter = np.clip(-self.tl_s * 1e-4, 0, max_jitter)
+        Kxx += np.eye(self.ns) * jitter
+        self.gp_log_l.jitter = jitter
+
+    def _make_approx_x(self, xmin=None, xmax=None, n=300):
+        if xmin is None:
+            if self.kernel is PeriodicKernel:
+                xmin = -np.pi * self.gp_log_l.K.p
+            else:
+                xmin = self.x_sc.min() - self.gp_log_l.K.w
+
+        if xmax is None:
+            if self.kernel is PeriodicKernel:
+                xmax = np.pi * self.gp_log_l.K.p
+            else:
+                xmax = self.x_sc.max() + self.gp_log_l.K.w
+
+        return np.linspace(xmin, xmax, n)
+
+    def _make_approx_px(self, x):
+        if self.kernel is PeriodicKernel:
+            mu = float(self.x_mean)
+            kappa = 1. / float(self.x_cov)
+            C = -np.log(2 * np.pi * scipy.special.iv(0, kappa))
+            p = np.exp(C + (kappa * np.cos(x - mu)))
+
+        else:
+            mu = float(self.x_mean)
+            sigma = np.sqrt(float(self.x_cov))
+            p = scipy.stats.norm.pdf(x, mu, sigma)
+
+        return p
+
+    def fit_log_l(self, params):
+        logger.debug("Setting parameters for GP over log(l)")
+        K = self.kernel(*params[:-1])
+        self.gp_log_l = GP(K, self.x_s, self.tl_s, s=params[-1])
+
+        self._improve_tail_covariance()
+        self._improve_gp_conditioning(self.gp_log_l)
+
+    def fit_l(self, params):
+        self.choose_candidates()
+
+        logger.debug("Setting parameters for GP over exp(log(l))")
+        K = self.kernel(*params[:-1])
+        self.gp_l = GP(K, self.x_sc, self.l_sc, s=params[-1])
+        self._improve_gp_conditioning(self.gp_l)
+
+        if self.use_approx:
+            self._approx_x = self._make_approx_x()
+
+    def l_mean(self, x):
+        r"""
+        Mean of the final approximation to :math:`\ell`.
+
+        Parameters
         ----------
-        Osborne, M. A., Duvenaud, D., Garnett, R., Rasmussen, C. E.,
-            Roberts, S. J., & Ghahramani, Z. (2012). Active Learning of
-            Model Evidence Using Bayesian Quadrature. *Advances in Neural
-            Information Processing Systems*, 25.
+        x : numpy.ndarray
+            :math:`m` array of new sample locations.
+
+        Returns
+        -------
+        mean : numpy.ndarray
+            :math:`m` array of predictive means
+
+        Notes
+        -----
+        This is just the mean of the GP over :math:`\exp(\log\ell)`, i.e.:
+
+        .. math::
+
+            \mathbb{E}[\bar{\ell}(\mathbf{x})] = \mathbb{E}_{\mathrm{GP}(\exp(\log\ell))}(\mathbf{x})
+
+        """
+        # the estimated mean of l
+        l_mean = self.gp_l.mean(x)
+        return l_mean
+
+    def l_var(self, x):
+        r"""
+        Marginal variance of the final approximation to :math:`\ell`.
+
+        Parameters
+        ----------
+        x : numpy.ndarray
+            :math:`m` array of new sample locations.
+
+        Returns
+        -------
+        mean : numpy.ndarray
+            :math:`m` array of predictive variances
+
+        Notes
+        -----
+        This is just the diagonal of the covariance of the GP over
+        :math:`\log\ell` multiplied by the squared mean of the GP over
+        :math:`\exp(\log\ell)`, i.e.:
+
+        .. math::
+
+            \mathbb{V}[\bar{\ell}(\mathbf{x})] = \mathbb{V}_{\mathrm{GP}(\log\ell)}(\mathbf{x})\mathbb{E}_{\mathrm{GP}(\exp(\log\ell))}(\mathbf{x})^2
+
+        """
+        # the estimated variance of l
+        v_log_l = np.diag(self.gp_log_l.cov(x)).copy()
+        m_l = self.l_mean(x)
+        l_var = v_log_l * m_l ** 2
+        l_var[l_var < 0] = 0
+        return l_var
+
+    def _approx_Z_mean(self, xo):
+        l = self.l_mean(xo)
+        p_xo = self._make_approx_px(xo)
+        approx = np.trapz(l * p_xo, xo)
+        return approx
+
+    def _exact_Z_mean(self):
+        r"""
+        Equivalent to:
+
+        .. math::
+
+            \begin{align*}
+            \mathbb{E}[Z]&\approx \int\bar{\ell}(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x \\
+            &= \left(\int K_{\exp(\log\ell)}(x, \mathbf{x}_c)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x\right)K_{\exp(\log\ell)}(\mathbf{x}_c, \mathbf{x}_c)^{-1}\ell(\mathbf{x}_c)
+            \end{align*}
 
         """
 
-        logger.info("Fitting likelihood")
-
-        self._fit_S()
-        self._fit_log_S()
-        self._fit_Dc()
-
-    def S_mean(self, R):
-        # the estimated mean of S
-        m_S = self.gp_S.mean(R)
-        m_Dc = self.gp_Dc.mean(R)
-        S_mean = np.clip(m_S, EPS, np.inf) + (m_S + self.gamma) * m_Dc
-        return S_mean
-
-    def S_cov(self, R):
-        # the estimated variance of S
-        C_log_S = self.gp_log_S.cov(R)
-        dm_dw, Cw = self.dm_dw(R), self.Cw(self.gp_log_S)
-        S_cov = C_log_S + np.dot(np.dot(dm_dw, Cw), dm_dw.T)
-        S_cov[np.abs(S_cov) < np.sqrt(EPS)] = EPS
-        return S_cov
-
-    def Z_mean(self):
-
-        # values for the GP over l(x)
-        x_s = self.R[:, None]
-        alpha_l = self.gp_S.inv_Kxx_y
-        h_s, w_s = self.gp_S.K.params
+        x_sc = self.x_sc[:, None]
+        alpha_l = self.gp_l.inv_Kxx_y
+        h_s, w_s = self.gp_l.K.params
         w_s = np.array([w_s])
 
-        # values for the GP of Delta(x)
-        x_sc = self.gp_Dc.x[:, None]
-        alpha_del = self.gp_Dc.inv_Kxx_y
-        h_dc, w_dc = self.gp_Dc.K.params
-        w_dc = np.array([w_dc])
-
         m_Z = bq_c.Z_mean(
-            x_s, x_sc, alpha_l, alpha_del,
-            h_s, w_s, h_dc, w_dc,
-            self.R_mean, self.R_cov, self.gamma)
+            x_sc, alpha_l, h_s, w_s,
+            self.x_mean, self.x_cov)
 
         return m_Z
 
-    def _Z_var_and_eps(self):
+    def Z_mean(self):
+        r"""
+        Approximate mean of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x`.
+
+        Returns
+        -------
+        mean : float
+            approximate mean
+
+        """
+
+        if self.use_approx:
+            return self._approx_Z_mean(self._approx_x)
+        else:
+            return self._exact_Z_mean()
+
+    def _approx_Z_var(self, xo):
+        m_l = self.l_mean(xo)
+        C_tl = self.gp_log_l.cov(xo)
+        p_xo = self._make_approx_px(xo)
+        approx = np.trapz(
+            np.trapz(C_tl * m_l * p_xo, xo) * m_l * p_xo, xo)
+        return approx
+
+    def _exact_Z_var(self):
+        r"""
+        Equivalent to:
+
+        .. math::
+
+            \mathbb{V}(Z)\approx \int\int \mathrm{Cov}_{\log\ell}(x, x^\prime)\bar{\ell}(x)\bar{\ell}(x^\prime)\mathcal{N}(x\ |\ \mu, \sigma^2)\mathcal{N}(x^\prime\ |\ \mu, \sigma^2)\ \mathrm{d}x\ \mathrm{d}x^\prime
+
+        """
+
         # values for the GPs over l(x) and log(l(x))
-        x_s = self.R
+        x_s = self.x_s[:, None]
+        x_sc = self.x_sc[:, None]
 
-        alpha_l = self.gp_S.inv_Kxx_y
-        alpha_tl = self.gp_log_S.inv_Kxx_y
-        inv_L_tl = self.gp_log_S.inv_Lxx
-        inv_K_tl = self.gp_log_S.inv_Kxx
+        alpha_l = self.gp_l.inv_Kxx_y
+        inv_L_tl = self.gp_log_l.inv_Lxx
 
-        h_l, w_l = self.gp_S.K.params
+        h_l, w_l = self.gp_l.K.params
         w_l = np.array([w_l])
-        h_tl, w_tl = self.gp_log_S.K.params
+        h_tl, w_tl = self.gp_log_l.K.params
         w_tl = np.array([w_tl])
 
-        dK_tl_dw = self.gp_log_S.K.dK_dw(x_s, x_s)[..., None]
-        Cw = np.array([[self.Cw(self.gp_log_S)]])
-
-        V_Z, V_Z_eps = bq_c.Z_var(
-            x_s[:, None], alpha_l, alpha_tl,
-            inv_L_tl, inv_K_tl, dK_tl_dw, Cw,
+        V_Z = bq_c.Z_var(
+            x_s, x_sc, alpha_l, inv_L_tl,
             h_l, w_l, h_tl, w_tl,
-            self.R_mean, self.R_cov, self.gamma)
+            self.x_mean, self.x_cov)
 
-        return V_Z, V_Z_eps
+        return V_Z
 
     def Z_var(self):
-        V_Z, V_Z_eps = self._Z_var_and_eps()
-        return V_Z + V_Z_eps
+        r"""
+        Approximate variance of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x`.
 
-    def dm_dw(self, x):
-        """Compute the partial derivative of a GP mean with respect to
-        w, the input scale parameter.
-
-        """
-        dm_dtheta = self.gp_log_S.dm_dtheta(x)
-        # XXX: fix this slicing
-        dm_dw = dm_dtheta[1]
-        return dm_dw
-
-    def Cw(self, gp):
-        """The variances of our posteriors over our input scale. We assume the
-        covariance matrix has zero off-diagonal elements; the posterior
-        is spherical.
+        Returns
+        -------
+        var : float
+            approximate variance
 
         """
-        # H_theta is the diagonal of the hessian of the likelihood of
-        # the GP over the log-likelihood with respect to its log input
-        # scale.
-        H_theta = gp.d2lh_dtheta2
-        # XXX: fix this slicing
-        Cw = -1. / H_theta[1, 1]
-        return Cw
 
-    def expected_squared_mean(self, x_a):
-        if np.abs((x_a - self.Rc) < 1e-3).any():
-            return self.Z_mean() ** 2
-
-        x_s = self.R
-        x_c = self.Rc
-
-        ns, = x_s.shape
-
-        # include new x_a
-        x_sa = np.concatenate([x_s, x_a])
-
-        l_a = self.gp_S.mean(x_a)
-        l_s = self.S
-
-        tl_a = self.gp_log_S.mean(x_a)
-        tl_s = self.log_S
-
-        # update gp over S
-        gp_Sa = self.gp_S.copy()
-        gp_Sa.x = x_sa
-        gp_Sa.y = np.concatenate([l_s, l_a])
-
-        # update gp over log(S)
-        gp_log_Sa = self.gp_log_S.copy()
-        gp_log_Sa.x = x_sa
-        gp_log_Sa.y = np.concatenate([tl_s, tl_a])
-
-        # add jitter to the covariance matrix where our new point is,
-        # because if it's close to other x_s then it will cause problems
-        if self.improve_covariance_conditioning:
-            idx = np.array([ns], dtype=DTYPE)
-
-            gp_Sa._memoized = {}
-            bq_c.improve_covariance_conditioning(gp_Sa.Kxx, idx=idx)
-
-            gp_log_Sa._memoized = {}
-            bq_c.improve_covariance_conditioning(gp_log_Sa.Kxx, idx=idx)
-
-        try:
-            inv_K_l = gp_Sa.inv_Kxx
-        except np.linalg.LinAlgError:
-            return self.Z_mean() ** 2
-
-        # update gp over delta
-        del_sc = self.Dc
-        if (np.abs(x_c - x_a) < 1e-3).any():
-            x_sca = x_c.copy()
-            del_sca = del_sc.copy()
-            gp_Dca = self.gp_Dc.copy()
-
+        if self.use_approx:
+            return self._approx_Z_var(self._approx_x)
         else:
-            x_sca = np.concatenate([x_c, x_a])
-            del_sca = np.concatenate([del_sc, [0]])
-            gp_Dca = self.gp_Dc.copy()
-            gp_Dca.x = x_sca
-            gp_Dca.y = del_sca
+            return self._exact_Z_var()
 
-            # the delta_c (not delta_s) will probably change with
-            # the addition of x_a. We can't recompute them
-            # (because we don't know l_a) but we can add noise
-            # to the diagonal of the covariance matrix to allow room
-            # for error for the x_c closest to x_a
-            gp_Dca._memoized = {}
-            K_del = gp_Dca.Kxx
-            bq_c.improve_covariance_conditioning(
-                K_del, idx=np.array([x_sca.shape[0] - 1], dtype=DTYPE))
+    def _expected_inv_K_l(self, x_a):
+        # update gp over l
+        Kxx = np.empty((self.nsc + 1, self.nsc + 1), dtype=DTYPE)
+        Kxx[:-1, :-1] = self.gp_l.Kxx.copy()
+        Kxx[:-1, -1:] = self.gp_l.Kxxo(x_a)
+        Kxx[-1:, :-1] = self.gp_l.Kxox(x_a)
+        Kxx[-1:, -1:] = self.gp_l.Kxoxo(x_a)
+
+        jitter = np.empty(self.nsc + 1, dtype=DTYPE)
+        jitter[:-1] = self.gp_l.jitter
+        jitter[-1] = 0
+
+        # remove jitter from the x_sc which are close to x_a
+        close = np.isclose(Kxx[:self.ns, :self.ns], Kxx[-1, -1], atol=1e-6)
+        if close.any():
+            idx = np.nonzero(close)[0]
+            bq_c.remove_jitter(Kxx, jitter, idx)
+
+        # apply jitter to the x_a -- this is so that when x_a
+        # is close to some x_s, our matrix will (hopefully) still be
+        # well-conditioned
+        idx = np.array([-1])
+        bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
+
+        # apply jitter to the x_c -- this is because the x_c will
+        # probably change with the addition of x_a
+        idx = np.arange(self.ns, self.nsc - 1)
+        bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
 
         try:
-            alpha_del = gp_Dca.inv_Kxx_y
+            inv_K_l = np.linalg.inv(Kxx)
         except np.linalg.LinAlgError:
-            return self.mean() ** 2
+            raise RuntimeError(
+                "cannot invert covariance matrix with x_a=%s" % x_a)
+
+        return inv_K_l
+
+    def _approx_expected_squared_mean(self, x_a, xo):
+        # include new x_a
+        x_sca = np.concatenate([self.x_sc, x_a])
+
+        # compute K_l(x_sca, x_sca)^-1
+        inv_K_l = self._expected_inv_K_l(x_a)
 
         # compute expected transformed mean
-        tm_a = float(self.gp_log_S.mean(x_a))
+        tm_a = self.gp_log_l.mean(x_a)
 
         # compute expected transformed covariance
-        dm_dw = self.dm_dw(x_a)
-        Cw = self.Cw(gp_log_Sa)
-        C_a = float(self.gp_log_S.cov(x_a))
-        tC_a = C_a + float(dm_dw ** 2 * Cw)
+        tC_a = self.gp_log_l.cov(x_a)
+
+        p_xo = self._make_approx_px(xo)
+        int_K_l = np.trapz(self.gp_l.K(x_sca, xo) * p_xo, xo)
+
+        A_sca = np.dot(int_K_l, inv_K_l)
+        A_a = A_sca[-1]
+        A_sc_l = np.dot(A_sca[:-1], self.l_sc)
+
+        e1 = bq_c.int_exp_norm(1, tm_a, tC_a)
+        e2 = bq_c.int_exp_norm(2, tm_a, tC_a)
+
+        E_m2 = (A_sc_l ** 2) + (2 * A_sc_l * A_a * e1) + (A_a ** 2 * e2)
+        return E_m2
+
+    def _exact_expected_squared_mean(self, x_a):
+        # include new x_a
+        x_sca = np.concatenate([self.x_sc, x_a])
+
+        # compute K_l(x_sca, x_sca)^-1
+        inv_K_l = self._expected_inv_K_l(x_a)
+
+        # compute expected transformed mean
+        tm_a = self.gp_log_l.mean(x_a)
+
+        # compute expected transformed covariance
+        tC_a = self.gp_log_l.cov(x_a)
 
         expected_sqd_mean = bq_c.expected_squared_mean(
-            x_sa[:, None], x_sca[:, None], l_s,
-            alpha_del,
-            inv_K_l,
-            tm_a, tC_a,
-            gp_Sa.K.h, np.array([gp_Sa.K.w]),
-            gp_Dca.K.h, np.array([gp_Dca.K.w]),
-            self.R_mean, self.R_cov, self.gamma)
+            x_sca[:, None], self.l_sc,
+            inv_K_l, tm_a, tC_a,
+            self.gp_l.K.h, np.array([self.gp_l.K.w]),
+            self.x_mean, self.x_cov)
 
         if np.isnan(expected_sqd_mean) or expected_sqd_mean < 0:
             raise RuntimeError(
-                "invalid expected squared mean: %s" % expected_sqd_mean)
+                "invalid expected squared mean for x_a=%s: %s" % (
+                    x_a, expected_sqd_mean))
 
         return expected_sqd_mean
 
+    def expected_squared_mean(self, x_a):
+        if self.use_approx:
+            f = lambda x: self._approx_expected_squared_mean(
+                x, self._approx_x)
+        else:
+            f = self._exact_expected_squared_mean
+
+        esm = np.empty(x_a.shape[0])
+        for i in xrange(x_a.shape[0]):
+            esm[i] = f(x_a[[i]])
+        return esm
+
     def expected_Z_var(self, x_a):
         mean_second_moment = self.Z_mean() ** 2 + self.Z_var()
-        expected_sqd_mean = self.expected_squared_mean(x_a)
-        expected_var = mean_second_moment - expected_sqd_mean
+        expected_squared_mean = self.expected_squared_mean(x_a)
+        expected_var = mean_second_moment - expected_squared_mean
         return expected_var
+
+    def plot_gp_log_l(self, ax, f_l=None, xmin=None, xmax=None):
+        if xmin is None:
+            xmin = self.x_s.min()
+        if xmax is None:
+            xmax = self.x_s.max()
+
+        x = np.linspace(xmin, xmax, 1000)
+        l_mean = self.gp_log_l.mean(x)
+        l_var = np.diag(self.gp_log_l.cov(x)).copy()
+        l_var[l_var < 0] = 0
+        l_int = 1.96 * np.sqrt(l_var)
+        lower = l_mean - l_int
+        upper = l_mean + l_int
+
+        if f_l is not None:
+            l = np.log(f_l(x))
+            ax.plot(x, l, 'k-', lw=2)
+
+        ax.fill_between(x, lower, upper, color='r', alpha=0.2)
+        ax.plot(x, l_mean, 'r-', lw=2)
+        ax.plot(self.x_s, self.tl_s, 'ro', markersize=5)
+        ax.plot(self.x_c, self.gp_log_l.mean(self.x_c), 'bs', markersize=4)
+
+        ax.set_title(r"GP over $\log(\ell)$")
+        ax.set_xlim(xmin, xmax)
+        util.set_scientific(ax, -5, 4)
+
+    def plot_gp_l(self, ax, f_l=None, xmin=None, xmax=None):
+        if xmin is None:
+            xmin = self.x_s.min()
+        if xmax is None:
+            xmax = self.x_s.max()
+
+        x = np.linspace(xmin, xmax, 1000)
+        l_mean = self.l_mean(x)
+        l_var = np.diag(self.gp_l.cov(x)).copy()
+        l_var[l_var < 0] = 0
+        l_int = 1.96 * np.sqrt(l_var)
+        lower = l_mean - l_int
+        upper = l_mean + l_int
+
+        if f_l is not None:
+            l = f_l(x)
+            ax.plot(x, l, 'k-', lw=2)
+
+        ax.fill_between(x, lower, upper, color='r', alpha=0.2)
+        ax.plot(x, l_mean, 'r-', lw=2)
+        ax.plot(self.x_s, self.l_s, 'ro', markersize=5)
+        ax.plot(self.x_c, self.l_mean(self.x_c), 'bs', markersize=4)
+
+        ax.set_title(r"GP over $\exp(\log(\ell))$")
+        ax.set_xlim(xmin, xmax)
+        util.set_scientific(ax, -5, 4)
+
+    def plot_l(self, ax, f_l=None, xmin=None, xmax=None):
+        if xmin is None:
+            xmin = self.x_s.min()
+        if xmax is None:
+            xmax = self.x_s.max()
+
+        x = np.linspace(xmin, xmax, 1000)
+        l_mean = self.l_mean(x)
+        l_var = 1.96 * np.sqrt(self.l_var(x))
+        lower = l_mean - l_var
+        upper = l_mean + l_var
+
+        if f_l is not None:
+            l = f_l(x)
+            ax.plot(x, l, 'k-', lw=2, label=r"$\ell(x)$")
+
+        ax.fill_between(x, lower, upper, color='r', alpha=0.2)
+        ax.plot(
+            x, l_mean,
+            'r-', lw=2, label="final approx")
+        ax.plot(
+            self.x_s, self.l_s,
+            'ro', markersize=5, label="$\ell(x_s)$")
+        ax.plot(
+            self.x_c, self.l_mean(self.x_c),
+            'bs', markersize=4, label="$\exp(m_{\log(\ell)}(x_c))$")
+
+        ax.set_title("Final Approximation")
+        ax.set_xlim(xmin, xmax)
+        util.set_scientific(ax, -5, 4)
+
+        ax.legend(loc=0, fontsize=10)
+
+    def plot_expected_squared_mean(self, ax, xmin=None, xmax=None):
+        if xmin is None:
+            xmin = self.x_s.min()
+        if xmax is None:
+            xmax = self.x_s.max()
+
+        x_a = np.linspace(xmin, xmax, 1000)
+        exp_sq_m = self.expected_squared_mean(x_a)
+
+        # plot the expected variance
+        ax.plot(x_a, exp_sq_m,
+                label=r"$E[\mathrm{m}(Z)^2]$",
+                color='k', lw=2)
+
+        # plot a line for the current variance
+        ax.hlines(
+            self.Z_mean() ** 2, xmin, xmax,
+            color="#00FF00", lw=2, label=r"$\mathrm{m}(Z)^2$")
+
+        ymin, ymax = ax.get_ylim()
+
+        # plot lines where there are observatiosn
+        ax.vlines(
+            self.x_sc, ymin, ymax,
+            color='k', linestyle='--', alpha=0.5)
+
+        ax.set_ylim(ymin, ymax)
+        ax.set_xlim(xmin, xmax)
+        util.set_scientific(ax, -5, 4)
+
+        ax.legend(loc=0, fontsize=10)
+        ax.set_title(r"Expected squared mean of $Z$")
+
+    def plot_expected_variance(self, ax, xmin=None, xmax=None):
+        if xmin is None:
+            xmin = self.x_s.min()
+        if xmax is None:
+            xmax = self.x_s.max()
+
+        x_a = np.linspace(xmin, xmax, 1000)
+        exp_Z_var = self.expected_Z_var(x_a)
+
+        # plot the expected variance
+        ax.plot(x_a, exp_Z_var,
+                label=r"$E[\mathrm{Var}(Z)]$",
+                color='k', lw=2)
+
+        # plot a line for the current variance
+        ax.hlines(
+            self.Z_var(), xmin, xmax,
+            color="#00FF00", lw=2, label=r"$\mathrm{Var}(Z)$")
+
+        ymin, ymax = ax.get_ylim()
+
+        # plot lines where there are observatiosn
+        ax.vlines(
+            self.x_sc, ymin, ymax,
+            color='k', linestyle='--', alpha=0.5)
+
+        ax.set_ylim(ymin, ymax)
+        ax.set_xlim(xmin, xmax)
+        util.set_scientific(ax, -5, 4)
+
+        ax.legend(loc=0, fontsize=10)
+        ax.set_title(r"Expected variance of $Z$")
+
+    def plot(self, f_l=None, xmin=None, xmax=None):
+        fig, axes = plt.subplots(1, 3)
+
+        self.plot_gp_log_l(axes[0], f_l=f_l, xmin=xmin, xmax=xmax)
+        self.plot_gp_l(axes[1], f_l=f_l, xmin=xmin, xmax=xmax)
+        self.plot_l(axes[2], f_l=f_l, xmin=xmin, xmax=xmax)
+
+        ymins, ymaxs = zip(*[ax.get_ylim() for ax in axes[1:]])
+        ymin = min(ymins)
+        ymax = max(ymaxs)
+        for ax in axes[1:]:
+            ax.set_ylim(ymin, ymax)
+
+        fig.set_figwidth(14)
+        fig.set_figheight(3.5)
+
+        return fig, axes
+
+    def add_observation(self, x_a, l_a):
+        self.x_s = np.concatenate([self.x_s, x_a])
+        self.l_s = np.concatenate([self.l_s, l_a])
+        self.ns += x_a.shape[0]
+        self.tl_s = np.concatenate([self.tl_s, np.log(l_a)])
+
+        self.gp_log_l.x = self.x_s
+        self.gp_log_l.y = self.tl_s
+        self.gp_log_l.jitter = np.zeros(self.ns, dtype=DTYPE)
+        self._improve_tail_covariance()
+        self._improve_gp_conditioning(self.gp_log_l)
+
+        self.choose_candidates()
+        self.gp_l.x = self.x_sc
+        self.gp_l.y = self.l_sc
+        self.gp_l.jitter = np.zeros(self.nsc, dtype=DTYPE)
+        self._improve_gp_conditioning(self.gp_l)
+
+        if self.use_approx:
+            self._approx_x = self._make_approx_x()
+
+    def choose_next(self, cost_fun=None, n=5):
+        x = np.empty(n)
+        y = np.empty(n)
+
+        if cost_fun is None:
+            def cost(x):
+                if np.isnan(x):
+                    return np.inf
+                return -self.expected_squared_mean(x)
+
+        else:
+            def cost(x):
+                if np.isnan(x):
+                    return np.inf
+                nesm = -self.expected_squared_mean(x)
+                return nesm * cost_fun(x)
+
+        for i in xrange(n):
+            xmin, xmax = self.x_s.min(), self.x_s.max()
+            x0 = np.array([np.random.uniform(xmin, xmax)])
+            res = optim.minimize(
+                fun=cost,
+                x0=x0,
+                tol=1e-10,
+                method='Anneal')
+
+            x[i] = float(res['x'])
+            y[i] = float(res['fun'])
+
+        target = x[np.argmin(y)]
+        return target

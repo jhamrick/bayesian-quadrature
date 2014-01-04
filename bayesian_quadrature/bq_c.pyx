@@ -3,6 +3,8 @@ from __future__ import division
 import numpy as np
 cimport numpy as np
 
+import scipy.stats
+
 from libc.math cimport exp, log, fmax, copysign, fabs, M_PI
 from cpython cimport bool
 from warnings import warn
@@ -16,6 +18,7 @@ ctypedef np.float64_t DTYPE_t
 
 cdef DTYPE_t MIN = log(np.exp2(DTYPE(np.finfo(DTYPE).minexp + 4)))
 cdef DTYPE_t EPS = np.finfo(DTYPE).eps
+cdef DTYPE_t NAN = np.nan
 
 
 def mvn_logpdf(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x, np.ndarray[DTYPE_t, ndim=1] m, np.ndarray[DTYPE_t, ndim=2] C):
@@ -38,11 +41,29 @@ def mvn_logpdf(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x, n
         out[i] = c - 0.5 * dot(dot(x[i] - m, Ci), x[i] - m)
 
 
-def improve_covariance_conditioning(np.ndarray[DTYPE_t, ndim=2] M, np.ndarray[DTYPE_t, ndim=1] idx):
+def int_exp_norm(DTYPE_t c, DTYPE_t m, DTYPE_t S):
+    """Computes integrals of the form:
+
+    int exp(cx) N(x | m, S) = exp(cm + (1/2) c^2 S)
+
+    """
+    return exp((c * m) + (0.5 * c ** 2 * S))
+
+
+def improve_covariance_conditioning(np.ndarray[DTYPE_t, ndim=2] M, np.ndarray[DTYPE_t, ndim=1] jitters, np.ndarray[long, ndim=1] idx):
     cdef DTYPE_t sqd_jitter = fmax(EPS, np.max(M)) * 1e-4
-    cdef int n, i
+    cdef int i
+
     for i in xrange(len(idx)):
+        jitters[idx[i]] += sqd_jitter
         M[idx[i], idx[i]] += sqd_jitter
+
+
+def remove_jitter(np.ndarray[DTYPE_t, ndim=2] M, np.ndarray[DTYPE_t, ndim=1] jitters, np.ndarray[long, ndim=1] idx):
+    cdef int i
+    for i in xrange(len(idx)):
+        M[idx[i], idx[i]] -= jitters[idx[i]]
+        jitters[idx[i]] = 0
 
 
 def int_K(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE_t h, np.ndarray[DTYPE_t, ndim=1] w, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
@@ -77,6 +98,13 @@ def int_K(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE_
     mvn_logpdf(out, x, mu, W)
     for i in xrange(n):
         out[i] = h_2 * exp(out[i])
+
+
+def approx_int_K(xo, gp, mu, cov):
+    Kxxo = gp.Kxxo(xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    approx_int = np.trapz(Kxxo * p_xo, xo)
+    return approx_int
 
 
 def int_K1_K2(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2] x1, np.ndarray[DTYPE_t, ndim=2] x2, DTYPE_t h1, np.ndarray[DTYPE_t, ndim=1] w1, DTYPE_t h2, np.ndarray[DTYPE_t, ndim=1] w2, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
@@ -140,6 +168,14 @@ def int_K1_K2(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2] x1, n
         mvn_logpdf(out[i], x[i], m, C)
         for j in xrange(n2):
             out[i, j] = h1_2_h2_2 * exp(out[i, j])
+
+
+def approx_int_K1_K2(xo, gp1, gp2, mu, cov):
+    K1xxo = gp1.Kxxo(xo)
+    K2xxo = gp2.Kxxo(xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    approx_int = np.trapz(K1xxo[:, None] * K2xxo[None, :] * p_xo, xo)
+    return approx_int
 
 
 def int_int_K1_K2_K1(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE_t h1, np.ndarray[DTYPE_t, ndim=1] w1, DTYPE_t h2, np.ndarray[DTYPE_t, ndim=1] w2, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
@@ -215,6 +251,15 @@ def int_int_K1_K2_K1(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2
             out[i, j] = h1_4_h2_2 * exp(Gdeti + N1[i] + N1[j] + N2[i, j])
 
 
+def approx_int_int_K1_K2_K1(xo, gp1, gp2, mu, cov):
+    K1xxo = gp1.Kxxo(xo)
+    K2xoxo = gp2.Kxoxo(xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    int1 = np.trapz(K1xxo[:, None, :] * K2xoxo * p_xo, xo)
+    approx_int = np.trapz(K1xxo[:, None] * int1[None] * p_xo, xo)
+    return approx_int
+
+
 def int_int_K1_K2(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE_t h1, np.ndarray[DTYPE_t, ndim=1] w1, DTYPE_t h2, np.ndarray[DTYPE_t, ndim=1] w2, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
     """Computes integrals of the form:
 
@@ -275,6 +320,16 @@ def int_int_K1_K2(np.ndarray[DTYPE_t, ndim=1] out, np.ndarray[DTYPE_t, ndim=2] x
     for i in xrange(n):
         out[i] = h1_2_h2_2 * exp(N1[0] + N2[i])
 
+
+def approx_int_int_K1_K2(xo, gp1, gp2, mu, cov):
+    K1xoxo = gp1.Kxoxo(xo)
+    K2xxo = gp2.Kxxo(xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    int1 = np.trapz(K1xoxo * K2xxo[:, :, None] * p_xo, xo)
+    approx_int = np.trapz(int1 * p_xo, xo)
+    return approx_int
+
+
 def int_int_K(int d, DTYPE_t h, np.ndarray[DTYPE_t, ndim=1] w, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
     """Computes integrals of the form:
 
@@ -310,6 +365,14 @@ def int_int_K(int d, DTYPE_t h, np.ndarray[DTYPE_t, ndim=1] w, np.ndarray[DTYPE_
     mvn_logpdf(N, zx, zm, W_2cov)
 
     return (h ** 2) * exp(N[0])
+
+
+def approx_int_int_K(xo, gp, mu, cov):
+    Kxoxo = gp.Kxoxo(xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    approx_int = np.trapz(np.trapz(Kxoxo * p_xo, xo) * p_xo, xo)
+    return approx_int
+
 
 def int_K1_dK2(np.ndarray[DTYPE_t, ndim=3] out, np.ndarray[DTYPE_t, ndim=2] x1, np.ndarray[DTYPE_t, ndim=2] x2, DTYPE_t h1, np.ndarray[DTYPE_t, ndim=1] w1, DTYPE_t h2, np.ndarray[DTYPE_t, ndim=1] w2, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
     """Computes integrals of the form:
@@ -393,7 +456,23 @@ def int_K1_dK2(np.ndarray[DTYPE_t, ndim=3] out, np.ndarray[DTYPE_t, ndim=2] x1, 
                 out[i, j, k] = int_K1_K2_mat[i, j] * (((S[k, k] + m[k] ** 2) / w2[k]**3) - (1.0 / w2[k]))
     
 
+def approx_int_K1_dK2(xo, gp1, gp2, mu, cov):
+    K1xxo = gp1.Kxxo(xo)
+    dK2xxo = gp2.K.dK_dw(gp2._x, xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    approx_int = np.trapz(
+        K1xxo[:, None] * dK2xxo[None, :] * p_xo, xo)[..., None]
+    return approx_int
+
+
 def int_dK(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE_t h, np.ndarray[DTYPE_t, ndim=1] w, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
+    """Computes integrals of the form:
+
+    int dK(x', x)/dw N(x' | mu, cov) dx'
+
+    where K is a Gaussian kernel matrix parameterized by `h` and `w`.
+
+    """
 
     cdef np.ndarray[DTYPE_t, ndim=1] int_K_vec
     cdef np.ndarray[DTYPE_t, ndim=2] Wcov
@@ -440,205 +519,112 @@ def int_dK(np.ndarray[DTYPE_t, ndim=2] out, np.ndarray[DTYPE_t, ndim=2] x, DTYPE
             out[i, j] = int_K_vec[i] * (((S[j, j] + m[j] ** 2) / w[j]**3) - (1.0 / w[j]))
 
 
-def Z_mean(np.ndarray[DTYPE_t, ndim=2] x_s, np.ndarray[DTYPE_t, ndim=2] x_sc, np.ndarray[DTYPE_t, ndim=1] alpha_l, np.ndarray[DTYPE_t, ndim=1] alpha_del, DTYPE_t h_s, np.ndarray[DTYPE_t, ndim=1] w_s, DTYPE_t h_dc, np.ndarray[DTYPE_t, ndim=1] w_dc, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov, gamma):
+def approx_int_dK(xo, gp, mu, cov):
+    dKxxo = gp.K.dK_dw(gp._x, xo)
+    p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
+    approx_int = np.trapz(dKxxo * p_xo, xo)[..., None]
+    return approx_int
+
+
+def Z_mean(np.ndarray[DTYPE_t, ndim=2] x_sc, np.ndarray[DTYPE_t, ndim=1] alpha_l, DTYPE_t h_l, np.ndarray[DTYPE_t, ndim=1] w_l, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
 
     cdef np.ndarray[DTYPE_t, ndim=1] int_K_l
-    cdef np.ndarray[DTYPE_t, ndim=1] int_K_del
-    cdef np.ndarray[DTYPE_t, ndim=2] int_K_del_K_l
-    cdef int ns, nc, d
-    cdef DTYPE_t E_m_l, E_m_l_m_del, E_m_del, m_Z
+    cdef int nc, d
+    cdef DTYPE_t m_Z
 
-    ns = x_s.shape[0]
     nc = x_sc.shape[0]
-    d = x_s.shape[1]
+    d = x_sc.shape[1]
 
-    ## First term
     # E[m_l | x_s] = (int K_l(x, x_s) p(x) dx) alpha_l(x_s)
-    int_K_l = np.empty(ns, dtype=DTYPE)
-    int_K(int_K_l, x_s, h_s, w_s, mu, cov)
-    E_m_l = dot(int_K_l, alpha_l)
-    if E_m_l <= 0:
-        warn("E_m_l = %s" % E_m_l)
-
-    ## Second term
-    # E[m_l*m_del | x_s, x_c] = alpha_del(x_sc)' *
-    #     int K_del(x_sc, x) K_l(x, x_s) p(x) dx *
-    #     alpha_l(x_s)
-    int_K_del_K_l = np.empty((nc, ns), dtype=DTYPE)
-    int_K1_K2(int_K_del_K_l, x_sc, x_s, h_dc, w_dc, h_s, w_s, mu, cov)
-    E_m_l_m_del = dot(dot(alpha_del, int_K_del_K_l), alpha_l)
-    if E_m_l_m_del <= 0:
-        warn("E_m_l_m_del = %s" % E_m_l_m_del)
-    
-    ## Third term
-    # E[m_del | x_sc] = (int K_del(x, x_sc) p(x) dx) alpha_del(x_c)
-    int_K_del = np.empty(nc, dtype=DTYPE)
-    int_K(int_K_del, x_sc, h_dc, w_dc, mu, cov)
-    E_m_del = dot(int_K_del, alpha_del)
-    if E_m_del <= 0:
-        warn("E_m_del = %s" % E_m_del)
-    
-    # put the three terms together
-    m_Z = E_m_l + E_m_l_m_del + (gamma * E_m_del)
+    int_K_l = np.empty(nc, dtype=DTYPE)
+    int_K(int_K_l, x_sc, h_l, w_l, mu, cov)
+    m_Z = dot(int_K_l, alpha_l)
+    if m_Z <= 0:
+        warn("m_Z = %s" % m_Z)
 
     return m_Z
 
 
-def Z_var(np.ndarray[DTYPE_t, ndim=2] x_s, np.ndarray[DTYPE_t, ndim=1] alpha_l, np.ndarray[DTYPE_t, ndim=1] alpha_tl, np.ndarray[DTYPE_t, ndim=2] inv_L_tl, np.ndarray[DTYPE_t, ndim=2] inv_K_tl, np.ndarray[DTYPE_t, ndim=3] dK_tl_dw, np.ndarray[DTYPE_t, ndim=2] Cw, DTYPE_t h_l, np.ndarray[DTYPE_t, ndim=1] w_l, DTYPE_t h_tl, np.ndarray[DTYPE_t, ndim=1] w_tl, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov, DTYPE_t gamma):
+def Z_var(np.ndarray[DTYPE_t, ndim=2] x_s, np.ndarray[DTYPE_t, ndim=2] x_sc, np.ndarray[DTYPE_t, ndim=1] alpha_l, np.ndarray[DTYPE_t, ndim=2] inv_L_tl, DTYPE_t h_l, np.ndarray[DTYPE_t, ndim=1] w_l, DTYPE_t h_tl, np.ndarray[DTYPE_t, ndim=1] w_tl, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
 
     cdef np.ndarray[DTYPE_t, ndim=2] int_K_l_K_tl_K_l
     cdef np.ndarray[DTYPE_t, ndim=2] int_K_tl_K_l_mat
-    cdef np.ndarray[DTYPE_t, ndim=1] int_K_tl_K_l_vec
-    cdef np.ndarray[DTYPE_t, ndim=1] int_K_tl_vec
     cdef np.ndarray[DTYPE_t, ndim=1] beta
-    cdef np.ndarray[DTYPE_t, ndim=1] int_inv_int
-    cdef DTYPE_t beta2, alpha_int_alpha, E_m_l_C_tl_m_l, E_m_l_C_tl
-    cdef DTYPE_t int_K_tl_scalar, int_inv_int_tl, E_C_tl, V_Z, V_eps
-    cdef int ns, d
+    cdef DTYPE_t beta2, alpha_int_alpha, V_Z
+    cdef int ns, nc, d
 
     ns = x_s.shape[0]
-    d = x_s.shape[1]
+    nc = x_sc.shape[0]
+    d = x_sc.shape[1]
 
-    ## First term
-    # E[m_l C_tl m_l | x_s] = alpha_l(x_s)' *
-    #    int int K_l(x_s, x) K_tl(x, x') K_l(x', x_s) p(x) p(x') dx dx' *
-    #    alpha_l(x_s) - beta(x_s)'beta(x_s)
+    # E[m_l C_tl m_l | x_sc] = alpha_l(x_sc)' *
+    #    int int K_l(x_sc, x) K_tl(x, x') K_l(x', x_sc) p(x) p(x') dx dx' *
+    #    alpha_l(x_sc) - beta(x_sc)'beta(x_sc)
     # Where beta is defined as:
-    # beta(x_s) = inv(L_tl(x_s, x_s)) *
-    #    int K_tl(x_s, x) K_l(x, x_s) p(x) dx *
-    #    alpha_l(x_s)
-    int_K_l_K_tl_K_l = np.empty((ns, ns), dtype=DTYPE)
-    int_int_K1_K2_K1(int_K_l_K_tl_K_l, x_s, h_l, w_l, h_tl, w_tl, mu, cov)
+    # beta(x_sc) = inv(L_tl(x_s, x_s)) *
+    #    int K_tl(x_s, x) K_l(x, x_sc) p(x) dx *
+    #    alpha_l(x_sc)
+    int_K_l_K_tl_K_l = np.empty((nc, nc), dtype=DTYPE)
+    int_int_K1_K2_K1(int_K_l_K_tl_K_l, x_sc, h_l, w_l, h_tl, w_tl, mu, cov)
 
-    int_K_tl_K_l_mat = np.empty((ns, ns), dtype=DTYPE)
-    int_K1_K2(int_K_tl_K_l_mat, x_s, x_s, h_tl, w_tl, h_l, w_l, mu, cov)
+    int_K_tl_K_l_mat = np.empty((ns, nc), dtype=DTYPE)
+    int_K1_K2(int_K_tl_K_l_mat, x_s, x_sc, h_tl, w_tl, h_l, w_l, mu, cov)
 
     beta = dot(dot(inv_L_tl, int_K_tl_K_l_mat), alpha_l)
     beta2 = dot(beta, beta)
     alpha_int_alpha = dot(dot(alpha_l, int_K_l_K_tl_K_l), alpha_l)
-    E_m_l_C_tl_m_l = alpha_int_alpha - beta2
-    if E_m_l_C_tl_m_l <= 0:
-        warn("E_m_l_C_tl_m_l = %s" % E_m_l_C_tl_m_l)
+    V_Z = alpha_int_alpha - beta2
+    if V_Z <= 0:
+        warn("V_Z = %s" % V_Z)
 
-    ## Second term
-    # E[m_l C_tl | x_s] =
-    #    [ int int K_tl(x', x) K_l(x, x_s) p(x) p(x') dx dx' -
-    #      ( int K_tl(x, x_s) p(x) dx) *
-    #        inv(K_tl(x_s, x_s)) *
-    #        int K_tl(x_s, x) K_l(x, x_s) p(x) dx
-    #      )
-    #    ] alpha_l(x_s)
-    int_K_tl_K_l_vec = np.empty(ns, dtype=DTYPE)
-    int_int_K1_K2(int_K_tl_K_l_vec, x_s, h_tl, w_tl, h_l, w_l, mu, cov)
-
-    int_K_tl_vec = np.empty(ns, dtype=DTYPE)
-    int_K(int_K_tl_vec, x_s, h_tl, w_tl, mu, cov)
-
-    int_inv_int = dot(dot(int_K_tl_vec, inv_K_tl), int_K_tl_K_l_mat)
-    E_m_l_C_tl = dot(int_K_tl_K_l_vec - int_inv_int, alpha_l)
-    if E_m_l_C_tl < 0:
-        warn("E_m_l_C_tl = %s" % E_m_l_C_tl)
-
-    ## Third term
-    # E[C_tl | x_s] =
-    #    int int K_tl(x, x') p(x) p(x') dx dx' -
-    #    ( int K_tl(x, x_s) p(x) dx *
-    #      inv(K_tl(x_s, x_s)) *
-    #      [int K_tl(x, x_s) p(x) dx]'
-    #    )
-    # Where eta is defined as:
-    # eta(x_s) = inv(L_tl(x_s, x_s)) int K_tl(x_s, x) p(x) dx
-    int_K_tl_scalar = int_int_K(d, h_tl, w_tl, mu, cov)
-    int_inv_int_tl = dot(dot(int_K_tl_vec, inv_K_tl), int_K_tl_vec)
-    E_C_tl = int_K_tl_scalar - int_inv_int_tl
-    if E_C_tl <= 0:
-        warn("E_C_tl = %s" % E_C_tl)
-
-    V_Z = E_m_l_C_tl_m_l + (2 * gamma * E_m_l_C_tl) + (gamma ** 2 * E_C_tl)
-
-    ##############################################################
-    ## Variance correction
-
-    cdef np.ndarray[DTYPE_t, ndim=3] int_K_l_dK_tl_mat
-    cdef np.ndarray[DTYPE_t, ndim=2] int_dK_tl_vec
-    cdef np.ndarray[DTYPE_t, ndim=3] zeta
-    cdef np.ndarray[DTYPE_t, ndim=1] nu
-    cdef DTYPE_t term1a, term1b, term2a, term2b
-
-    int_K_l_dK_tl_mat = np.empty((ns, ns, d), dtype=DTYPE)
-    int_K1_dK2(int_K_l_dK_tl_mat, x_s, x_s, h_l, w_l, h_tl, w_tl, mu, cov)
-
-    int_dK_tl_vec = np.empty((ns, d), dtype=DTYPE)
-    int_dK(int_dK_tl_vec, x_s, h_tl, w_tl, mu, cov)
-
-    zeta = dot(inv_K_tl, dK_tl_dw)
-    nu = np.empty(d, dtype=DTYPE)
-    for i in xrange(d):
-
-        # First term of nu
-        term1a = dot(dot(alpha_l, int_K_l_dK_tl_mat[:, :, i]), alpha_tl)
-        term1b = dot(dot(dot(alpha_l, int_K_tl_K_l_mat.T), zeta[:, :, i]), alpha_tl)
-
-        # Second term of nu
-        term2a = dot(int_dK_tl_vec[:, i], alpha_tl)
-        term2b = dot(dot(int_K_tl_vec, zeta[:, :, i]), alpha_tl)
-
-        nu[i] = (term1a - term1b) + gamma * (term2a - term2b)
-
-    # compute the correction
-    V_eps = dot(dot(nu, Cw), nu)
-
-    return V_Z, V_eps
+    return V_Z
 
 
-def expected_squared_mean(np.ndarray[DTYPE_t, ndim=2] x_sa, np.ndarray[DTYPE_t, ndim=2] x_sca, np.ndarray[DTYPE_t, ndim=1] l_s, np.ndarray[DTYPE_t, ndim=1] alpha_del, np.ndarray[DTYPE_t, ndim=2] inv_K_l, DTYPE_t tm_a, DTYPE_t tC_a, DTYPE_t h_l, np.ndarray[DTYPE_t, ndim=1] w_l, DTYPE_t h_d, np.ndarray[DTYPE_t, ndim=1] w_d, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov, DTYPE_t gamma):
+def expected_squared_mean(np.ndarray[DTYPE_t, ndim=2] x_sca, np.ndarray[DTYPE_t, ndim=1] l_sc, np.ndarray[DTYPE_t, ndim=2] inv_K_l, DTYPE_t tm_a, DTYPE_t tC_a, DTYPE_t h_l, np.ndarray[DTYPE_t, ndim=1] w_l, np.ndarray[DTYPE_t, ndim=1] mu, np.ndarray[DTYPE_t, ndim=2] cov):
 
     cdef np.ndarray[DTYPE_t, ndim=1] int_K_l
-    cdef np.ndarray[DTYPE_t, ndim=2] int_K_del_K_l
-    cdef np.ndarray[DTYPE_t, ndim=1] int_K_del
-    cdef np.ndarray[DTYPE_t, ndim=1] A, B
-    cdef np.ndarray[DTYPE_t, ndim=1] nlsa
-    cdef DTYPE_t C, nla, nls, e, e2, nlsnla, nla2, expected_sqd_mean
-    cdef int nsa, nsca
+    cdef np.ndarray[DTYPE_t, ndim=1] A_sca
+    cdef DTYPE_t A_a, A_sc, e1, e2, E_m2
 
-    nsa = x_sa.shape[0]
-    nsca = x_sca.shape[0]
-    
-    ## First term
     # int K_l(x, x_s) p(x) dx inv(K_l(x_s, x_s))
-    int_K_l = np.empty(nsa, dtype=DTYPE)
-    int_K(int_K_l, x_sa, h_l, w_l, mu, cov)
-    
-    A = dot(int_K_l, inv_K_l)
+    int_K_l = np.empty(x_sca.shape[0], dtype=DTYPE)
+    int_K(int_K_l, x_sca, h_l, w_l, mu, cov)
 
-    ## Second term
-    # alpha_del(x_sc)' *
-    # int K_del(x_sc, x) K_l(x, x_s) p(x) dx *
-    # inv(K_l(x_s, x_s))
-    int_K_del_K_l = np.empty((nsca, nsa), dtype=DTYPE)
-    int_K1_K2(int_K_del_K_l, x_sca, x_sa, h_d, w_d, h_l, w_l, mu, cov)
-    
-    B = dot(dot(alpha_del, int_K_del_K_l), inv_K_l)
+    A_sca = dot(int_K_l, inv_K_l)
+    A_a = A_sca[-1]
+    A_sc_l = dot(A_sca[:-1], l_sc)
 
-    ## Third term
-    # (int K_del(x, x_sc) p(x) dx) alpha_del(x_c)
-    int_K_del = np.empty(nsca, dtype=DTYPE)
-    int_K(int_K_del, x_sca, h_d, w_d, mu, cov)
-    
-    C = dot(int_K_del, alpha_del)
+    e1 = int_exp_norm(1, tm_a, tC_a)
+    e2 = int_exp_norm(2, tm_a, tC_a)
 
-    # nlsa is the vector of weights, which, when multipled with
-    # the likelihoods, gives us our mean estimate for the evidence
-    nlsa = A + B
-    nla = nlsa[-1]
-    nls = dot(nlsa[:-1], l_s) + gamma * C
+    E_m2 = (A_sc_l**2) + (2*A_sc_l*A_a * e1) + (A_a**2 * e2)
 
-    # put it all together
-    e = exp(tm_a + 0.5*tC_a)
-    e2 = exp(2*tm_a + 2*tC_a)
-    nlsnla = 2*nls*nla * gamma * (e - 1)
-    nla2 = (nla * gamma) ** 2 * (e2 - 2*e + 1)
-    expected_sqd_mean = nls ** 2 + nlsnla + nla2
+    return E_m2
 
-    return expected_sqd_mean
+
+def filter_candidates(np.ndarray[DTYPE_t, ndim=1] x_c, np.ndarray[DTYPE_t, ndim=1] x_s, DTYPE_t thresh):
+    cdef int nc = x_c.shape[0]
+    cdef int ns = x_s.shape[0]
+    cdef int i, j
+    cdef bool done = False
+    cdef DTYPE_t diff
+
+    while not done:
+        done = True
+        for i in xrange(nc):
+            for j in xrange(i+1, nc):
+                if np.isnan(x_c[i]) or np.isnan(x_c[j]):
+                    continue
+
+                diff = fabs(x_c[i] - x_c[j])
+                if diff < thresh:
+                    x_c[i] = (x_c[i] + x_c[j]) / 2.0
+                    x_c[j] = NAN
+                    done = False
+
+        for i in xrange(nc):
+            for j in xrange(ns):
+                diff = fabs(x_c[i] - x_s[j])
+                if diff < thresh:
+                    x_c[i] = NAN
 

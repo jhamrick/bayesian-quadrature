@@ -7,6 +7,7 @@ Documentation
    :maxdepth: 4
 
    bayesian_quadrature.bq
+   example
 
 Derivations
 ~~~~~~~~~~~
@@ -26,3 +27,13 @@ Tests
 
    visual-tests
    bayesian_quadrature.tests
+
+
+.. rubric:: Bibliography
+
+.. [OD12] Osborne, M. A., Duvenaud, D., Garnett, R., Rasmussen, C. E.,
+          Roberts, S. J., & Ghahramani, Z. (2012). Active Learning of
+          Model Evidence Using Bayesian Quadrature. Advances in
+          Neural Information Processing Systems, 25.
+
+.. [O13] Osborne, M. A. (2013). Gaussian Identities.

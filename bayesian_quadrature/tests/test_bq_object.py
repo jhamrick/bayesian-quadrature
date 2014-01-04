@@ -1,436 +1,69 @@
 import numpy as np
-import scipy.stats
 import pytest
+import matplotlib.pyplot as plt
 
 from .. import BQ
-from .. import bq_c
+from . import util
 
 import logging
-logger = logging.getLogger("bayesian_quadrature.tests")
+logger = logging.getLogger("bayesian_quadrature")
 logger.setLevel("DEBUG")
 
-DTYPE = np.dtype('float64')
-
-gamma = 1
-ntry = 10
-n_candidate = 10
-R_mean = 3.141592653589793
-R_var = 10.0
-
-
-def npseed():
-    np.random.seed(87293)
-
-
-def make_1d_gaussian(x=None, seed=True, n=30):
-    if seed:
-        npseed()
-    if x is None:
-        x = np.random.uniform(-8, 8, n)
-    y = scipy.stats.norm.pdf(x, 0, 1)
-    return x, y
-
-
-def make_random_bq(seed=True, n=30):
-    x, y = make_1d_gaussian(seed=seed, n=n)
-    bq = BQ(x, y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
-    return bq
-
-
-def make_random_bq_and_fit(seed=True, n=30):
-    bq = make_random_bq(seed=seed, n=n)
-    try:
-        bq.fit()
-    except RuntimeError:
-        bq.fit()
-    return bq
-
-
-def make_bq(n=30):
-    x, y = make_1d_gaussian(np.linspace(-8, 8, n))
-    bq = BQ(x, y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
-    return bq
-
-
-def make_bq_and_fit(n=30):
-    bq = make_bq(n=n)
-    bq._fit_S()
-    bq.gp_S.params = (0.4, 1.1, 0)
-    bq._fit_log_S()
-    bq._fit_Dc()
-    return bq
-
-
-def make_xo():
-    return np.linspace(-10, 10, 100)
-
-
-def test_improve_covariance_conditioning():
-    bq = make_bq_and_fit()
-
-    K_l = bq.gp_S.Kxx
-    bq_c.improve_covariance_conditioning(
-        K_l, np.arange(K_l.shape[0], dtype=DTYPE))
-    assert (K_l == bq.gp_S.Kxx).all()
-    assert K_l is bq.gp_S.Kxx
-
-    K_tl = bq.gp_log_S.Kxx
-    bq_c.improve_covariance_conditioning(
-        K_tl, np.arange(K_l.shape[0], dtype=DTYPE))
-    assert (K_tl == bq.gp_log_S.Kxx).all()
-    assert K_tl is bq.gp_log_S.Kxx
-
-    K_del = bq.gp_Dc.Kxx
-    bq_c.improve_covariance_conditioning(
-        K_del, np.arange(K_l.shape[0], dtype=DTYPE))
-    assert (K_del == bq.gp_Dc.Kxx).all()
-    assert K_del is bq.gp_Dc.Kxx
+DTYPE = util.DTYPE
+options = util.options
 
 
 def test_init():
-    x, y = make_1d_gaussian()
-    bq = BQ(x, y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
-    assert (x == bq.R).all()
-    assert (y == bq.S).all()
+    util.npseed()
+    x, y = util.make_xy()
+    bq = BQ(x, y, **options)
+    assert (x == bq.x_s).all()
+    assert (y == bq.l_s).all()
 
     with pytest.raises(ValueError):
-        BQ(x[:, None], y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
+        BQ(x[:, None], y, **options)
     with pytest.raises(ValueError):
-        BQ(x, y[:, None], gamma, ntry, n_candidate, R_mean, R_var, s=0)
+        BQ(x, y[:, None], **options)
     with pytest.raises(ValueError):
-        BQ(x[:-1], y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
+        BQ(x[:-1], y, **options)
     with pytest.raises(ValueError):
-        BQ(x, y[:-1], gamma, ntry, n_candidate, R_mean, R_var, s=0)
-
-
-def test_log_transform():
-    x, y = make_1d_gaussian()
-    log_y = np.log((y / float(gamma)) + 1)
-    bq = BQ(x, y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
-    assert np.allclose(bq.log_S, log_y)
+        BQ(x, y[:-1], **options)
+    with pytest.raises(ValueError):
+        BQ(x, -y, **options)
 
 
 def test_choose_candidates():
-    bq = make_random_bq()
-    bq._fit_S()
-    Rc = bq._choose_candidates()
-    assert Rc.ndim == 1
-    assert Rc.size >= bq.R.size
-
-    diff = np.abs(Rc[:, None] - bq.R[None])
-    assert ((diff > 1e-4) | (diff == 0)).all()
-
-
-@pytest.mark.xfail
-def test_fit_S_same():
-    params = None
-    for i in xrange(10):
-        x, y = make_1d_gaussian(seed=True, n=10)
-        bq = BQ(x, y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
-        npseed()
-        bq.fit()
-        if params is None:
-            params = bq.gp_S.params.copy()
-        assert (params == bq.gp_S.params).all()
-
-
-@pytest.mark.xfail
-def test_fit_log_S_same():
-    params = None
-    for i in xrange(10):
-        x, y = make_1d_gaussian(seed=True, n=10)
-        bq = BQ(x, y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
-        npseed()
-        bq.fit()
-        if params is None:
-            params = bq.gp_log_S.params.copy()
-        assert (params == bq.gp_log_S.params).all()
-
-
-@pytest.mark.xfail
-def test_fit_Dc_same():
-    params = None
-    candidates = None
-    for i in xrange(10):
-        x, y = make_1d_gaussian(seed=True, n=10)
-        bq = BQ(x, y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
-        npseed()
-        bq.fit()
-        if params is None:
-            params = bq.gp_Dc.params.copy()
-        if candidates is None:
-            candidates = bq.Rc.copy()
-        assert (params == bq.gp_Dc.params).all()
-        assert (candidates == bq.Rc).all()
-
-
-def test_S_mean():
-    npseed()
-
-    x, y = make_1d_gaussian(np.linspace(-8, 8, 30))
-    xo, yo = make_1d_gaussian(make_xo())
-    bq = BQ(x, y, gamma, ntry, n_candidate, R_mean, R_var, s=0)
-    bq._fit_S()
-    bq.gp_S.params = (0.4, 1.1, 0)
-    bq._fit_log_S()
-    bq._fit_Dc()
-    S = bq.S_mean(xo)
-    assert np.allclose(S, yo, atol=1e-4)
-
-
-def test_mvn_logpdf():
-    npseed()
-    x = np.random.uniform(-10, 10, 20)
-    y = scipy.stats.norm.pdf(x, R_mean, np.sqrt(R_var))
-    pdf = np.empty_like(y)
-    mu = np.array([R_mean])
-    cov = np.array([[R_var]])
-    bq_c.mvn_logpdf(pdf, x[:, None], mu, cov)
-    assert np.allclose(np.log(y), pdf)
-
-
-def test_mvn_logpdf_same():
-    npseed()
-    x = np.random.uniform(-10, 10, 20)
-    mu = np.array([R_mean])
-    cov = np.array([[R_var]])
-    pdf = np.empty((100, x.size))
-    for i in xrange(pdf.shape[0]):
-        bq_c.mvn_logpdf(pdf[i], x[:, None], mu, cov)
-
-    assert (pdf[0] == pdf).all()
-
-
-def test_int_K():
-    bq = make_bq_and_fit()
-    xo = make_xo()
-
-    Kxxo = bq.gp_S.Kxxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.R_mean[0], np.sqrt(bq.R_cov[0, 0]))
-    approx_int = np.trapz(Kxxo * p_xo, xo)
-    calc_int = np.empty(bq.R.shape[0])
-    bq_c.int_K(
-        calc_int, bq.R[:, None],
-        bq.gp_S.K.h, np.array([bq.gp_S.K.w]),
-        bq.R_mean, bq.R_cov)
-    assert np.allclose(calc_int, approx_int, atol=1e-3)
-
-    Kxxo = bq.gp_log_S.Kxxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.R_mean[0], np.sqrt(bq.R_cov[0, 0]))
-    approx_int = np.trapz(Kxxo * p_xo, xo)
-    bq_c.int_K(
-        calc_int, bq.R[:, None],
-        bq.gp_log_S.K.h, np.array([bq.gp_log_S.K.w]),
-        bq.R_mean, bq.R_cov)
-    assert np.allclose(calc_int, approx_int, atol=1e-3)
-
-
-def test_int_K_same():
-    bq = make_bq_and_fit()
-
-    vals = np.empty((100, bq.R.shape[0]))
-    for i in xrange(vals.shape[0]):
-        bq_c.int_K(
-            vals[i], bq.R[:, None],
-            bq.gp_S.K.h, np.array([bq.gp_S.K.w]),
-            bq.R_mean, bq.R_cov)
-
-    assert (vals[0] == vals).all()
-
-
-def test_int_K1_K2():
-    bq = make_bq_and_fit()
-    xo = make_xo()
-
-    K1xxo = bq.gp_S.Kxxo(xo)
-    K2xxo = bq.gp_log_S.Kxxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.R_mean[0], np.sqrt(bq.R_cov[0, 0]))
-    approx_int = np.trapz(K1xxo[:, None] * K2xxo[None, :] * p_xo, xo)
-
-    calc_int = np.empty((bq.R.shape[0], bq.R.shape[0]))
-    bq_c.int_K1_K2(
-        calc_int, bq.gp_S.x[:, None], bq.gp_log_S.x[:, None],
-        bq.gp_S.K.h, np.array([bq.gp_S.K.w]),
-        bq.gp_log_S.K.h, np.array([bq.gp_log_S.K.w]),
-        bq.R_mean, bq.R_cov)
-
-    assert np.allclose(calc_int, approx_int, atol=1e-6)
-
-
-def test_int_K1_K2_same():
-    bq = make_bq_and_fit()
-
-    vals = np.empty((100, bq.R.shape[0], bq.R.shape[0]))
-    for i in xrange(vals.shape[0]):
-        bq_c.int_K1_K2(
-            vals[i], bq.gp_S.x[:, None], bq.gp_log_S.x[:, None],
-            bq.gp_S.K.h, np.array([bq.gp_S.K.w]),
-            bq.gp_log_S.K.h, np.array([bq.gp_log_S.K.w]),
-            bq.R_mean, bq.R_cov)
-
-    assert (vals[0] == vals).all()
-
-
-def test_int_int_K1_K2_K1():
-    bq = make_bq_and_fit()
-    xo = make_xo()
-
-    K1xxo = bq.gp_S.Kxxo(xo)
-    K2xoxo = bq.gp_log_S.Kxoxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.R_mean[0], np.sqrt(bq.R_cov[0, 0]))
-    int1 = np.trapz(K1xxo[:, None, :] * K2xoxo * p_xo, xo)
-    approx_int = np.trapz(K1xxo[:, None] * int1[None] * p_xo, xo)
-
-    calc_int = np.empty((bq.R.shape[0], bq.R.shape[0]))
-    bq_c.int_int_K1_K2_K1(
-        calc_int, bq.gp_S.x[:, None],
-        bq.gp_S.K.h, np.array([bq.gp_S.K.w]),
-        bq.gp_log_S.K.h, np.array([bq.gp_log_S.K.w]),
-        bq.R_mean, bq.R_cov)
-
-    assert np.allclose(calc_int, approx_int, atol=1e-7)
-
-
-def test_int_int_K1_K2_K1_same():
-    bq = make_bq_and_fit()
-
-    vals = np.empty((100, bq.R.shape[0], bq.R.shape[0]))
-    for i in xrange(vals.shape[0]):
-        bq_c.int_int_K1_K2_K1(
-            vals[i], bq.gp_S.x[:, None],
-            bq.gp_S.K.h, np.array([bq.gp_S.K.w]),
-            bq.gp_log_S.K.h, np.array([bq.gp_log_S.K.w]),
-            bq.R_mean, bq.R_cov)
-
-    assert (vals[0] == vals).all()
-
-
-def test_int_int_K1_K2():
-    bq = make_bq_and_fit()
-    xo = make_xo()
-
-    K1xoxo = bq.gp_S.Kxoxo(xo)
-    K2xxo = bq.gp_log_S.Kxxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.R_mean[0], np.sqrt(bq.R_cov[0, 0]))
-    int1 = np.trapz(K1xoxo * K2xxo[:, :, None] * p_xo, xo)
-    approx_int = np.trapz(int1 * p_xo, xo)
-
-    calc_int = np.empty(bq.R.shape[0])
-    bq_c.int_int_K1_K2(
-        calc_int, bq.gp_log_S.x[:, None],
-        bq.gp_S.K.h, np.array([bq.gp_S.K.w]),
-        bq.gp_log_S.K.h, np.array([bq.gp_log_S.K.w]),
-        bq.R_mean, bq.R_cov)
-
-    assert np.allclose(calc_int, approx_int, atol=1e-6)
-
-
-def test_int_int_K1_K2_same():
-    bq = make_bq_and_fit()
-
-    vals = np.empty((100, bq.R.shape[0]))
-    for i in xrange(vals.shape[0]):
-        bq_c.int_int_K1_K2(
-            vals[i], bq.gp_log_S.x[:, None],
-            bq.gp_S.K.h, np.array([bq.gp_S.K.w]),
-            bq.gp_log_S.K.h, np.array([bq.gp_log_S.K.w]),
-            bq.R_mean, bq.R_cov)
-
-    assert (vals[0] == vals).all()
-
-
-def test_int_int_K():
-    bq = make_bq_and_fit()
-    xo = make_xo()
-
-    Kxoxo = bq.gp_S.Kxoxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.R_mean[0], np.sqrt(bq.R_cov[0, 0]))
-    approx_int = np.trapz(np.trapz(Kxoxo * p_xo, xo) * p_xo, xo)
-    calc_int = bq_c.int_int_K(
-        1, bq.gp_S.K.h, np.array([bq.gp_S.K.w]),
-        bq.R_mean, bq.R_cov)
-    assert np.allclose(calc_int, approx_int, atol=1e-4)
-
-    Kxoxo = bq.gp_log_S.Kxoxo(xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.R_mean[0], np.sqrt(bq.R_cov[0, 0]))
-    approx_int = np.trapz(np.trapz(Kxoxo * p_xo, xo) * p_xo, xo)
-    calc_int = bq_c.int_int_K(
-        1, bq.gp_log_S.K.h, np.array([bq.gp_log_S.K.w]),
-        bq.R_mean, bq.R_cov)
-    assert np.allclose(calc_int, approx_int, atol=1e-4)
-
-
-def test_int_int_K_same():
-    bq = make_bq_and_fit()
-
-    vals = np.empty(100)
-    for i in xrange(vals.shape[0]):
-        vals[i] = bq_c.int_int_K(
-            1, bq.gp_S.K.h, np.array([bq.gp_S.K.w]),
-            bq.R_mean, bq.R_cov)
-
-    assert (vals[0] == vals).all()
-
-
-def test_int_K1_dK2():
-    bq = make_bq_and_fit()
-    xo = make_xo()
-
-    K1xxo = bq.gp_S.Kxxo(xo)
-    dK2xxo = bq.gp_log_S.K.dK_dw(bq.gp_log_S._x, xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.R_mean[0], np.sqrt(bq.R_cov[0, 0]))
-    approx_int = np.trapz(
-        K1xxo[None, :] * dK2xxo[:, None] * p_xo, xo)[..., None]
-
-    calc_int = np.empty((bq.R.shape[0], bq.R.shape[0], 1))
-    bq_c.int_K1_dK2(
-        calc_int, bq.gp_S.x[:, None], bq.gp_log_S.x[:, None],
-        bq.gp_S.K.h, np.array([bq.gp_S.K.w]),
-        bq.gp_log_S.K.h, np.array([bq.gp_log_S.K.w]),
-        bq.R_mean, bq.R_cov)
-
-    assert np.allclose(calc_int, approx_int, atol=1e-5)
-
-
-def test_int_dK():
-    bq = make_bq_and_fit()
-    xo = make_xo()
-
-    dKxxo = bq.gp_S.K.dK_dw(bq.gp_S._x, xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.R_mean[0], np.sqrt(bq.R_cov[0, 0]))
-    approx_int = np.trapz(dKxxo * p_xo, xo)[..., None]
-    calc_int = np.empty((bq.R.shape[0], 1))
-    bq_c.int_dK(
-        calc_int, bq.R[:, None],
-        bq.gp_S.K.h, np.array([bq.gp_S.K.w]),
-        bq.R_mean, bq.R_cov)
-    assert np.allclose(calc_int, approx_int, atol=1e-3)
-
-    dKxxo = bq.gp_log_S.K.dK_dw(bq.gp_log_S._x, xo)
-    p_xo = scipy.stats.norm.pdf(xo, bq.R_mean[0], np.sqrt(bq.R_cov[0, 0]))
-    approx_int = np.trapz(dKxxo * p_xo, xo)[..., None]
-    calc_int = np.empty((bq.R.shape[0], 1))
-    bq_c.int_dK(
-        calc_int, bq.R[:, None],
-        bq.gp_log_S.K.h, np.array([bq.gp_log_S.K.w]),
-        bq.R_mean, bq.R_cov)
-    assert np.allclose(calc_int, approx_int, atol=1e-3)
+    util.npseed()
+    bq = util.make_bq()
+    assert bq.x_c.ndim == 1
+    assert bq.x_sc.size >= bq.x_s.size
+
+    diff = np.abs(bq.x_sc[:, None] - bq.x_c[None])
+    assert ((diff > 1e-1) | (diff == 0)).all()
+
+
+def test_l_mean():
+    util.npseed()
+    bq = util.make_bq()
+    xo = util.make_xo()
+    yo = util.f_x(xo)
+    l = bq.l_mean(xo)
+    assert np.allclose(l, yo, atol=1e-3)
 
 
 def test_Z_mean():
-    bq = make_bq_and_fit()
-    xo = make_xo()
-
-    p_xo = scipy.stats.norm.pdf(xo, bq.R_mean[0], np.sqrt(bq.R_cov[0, 0]))
-    S = bq.S_mean(xo)
-    approx_Z = np.trapz(S * p_xo, xo)
-    calc_Z = bq.Z_mean()
+    util.npseed()
+    bq = util.make_bq()
+    xo = util.make_xo()
+    approx_Z = bq._approx_Z_mean(xo)
+    calc_Z = bq._exact_Z_mean()
 
     assert np.allclose(approx_Z, calc_Z)
 
 
 def test_Z_mean_same():
-    bq = make_bq_and_fit(n=10)
+    util.npseed()
+    bq = util.make_bq()
 
     means = np.empty(100)
     for i in xrange(100):
@@ -440,67 +73,286 @@ def test_Z_mean_same():
 
 @pytest.mark.xfail(reason="https://github.com/numpy/numpy/issues/661")
 def test_Z_var_same():
-    bq = make_bq_and_fit(n=10)
+    util.npseed()
+    bq = util.make_bq()
 
     vars = np.empty(100)
-    eps = np.empty(100)
     for i in xrange(100):
-        vars[i], eps[i] = bq._Z_var_and_eps()
+        vars[i] = bq.Z_var()
     assert (vars[0] == vars).all()
-    assert (eps[0] == eps).all()
 
 
 def test_Z_var_close():
-    bq = make_bq_and_fit(n=10)
+    util.npseed()
+    bq = util.make_bq()
 
     vars = np.empty(100)
-    eps = np.empty(100)
     for i in xrange(100):
-        vars[i], eps[i] = bq._Z_var_and_eps()
+        vars[i] = bq.Z_var()
     assert np.allclose(vars[0], vars)
-    assert np.allclose(eps[0], eps)
 
 
 def test_Z_var():
-    # int int m_l(x) m_l(x') (C_tl(x, x') + dm_dw*C_w*dm_dw) dx dx'
-    bq = make_bq_and_fit()
-    xo = make_xo()
-
-    p_xo = scipy.stats.norm.pdf(xo, bq.R_mean[0], np.sqrt(bq.R_cov[0, 0]))
-    m_l = bq.gp_S.mean(xo) + gamma
-    C_tl = bq.gp_log_S.cov(xo)
-    approx_var = np.trapz(np.trapz(C_tl * m_l * p_xo, xo) * m_l * p_xo, xo)
-
-    dm_dw = bq.dm_dw(xo)
-    nu = np.trapz(m_l * dm_dw * p_xo, xo)
-    Cw = bq.Cw(bq.gp_log_S)
-    approx_eps = nu ** 2 * Cw
-
-    calc_var, calc_eps = bq._Z_var_and_eps()
-
+    # int int m_l(x) m_l(x') C_tl(x, x') dx dx'
+    util.npseed()
+    bq = util.make_bq()
+    xo = util.make_xo()
+    approx_var = bq._approx_Z_var(xo)
+    calc_var = bq._exact_Z_var()
     assert np.allclose(approx_var, calc_var, atol=1e-4)
-    assert np.allclose(approx_eps, calc_eps)
-
-
-@pytest.mark.xfail(reason="https://github.com/numpy/numpy/issues/661")
-def test_expected_Z_var_same():
-    bq = make_bq_and_fit()
-    Z_var = bq.Z_var()
-    for x in bq.R:
-        E_Z_var = bq.expected_Z_var(np.array([x]))
-        assert E_Z_var == Z_var
 
 
 def test_expected_Z_var_close():
-    bq = make_bq_and_fit()
+    util.npseed()
+    bq = util.make_bq()
     Z_var = bq.Z_var()
-    for x in bq.R:
-        E_Z_var = bq.expected_Z_var(np.array([x]))
-        assert np.allclose(E_Z_var, Z_var)
+    E_Z_var = bq.expected_Z_var(bq.x_s)
+    assert np.allclose(E_Z_var, Z_var, atol=1e-4)
+
+
+def test_expected_squared_mean_valid():
+    util.npseed()
+    bq = util.make_bq()
+    x_a = np.random.uniform(-10, 10, 10)
+    esm = bq.expected_squared_mean(x_a)
+    assert (esm >= 0).all()
 
 
 def test_expected_squared_mean():
-    bq = make_bq_and_fit()
-    x_a = np.random.uniform(-10, 10)
-    esm = bq.expected_squared_mean(np.array([x_a]))
-    assert esm >= 0
+    util.npseed()
+    bq = util.make_bq()
+    x_a = np.random.uniform(-10, 10, 20)[:, None]
+    x = bq._make_approx_x()
+    for xa in x_a:
+        esm = bq._exact_expected_squared_mean(xa)
+        approx = bq._approx_expected_squared_mean(xa, x)
+        assert np.allclose(esm, approx)
+
+
+def test_plot_gp_log_l():
+    util.npseed()
+    bq = util.make_bq()
+    fig, ax = plt.subplots()
+
+    bq.plot_gp_log_l(ax)
+    ax.cla()
+
+    bq.plot_gp_log_l(ax, f_l=lambda x: np.log(util.f_x(x)))
+    ax.cla()
+
+    bq.plot_gp_log_l(ax, xmin=-10, xmax=10)
+    ax.cla()
+
+    plt.close('all')
+
+
+def test_plot_gp_l():
+    util.npseed()
+    bq = util.make_bq()
+    fig, ax = plt.subplots()
+
+    bq.plot_gp_l(ax)
+    ax.cla()
+
+    bq.plot_gp_l(ax, f_l=util.f_x)
+    ax.cla()
+
+    bq.plot_gp_l(ax, xmin=-10, xmax=10)
+    ax.cla()
+
+    plt.close('all')
+
+
+def test_plot_l():
+    util.npseed()
+    bq = util.make_bq()
+    fig, ax = plt.subplots()
+
+    bq.plot_l(ax)
+    ax.cla()
+
+    bq.plot_l(ax, f_l=util.f_x)
+    ax.cla()
+
+    bq.plot_l(ax, xmin=-10, xmax=10)
+    ax.cla()
+
+    plt.close('all')
+
+
+def test_plot():
+    util.npseed()
+    bq = util.make_bq()
+
+    bq.plot()
+    plt.close('all')
+
+    bq.plot(f_l=util.f_x)
+    plt.close('all')
+
+    bq.plot(xmin=-10, xmax=10)
+    plt.close('all')
+
+
+def test_plot_expected_variance():
+    util.npseed()
+    bq = util.make_bq()
+    fig, ax = plt.subplots()
+
+    bq.plot_expected_variance(ax)
+    ax.cla()
+
+    bq.plot_expected_variance(ax, xmin=-10, xmax=10)
+    ax.cla()
+
+    plt.close('all')
+
+
+def test_plot_expected_squared_mean():
+    util.npseed()
+    bq = util.make_bq()
+    fig, ax = plt.subplots()
+
+    bq.plot_expected_squared_mean(ax)
+    ax.cla()
+
+    bq.plot_expected_squared_mean(ax, xmin=-10, xmax=10)
+    ax.cla()
+
+    plt.close('all')
+
+
+def test_l():
+    util.npseed()
+    bq = util.make_bq()
+    assert (np.log(bq.l_s) == bq.tl_s).all()
+    assert (bq.l_s == bq.l_sc[:bq.ns]).all()
+    assert (bq.l_sc[bq.ns:] == np.exp(bq.gp_log_l.mean(bq.x_c))).all()
+
+
+def test_expected_squared_mean_1():
+    util.npseed()
+    X = np.linspace(-5, 5, 20)[:, None]
+    for x in X:
+        bq = util.make_bq(x=x, nc=0)
+        m2 = bq.Z_mean() ** 2
+
+        E_m2 = bq.expected_squared_mean(x)
+        assert np.allclose(m2, E_m2, atol=1e-4)
+
+        E_m2_close = bq.expected_squared_mean(x - 1e-10)
+        assert np.allclose(m2, E_m2_close, atol=1e-4)
+
+        E_m2_close = bq.expected_squared_mean(x - 1e-8)
+        assert np.allclose(m2, E_m2_close, atol=1e-4)
+
+
+def test_periodic():
+    util.npseed()
+    bq = util.make_periodic_bq()
+    x = np.linspace(-np.pi, np.pi, 1000)
+    y = util.f_xp(x)
+    assert np.allclose(bq.l_mean(x), y, atol=1e-3)
+
+
+def test_periodic_z_mean():
+    util.npseed()
+    bq = util.make_periodic_bq()
+    x = np.linspace(-np.pi, np.pi, 1000)
+    l = bq.l_mean(x)
+    p_x = bq._make_approx_px(x)
+    approx_z = np.trapz(l * p_x, x)
+    assert np.allclose(bq.Z_mean(), approx_z)
+    
+
+def test_periodic_z_var():
+    util.npseed()
+    bq = util.make_periodic_bq()
+    x = np.linspace(-np.pi, np.pi, 1000)
+    l = bq.l_mean(x)
+    C = bq.gp_log_l.cov(x)
+    p_x = bq._make_approx_px(x)
+    approx_z = np.trapz(np.trapz(C * l * p_x, x) * l * p_x, x)
+    assert np.allclose(bq.Z_var(), approx_z)
+
+
+@pytest.mark.xfail(reason="poorly conditioned matrix")
+def test_periodic_expected_squared_mean():
+    util.npseed()
+    bq = util.make_periodic_bq(nc=0)
+    x_a = np.random.uniform(-np.pi, np.pi, 20)[:, None]
+    x = np.linspace(-np.pi, np.pi, 1000)
+
+    for xa in x_a:
+        esm = bq.expected_squared_mean(xa)
+        approx = bq._approx_expected_squared_mean(xa, x)
+        assert np.allclose(esm, approx)
+
+
+def test_periodic_expected_squared_mean_1():
+    util.npseed()
+    X = np.linspace(-np.pi, np.pi, 20)[:, None]
+    for x in X:
+        bq = util.make_periodic_bq(x=x, nc=0)
+        m2 = bq.Z_mean() ** 2
+        E_m2 = bq.expected_squared_mean(x)
+        assert np.allclose(m2, E_m2, atol=1e-4)
+
+        E_m2_close = bq.expected_squared_mean(x - 1e-10)
+        assert np.allclose(m2, E_m2_close, atol=1e-4)
+
+        E_m2_close = bq.expected_squared_mean(x - 1e-8)
+        assert np.allclose(m2, E_m2_close, atol=1e-4)
+
+
+def test_add_observation():
+    util.npseed()
+    bq = util.make_bq()
+    x = bq.x_s.copy()
+    l = bq.l_s.copy()
+    tl = bq.tl_s.copy()
+
+    x_a = np.random.randint(-5, 5, 2)
+    l_a = util.f_x(x_a)
+    tl_a = np.log(l_a)
+
+    bq.add_observation(x_a, l_a)
+    assert (bq.x_s == np.append(x, x_a)).all()
+    assert (bq.l_s == np.append(l, l_a)).all()
+    assert (bq.tl_s == np.append(tl, tl_a)).all()
+
+    assert (bq.x_s == bq.x_sc[:bq.ns]).all()
+    assert (bq.l_s == bq.l_sc[:bq.ns]).all()
+
+
+def test_approx_add_observation():
+    util.npseed()
+    bq = util.make_periodic_bq()
+    x = bq.x_s.copy()
+    l = bq.l_s.copy()
+    tl = bq.tl_s.copy()
+
+    x_a = np.random.randint(-np.pi, np.pi, 2)
+    l_a = util.f_x(x_a)
+    tl_a = np.log(l_a)
+
+    bq.add_observation(x_a, l_a)
+    assert (bq.x_s == np.append(x, x_a)).all()
+    assert (bq.l_s == np.append(l, l_a)).all()
+    assert (bq.tl_s == np.append(tl, tl_a)).all()
+
+    assert (bq.x_s == bq.x_sc[:bq.ns]).all()
+    assert (bq.l_s == bq.l_sc[:bq.ns]).all()
+
+
+def test_choose_next():
+    util.npseed()
+    bq = util.make_bq()
+    bq.choose_next(n=1)
+
+
+def test_choose_next_with_cost():
+    util.npseed()
+    bq = util.make_bq()
+    f = lambda x: x ** 2
+    bq.choose_next(cost_fun=f, n=1)
