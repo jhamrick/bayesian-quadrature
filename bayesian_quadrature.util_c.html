@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Bayesian Quadrature: Mean Derivation &mdash; bayesian_quadrature 0.1.0 documentation</title>
+    <title>Cython module: util_c &mdash; bayesian_quadrature 0.1.0 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -27,8 +27,8 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="index.html" />
-    <link rel="next" title="Bayesian Quadrature: Variance Derivation" href="bq_var.html" />
-    <link rel="prev" title="Active Sampling Example" href="active-sampling-example.html" /> 
+    <link rel="next" title="Gaussian Kernel Example" href="gaussian-example.html" />
+    <link rel="prev" title="Cython module: bq_c" href="bayesian_quadrature.bq_c.html" /> 
   </head>
   <body>
     <div class="related">
@@ -44,10 +44,10 @@
           <a href="np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="bq_var.html" title="Bayesian Quadrature: Variance Derivation"
+          <a href="gaussian-example.html" title="Gaussian Kernel Example"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="active-sampling-example.html" title="Active Sampling Example"
+          <a href="bayesian_quadrature.bq_c.html" title="Cython module: bq_c"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
       </ul>
@@ -58,34 +58,17 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="bayesian-quadrature-mean-derivation">
-<h1>Bayesian Quadrature: Mean Derivation<a class="headerlink" href="#bayesian-quadrature-mean-derivation" title="Permalink to this headline">¶</a></h1>
-<p>We have:</p>
-<div class="math">
-\[\mathbb{E}[Z]= \int\ell(x)p(x)\ \mathrm{d}x.\]</div>
-<p>We approximate this as:</p>
-<div class="math">
-\[\mathbb{E}[Z]\approx \int \bar{\ell}(x)p(x)\ \mathrm{d}x,\]</div>
-<p>where the function <span class="math">\(\bar{\ell}\)</span> is the mean of the Gaussian
-process over <span class="math">\(\exp(\log\ell)\)</span>.</p>
-<p>We expand the first term to obtain:</p>
-<div class="math">
-\[\begin{split}\begin{align*}
-E[m_\ell|x_s] &amp;= \int K_{\exp(\log\ell)}(x,\mathbf{x}_c)K_{\exp(\log\ell)}(\mathbf{x}_c,\mathbf{x}_c)^{-1}\bar{\ell}(\mathbf{x}_c)p(x)\ \mathrm{d}x\\\\
-&amp;= \left(\int K_{\exp(\log\ell)}(x,\mathbf{x}_c)p(x)\ \mathrm{d}x\right)\ K_{\exp(\log\ell)}(\mathbf{x}_c,\mathbf{x}_c)^{-1}\bar{\ell}(\mathbf{x}_c)\\\\
-&amp;= \left(\int K_{\exp(\log\ell)}(x, \mathbf{x}_c)p(x)\ \mathrm{d}x\right)\ \alpha(\mathbf{x}_c)
-\end{align*}\end{split}\]</div>
-<p>where
-<span class="math">\(\alpha(\mathbf{x}_c) = K_{\exp(\log\ell)}(\mathbf{x}_c, \mathbf{x}_c)^{-1}\bar{\ell}(\mathbf{x}_c)\)</span>.</p>
-<p>Assuming <span class="math">\(K_{\exp(\log\ell)}\)</span> is a Gaussian kernel, and
-<span class="math">\(p(x)\)</span> is a Gaussian density with mean <span class="math">\(\mu\)</span> and covariance
-<span class="math">\(\Sigma\)</span>, the integral can be expressed analytically as follows,
-from [O13]_:</p>
-<div class="math">
-\[\begin{split}\begin{align*}
-\int K_{\exp(\log\ell)}(x, \mathbf{x}_c)p(x)\ \mathrm{d}x&amp;=\int h_\ell^2 \mathcal{N}\left(\mathbf{x}_c\ \big\vert\  x, W_\ell\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\\\\
-&amp;= h_\ell^2 \mathcal{N}\left(\mathbf{x}_c\ \big\vert\  \mu, W_\ell + \Sigma\right)
-\end{align*}\end{split}\]</div>
+  <div class="section" id="cython-module-util-c">
+<h1>Cython module: <tt class="xref py py-obj docutils literal"><span class="pre">util_c</span></tt><a class="headerlink" href="#cython-module-util-c" title="Permalink to this headline">¶</a></h1>
+<p>The functions in this module are called by the functions in the
+<a class="reference internal" href="bayesian_quadrature.util.html#module-bayesian_quadrature.util" title="bayesian_quadrature.util"><tt class="xref py py-mod docutils literal"><span class="pre">util</span></tt></a> module, and in most cases shouldn&#8217;t
+need to be called directly by user code. However, they are provided
+here for reference.</p>
+<span class="target" id="module-bayesian_quadrature.util_c"></span><dl class="function">
+<dt id="bayesian_quadrature.util_c.slice_sample">
+<tt class="descclassname">bayesian_quadrature.util_c.</tt><tt class="descname">slice_sample</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.util_c.slice_sample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </div>
 
 
@@ -95,14 +78,14 @@ from [O13]_:</p>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
-  <p class="topless"><a href="active-sampling-example.html"
-                        title="previous chapter">Active Sampling Example</a></p>
+  <p class="topless"><a href="bayesian_quadrature.bq_c.html"
+                        title="previous chapter">Cython module: <tt class="docutils literal"><span class="pre">bq_c</span></tt></a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="bq_var.html"
-                        title="next chapter">Bayesian Quadrature: Variance Derivation</a></p>
+  <p class="topless"><a href="gaussian-example.html"
+                        title="next chapter">Gaussian Kernel Example</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="_sources/bq_mean.txt"
+    <li><a href="_sources/bayesian_quadrature.util_c.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">
@@ -135,10 +118,10 @@ from [O13]_:</p>
           <a href="np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="bq_var.html" title="Bayesian Quadrature: Variance Derivation"
+          <a href="gaussian-example.html" title="Gaussian Kernel Example"
              >next</a> |</li>
         <li class="right" >
-          <a href="active-sampling-example.html" title="Active Sampling Example"
+          <a href="bayesian_quadrature.bq_c.html" title="Cython module: bq_c"
              >previous</a> |</li>
         <li><a href="index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
       </ul>

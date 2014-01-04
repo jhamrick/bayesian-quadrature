@@ -1,0 +1,171 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bayesian_quadrature.util &mdash; bayesian_quadrature 0.1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../../np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for bayesian_quadrature.util</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">util_c</span> <span class="kn">import</span> <span class="n">slice_sample</span> <span class="k">as</span> <span class="n">_slice_sample</span>
+
+
+<div class="viewcode-block" id="set_scientific"><a class="viewcode-back" href="../../bayesian_quadrature.util.html#bayesian_quadrature.util.set_scientific">[docs]</a><span class="k">def</span> <span class="nf">set_scientific</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Set the axes or axis specified by `axis` to use scientific notation for</span>
+<span class="sd">    ticklabels, if the value is &lt;10**low or &gt;10**high.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ax : axis object</span>
+<span class="sd">        The matplotlib axis object to use</span>
+<span class="sd">    low : int</span>
+<span class="sd">        Lower exponent bound for non-scientific notation</span>
+<span class="sd">    high : int</span>
+<span class="sd">        Upper exponent bound for non-scientific notation</span>
+<span class="sd">    axis : str (default=None)</span>
+<span class="sd">        Which axis to format (&#39;x&#39;, &#39;y&#39;, or None for both)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># create the tick label formatter</span>
+    <span class="n">fmt</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">ScalarFormatter</span><span class="p">()</span>
+    <span class="n">fmt</span><span class="o">.</span><span class="n">set_scientific</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">fmt</span><span class="o">.</span><span class="n">set_powerlimits</span><span class="p">((</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">))</span>
+
+    <span class="c"># format the x axis</span>
+    <span class="k">if</span> <span class="n">axis</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">axis</span> <span class="o">==</span> <span class="s">&#39;x&#39;</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">get_yaxis</span><span class="p">()</span><span class="o">.</span><span class="n">set_major_formatter</span><span class="p">(</span><span class="n">fmt</span><span class="p">)</span>
+
+    <span class="c"># format the y axis</span>
+    <span class="k">if</span> <span class="n">axis</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">axis</span> <span class="o">==</span> <span class="s">&#39;y&#39;</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">get_yaxis</span><span class="p">()</span><span class="o">.</span><span class="n">set_major_formatter</span><span class="p">(</span><span class="n">fmt</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="slice_sample"><a class="viewcode-back" href="../../bayesian_quadrature.util.html#bayesian_quadrature.util.slice_sample">[docs]</a><span class="k">def</span> <span class="nf">slice_sample</span><span class="p">(</span><span class="n">logpdf</span><span class="p">,</span> <span class="n">niter</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">xval</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">nburn</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Draws samples from &#39;logpdf&#39;, optionally starting from &#39;xval&#39;.  The</span>
+<span class="sd">    pdf should return log values.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    logpdf : function</span>
+<span class="sd">        Target distribution. logpdf(xval) should return ln(Pr(xval))</span>
+<span class="sd">    niter : int</span>
+<span class="sd">        Number of iterations to run</span>
+<span class="sd">    w : float</span>
+<span class="sd">        The step by which to adjust the window size.</span>
+<span class="sd">    xval : float</span>
+<span class="sd">        The initial starting value.  If not given, rejection sampling</span>
+<span class="sd">        is used within [-window, window] until a value with</span>
+<span class="sd">        non-zero probability is found.</span>
+<span class="sd">    nburn : int (default 0)</span>
+<span class="sd">        Number of samples to skip at the beginning</span>
+<span class="sd">    freq : int (default 1)</span>
+<span class="sd">        How often to record samples</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">niter</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">xval</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">samples</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">xval</span>
+
+    <span class="n">_slice_sample</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">logpdf</span><span class="p">,</span> <span class="n">xval</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
+
+    <span class="c"># don&#39;t return burnin samples or inbetween samples</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">nburn</span><span class="p">:][::</span><span class="n">freq</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../../np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Jessica B. Hamrick.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

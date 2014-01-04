@@ -27,7 +27,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="#" />
-    <link rel="next" title="Bayesian quadrature object" href="bayesian_quadrature.bq.html" /> 
+    <link rel="next" title="Bayesian Quadrature (BQ) object" href="bayesian_quadrature.bq.html" /> 
   </head>
   <body>
     <div class="related">
@@ -43,7 +43,7 @@
           <a href="np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="bayesian_quadrature.bq.html" title="Bayesian quadrature object"
+          <a href="bayesian_quadrature.bq.html" title="Bayesian Quadrature (BQ) object"
              accesskey="N">next</a> |</li>
         <li><a href="#">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
       </ul>
@@ -68,8 +68,20 @@ Repository</a></li>
 <h2>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h2>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="bayesian_quadrature.bq.html">Bayesian quadrature object</a></li>
-<li class="toctree-l1"><a class="reference internal" href="example.html">Bayesian Quadrature Example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bayesian_quadrature.bq.html">Bayesian Quadrature (<tt class="docutils literal"><span class="pre">BQ</span></tt>) object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bayesian_quadrature.util.html">Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bayesian_quadrature.bq_c.html">Cython module: <tt class="docutils literal"><span class="pre">bq_c</span></tt></a></li>
+<li class="toctree-l1"><a class="reference internal" href="bayesian_quadrature.util_c.html">Cython module: <tt class="docutils literal"><span class="pre">util_c</span></tt></a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="gaussian-example.html">Gaussian Kernel Example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="periodic-example.html">Periodic Kernel Example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="active-sampling-example.html">Active Sampling Example</a></li>
 </ul>
 </div>
 <div class="section" id="derivations">
@@ -102,7 +114,13 @@ Repository</a></li>
 <li class="toctree-l2"><a class="reference internal" href="visual-tests.html#variance-of-z">Variance of Z</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="bayesian_quadrature.tests.html">Bayesian quadrature unit tests</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bayesian_quadrature.tests.html">Unit tests</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="bayesian_quadrature.tests.html#module-bayesian_quadrature.tests.test_bq_object">Tests for <tt class="docutils literal"><span class="pre">bq.py</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="bayesian_quadrature.tests.html#module-bayesian_quadrature.tests.test_bq_c">Tests for <tt class="docutils literal"><span class="pre">bq_c.pyx</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="bayesian_quadrature.tests.html#module-bayesian_quadrature.tests.test_util">Tests for <tt class="docutils literal"><span class="pre">util.py</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="bayesian_quadrature.tests.html#module-bayesian_quadrature.tests.util">Testing utilities</a></li>
+</ul>
+</li>
 </ul>
 </div>
 <p class="rubric">Bibliography</p>
@@ -135,6 +153,9 @@ Neural Information Processing Systems, 25.</td></tr>
   <ul>
 <li><a class="reference internal" href="#">Bayesian Quadrature</a><ul>
 <li><a class="reference internal" href="#documentation">Documentation</a><ul>
+</ul>
+</li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
 <li><a class="reference internal" href="#derivations">Derivations</a><ul>
 </ul>
 </li>
@@ -149,7 +170,7 @@ Neural Information Processing Systems, 25.</td></tr>
 
   <h4>Next topic</h4>
   <p class="topless"><a href="bayesian_quadrature.bq.html"
-                        title="next chapter">Bayesian quadrature object</a></p>
+                        title="next chapter">Bayesian Quadrature (<tt class="docutils literal"><span class="pre">BQ</span></tt>) object</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/index.txt"
@@ -185,7 +206,7 @@ Neural Information Processing Systems, 25.</td></tr>
           <a href="np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="bayesian_quadrature.bq.html" title="Bayesian quadrature object"
+          <a href="bayesian_quadrature.bq.html" title="Bayesian Quadrature (BQ) object"
              >next</a> |</li>
         <li><a href="#">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
       </ul>

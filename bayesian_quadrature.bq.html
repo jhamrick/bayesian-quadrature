@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Bayesian quadrature object &mdash; bayesian_quadrature 0.1.0 documentation</title>
+    <title>Bayesian Quadrature (BQ) object &mdash; bayesian_quadrature 0.1.0 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -27,7 +27,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="index.html" />
-    <link rel="next" title="Bayesian Quadrature Example" href="example.html" />
+    <link rel="next" title="Utilities" href="bayesian_quadrature.util.html" />
     <link rel="prev" title="Bayesian Quadrature" href="index.html" /> 
   </head>
   <body>
@@ -44,7 +44,7 @@
           <a href="np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="example.html" title="Bayesian Quadrature Example"
+          <a href="bayesian_quadrature.util.html" title="Utilities"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="index.html" title="Bayesian Quadrature"
@@ -58,8 +58,8 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="bayesian-quadrature-object">
-<h1>Bayesian quadrature object<a class="headerlink" href="#bayesian-quadrature-object" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="bayesian-quadrature-bq-object">
+<h1>Bayesian Quadrature (<tt class="xref py py-obj docutils literal"><span class="pre">BQ</span></tt>) object<a class="headerlink" href="#bayesian-quadrature-bq-object" title="Permalink to this headline">¶</a></h1>
 <dl class="class">
 <dt id="bayesian_quadrature.bq.BQ">
 <em class="property">class </em><tt class="descclassname">bayesian_quadrature.bq.</tt><tt class="descname">BQ</tt><big>(</big><em>x</em>, <em>l</em>, <em>**options</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ" title="Permalink to this definition">¶</a></dt>
@@ -151,17 +151,17 @@ Quadrature with a Gaussian Process prior:</p>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.add_observation">
-<tt class="descname">add_observation</tt><big>(</big><em>x_a</em>, <em>l_a</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.add_observation" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">add_observation</tt><big>(</big><em>x_a</em>, <em>l_a</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.add_observation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.add_observation" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.choose_candidates">
-<tt class="descname">choose_candidates</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.choose_candidates" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">choose_candidates</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.choose_candidates"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.choose_candidates" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.choose_next">
-<tt class="descname">choose_next</tt><big>(</big><em>cost_fun=None</em>, <em>n=5</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.choose_next" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">choose_next</tt><big>(</big><em>cost_fun=None</em>, <em>n=5</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.choose_next"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.choose_next" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -176,17 +176,17 @@ Quadrature with a Gaussian Process prior:</p>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.fit_l">
-<tt class="descname">fit_l</tt><big>(</big><em>params</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.fit_l" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">fit_l</tt><big>(</big><em>params</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.fit_l"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.fit_l" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.fit_log_l">
-<tt class="descname">fit_log_l</tt><big>(</big><em>params</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.fit_log_l" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">fit_log_l</tt><big>(</big><em>params</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.fit_log_l"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.fit_log_l" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.l_mean">
-<tt class="descname">l_mean</tt><big>(</big><em>x</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.l_mean" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">l_mean</tt><big>(</big><em>x</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.l_mean"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.l_mean" title="Permalink to this definition">¶</a></dt>
 <dd><p>Mean of the final approximation to <span class="math">\(\ell\)</span>.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -214,7 +214,7 @@ Quadrature with a Gaussian Process prior:</p>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.l_var">
-<tt class="descname">l_var</tt><big>(</big><em>x</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.l_var" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">l_var</tt><big>(</big><em>x</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.l_var"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.l_var" title="Permalink to this definition">¶</a></dt>
 <dd><p>Marginal variance of the final approximation to <span class="math">\(\ell\)</span>.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -249,27 +249,27 @@ Quadrature with a Gaussian Process prior:</p>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.plot_expected_squared_mean">
-<tt class="descname">plot_expected_squared_mean</tt><big>(</big><em>ax</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_expected_squared_mean" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">plot_expected_squared_mean</tt><big>(</big><em>ax</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.plot_expected_squared_mean"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_expected_squared_mean" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.plot_expected_variance">
-<tt class="descname">plot_expected_variance</tt><big>(</big><em>ax</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_expected_variance" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">plot_expected_variance</tt><big>(</big><em>ax</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.plot_expected_variance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_expected_variance" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.plot_gp_l">
-<tt class="descname">plot_gp_l</tt><big>(</big><em>ax</em>, <em>f_l=None</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_gp_l" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">plot_gp_l</tt><big>(</big><em>ax</em>, <em>f_l=None</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.plot_gp_l"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_gp_l" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.plot_gp_log_l">
-<tt class="descname">plot_gp_log_l</tt><big>(</big><em>ax</em>, <em>f_l=None</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_gp_log_l" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">plot_gp_log_l</tt><big>(</big><em>ax</em>, <em>f_l=None</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.plot_gp_log_l"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_gp_log_l" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.plot_l">
-<tt class="descname">plot_l</tt><big>(</big><em>ax</em>, <em>f_l=None</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_l" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">plot_l</tt><big>(</big><em>ax</em>, <em>f_l=None</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.plot_l"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_l" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -286,8 +286,8 @@ Quadrature with a Gaussian Process prior:</p>
   <p class="topless"><a href="index.html"
                         title="previous chapter">Bayesian Quadrature</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="example.html"
-                        title="next chapter">Bayesian Quadrature Example</a></p>
+  <p class="topless"><a href="bayesian_quadrature.util.html"
+                        title="next chapter">Utilities</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/bayesian_quadrature.bq.txt"
@@ -323,7 +323,7 @@ Quadrature with a Gaussian Process prior:</p>
           <a href="np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="example.html" title="Bayesian Quadrature Example"
+          <a href="bayesian_quadrature.util.html" title="Utilities"
              >next</a> |</li>
         <li class="right" >
           <a href="index.html" title="Bayesian Quadrature"

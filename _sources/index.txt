@@ -7,7 +7,19 @@ Documentation
    :maxdepth: 4
 
    bayesian_quadrature.bq
-   example
+   bayesian_quadrature.util
+   bayesian_quadrature.bq_c
+   bayesian_quadrature.util_c
+
+Examples
+--------
+
+.. toctree::
+   :maxdepth: 4
+
+   gaussian-example
+   periodic-example
+   active-sampling-example
 
 Derivations
 ~~~~~~~~~~~
