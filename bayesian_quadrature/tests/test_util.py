@@ -38,4 +38,4 @@ def test_slice_sample_uniform():
     samples = util.slice_sample(logpdf, 10000, 0.5, xval=0, nburn=10, freq=1)
     hist, bins = np.histogram(samples, bins=5, normed=True, range=[0, 1])
 
-    assert (np.abs(hist - 1) < 0.03).all()
+    assert (np.abs(hist - 1) < 0.05).all()
