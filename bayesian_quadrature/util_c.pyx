@@ -2,7 +2,7 @@ import numpy as np
 cimport numpy as np
 
 from libc.math cimport exp, log
-from libc.stdlib cimport rand, RAND_MAX
+from libc.stdlib cimport rand, srand, RAND_MAX
 from warnings import warn
 
 DTYPE = np.float64
@@ -11,21 +11,29 @@ ctypedef np.float64_t DTYPE_t
 cdef DTYPE_t MIN = log(np.exp2(DTYPE(np.finfo(DTYPE).minexp + 4)))
 cdef DTYPE_t EPS = np.finfo(DTYPE).eps
 cdef DTYPE_t NAN = np.nan
+cdef DTYPE_t FRAND_MAX = float(RAND_MAX)
 
 
 cdef DTYPE_t uniform(DTYPE_t lo, DTYPE_t hi):
-    return (rand() / float(RAND_MAX)) * (hi - lo) + lo
+    return (rand() / FRAND_MAX) * (hi - lo) + lo
 
 
 def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, DTYPE_t xval, DTYPE_t w):
+    cdef np.ndarray[DTYPE_t, ndim=1] yvals
     cdef DTYPE_t xpr, pr, yval, logyval, left, right
     cdef int pct, newpct, i, n
+
+    # seed the random number generator
+    srand(np.random.randint(0, RAND_MAX))
 
     # number of samples
     n = samples.shape[0]
     
     # keep track of progress
     pct = 0
+
+    # sample random yvals ahead of time
+    yvals = np.random.rand(n - 1)
 
     for i in xrange(0, n - 1):
         # compute the height of the pdf
