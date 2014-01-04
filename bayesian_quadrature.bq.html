@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Bayesian quadrature object &mdash; bayesian_quadrature 0.0.1 documentation</title>
+    <title>Bayesian quadrature object &mdash; bayesian_quadrature 0.1.0 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -16,7 +16,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '0.0.1',
+        VERSION:     '0.1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -26,8 +26,8 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="bayesian_quadrature 0.0.1 documentation" href="index.html" />
-    <link rel="next" title="Bayesian Quadrature: Mean Derivation" href="bq_mean.html" />
+    <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="index.html" />
+    <link rel="next" title="Bayesian Quadrature Example" href="example.html" />
     <link rel="prev" title="Bayesian Quadrature" href="index.html" /> 
   </head>
   <body>
@@ -44,12 +44,12 @@
           <a href="np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="bq_mean.html" title="Bayesian Quadrature: Mean Derivation"
+          <a href="example.html" title="Bayesian Quadrature Example"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="index.html" title="Bayesian Quadrature"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">bayesian_quadrature 0.0.1 documentation</a> &raquo;</li> 
+        <li><a href="index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -62,61 +62,107 @@
 <h1>Bayesian quadrature object<a class="headerlink" href="#bayesian-quadrature-object" title="Permalink to this headline">¶</a></h1>
 <dl class="class">
 <dt id="bayesian_quadrature.bq.BQ">
-<em class="property">class </em><tt class="descclassname">bayesian_quadrature.bq.</tt><tt class="descname">BQ</tt><big>(</big><em>R</em>, <em>S</em>, <em>gamma</em>, <em>ntry</em>, <em>n_candidate</em>, <em>R_mean</em>, <em>R_var</em>, <em>h=None</em>, <em>w=None</em>, <em>s=None</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">bayesian_quadrature.bq.</tt><tt class="descname">BQ</tt><big>(</big><em>x</em>, <em>l</em>, <em>**options</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
-<p>Estimate a likelihood function, S(y|x) using Gaussian Process
-regressions, as in Osborne et al. (2012):</p>
+<p>Estimate an integral of the following form using Bayesian
+Quadrature with a Gaussian Process prior:</p>
+<div class="math">
+\[Z = \int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x\]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>x</strong> : numpy.ndarray</p>
+<blockquote>
+<div><p>size <span class="math">\(s\)</span> array of sample locations</p>
+</div></blockquote>
+<p><strong>l</strong> : numpy.ndarray</p>
+<blockquote>
+<div><p>size <span class="math">\(s\)</span> array of sample observations</p>
+</div></blockquote>
+<p><strong>Other options are:</strong> :</p>
+<p><strong>kernel</strong> : Kernel</p>
+<blockquote>
+<div><p>the type of kernel to use</p>
+</div></blockquote>
+<p><strong>n_candidate</strong> : int</p>
+<blockquote>
+<div><p>(maximum) number of candidate points</p>
+</div></blockquote>
+<p><strong>candidate_thresh</strong> : float</p>
+<blockquote>
+<div><p>minimum allowed space between candidates</p>
+</div></blockquote>
+<p><strong>x_mean</strong> : float</p>
+<blockquote>
+<div><p>prior mean, <span class="math">\(\mu\)</span></p>
+</div></blockquote>
+<p><strong>x_var</strong> : float</p>
+<blockquote class="last">
+<div><p>prior variance, <span class="math">\(\sigma^2\)</span></p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>This algorithm is an updated version of the one described in
+<a class="reference internal" href="index.html#od12">[OD12]</a>. The overall idea is:</p>
 <ol class="arabic simple">
-<li>Estimate S using a GP</li>
-<li>Estimate log(S) using second GP</li>
-<li>Estimate delta_C using a third GP</li>
+<li>Estimate <span class="math">\(\log\ell\)</span> using a GP.</li>
+<li>Estimate <span class="math">\(\bar{\ell}=\exp(\log\ell)\)</span> using second GP.</li>
+<li>Integrate exactly under <span class="math">\(\bar{\ell}\)</span>.</li>
 </ol>
-<p class="rubric">References</p>
-<dl class="docutils">
-<dt>Osborne, M. A., Duvenaud, D., Garnett, R., Rasmussen, C. E.,</dt>
-<dd>Roberts, S. J., &amp; Ghahramani, Z. (2012). Active Learning of
-Model Evidence Using Bayesian Quadrature. <em>Advances in Neural
-Information Processing Systems</em>, 25.</dd>
-</dl>
-<dl class="method">
-<dt id="bayesian_quadrature.bq.BQ.Cw">
-<tt class="descname">Cw</tt><big>(</big><em>gp</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.Cw"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.Cw" title="Permalink to this definition">¶</a></dt>
-<dd><p>The variances of our posteriors over our input scale. We assume the
-covariance matrix has zero off-diagonal elements; the posterior
-is spherical.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="bayesian_quadrature.bq.BQ.S_cov">
-<tt class="descname">S_cov</tt><big>(</big><em>R</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.S_cov"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.S_cov" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="bayesian_quadrature.bq.BQ.S_mean">
-<tt class="descname">S_mean</tt><big>(</big><em>R</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.S_mean"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.S_mean" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.Z_mean">
 <tt class="descname">Z_mean</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.Z_mean"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.Z_mean" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Approximate mean of <span class="math">\(Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x\)</span>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>mean</strong> : float</p>
+<blockquote class="last">
+<div><p>approximate mean</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.Z_var">
 <tt class="descname">Z_var</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.Z_var"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.Z_var" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="bayesian_quadrature.bq.BQ.compute_delta">
-<tt class="descname">compute_delta</tt><big>(</big><em>R</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.compute_delta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.compute_delta" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="bayesian_quadrature.bq.BQ.dm_dw">
-<tt class="descname">dm_dw</tt><big>(</big><em>x</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.dm_dw"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.dm_dw" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute the partial derivative of a GP mean with respect to
-w, the input scale parameter.</p>
+<dd><p>Approximate variance of <span class="math">\(Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x\)</span>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>var</strong> : float</p>
+<blockquote class="last">
+<div><p>approximate variance</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
+
+<dl class="method">
+<dt id="bayesian_quadrature.bq.BQ.add_observation">
+<tt class="descname">add_observation</tt><big>(</big><em>x_a</em>, <em>l_a</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.add_observation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bayesian_quadrature.bq.BQ.choose_candidates">
+<tt class="descname">choose_candidates</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.choose_candidates" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bayesian_quadrature.bq.BQ.choose_next">
+<tt class="descname">choose_next</tt><big>(</big><em>cost_fun=None</em>, <em>n=5</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.choose_next" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="method">
 <dt id="bayesian_quadrature.bq.BQ.expected_Z_var">
@@ -129,21 +175,101 @@ w, the input scale parameter.</p>
 <dd></dd></dl>
 
 <dl class="method">
-<dt id="bayesian_quadrature.bq.BQ.fit">
-<tt class="descname">fit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.fit" title="Permalink to this definition">¶</a></dt>
-<dd><p>Run the GP regressions to fit the likelihood function.</p>
-<p class="rubric">References</p>
-<dl class="docutils">
-<dt>Osborne, M. A., Duvenaud, D., Garnett, R., Rasmussen, C. E.,</dt>
-<dd>Roberts, S. J., &amp; Ghahramani, Z. (2012). Active Learning of
-Model Evidence Using Bayesian Quadrature. <em>Advances in Neural
-Information Processing Systems</em>, 25.</dd>
-</dl>
+<dt id="bayesian_quadrature.bq.BQ.fit_l">
+<tt class="descname">fit_l</tt><big>(</big><em>params</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.fit_l" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bayesian_quadrature.bq.BQ.fit_log_l">
+<tt class="descname">fit_log_l</tt><big>(</big><em>params</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.fit_log_l" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bayesian_quadrature.bq.BQ.l_mean">
+<tt class="descname">l_mean</tt><big>(</big><em>x</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.l_mean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Mean of the final approximation to <span class="math">\(\ell\)</span>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>x</strong> : numpy.ndarray</p>
+<blockquote>
+<div><p><span class="math">\(m\)</span> array of new sample locations.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>mean</strong> : numpy.ndarray</p>
+<blockquote class="last">
+<div><p><span class="math">\(m\)</span> array of predictive means</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>This is just the mean of the GP over <span class="math">\(\exp(\log\ell)\)</span>, i.e.:</p>
+<div class="math">
+\[\mathbb{E}[\bar{\ell}(\mathbf{x})] = \mathbb{E}_{\mathrm{GP}(\exp(\log\ell))}(\mathbf{x})\]</div>
 </dd></dl>
 
 <dl class="method">
-<dt id="bayesian_quadrature.bq.BQ.log_transform">
-<tt class="descname">log_transform</tt><big>(</big><em>x</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.log_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.log_transform" title="Permalink to this definition">¶</a></dt>
+<dt id="bayesian_quadrature.bq.BQ.l_var">
+<tt class="descname">l_var</tt><big>(</big><em>x</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.l_var" title="Permalink to this definition">¶</a></dt>
+<dd><p>Marginal variance of the final approximation to <span class="math">\(\ell\)</span>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>x</strong> : numpy.ndarray</p>
+<blockquote>
+<div><p><span class="math">\(m\)</span> array of new sample locations.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>mean</strong> : numpy.ndarray</p>
+<blockquote class="last">
+<div><p><span class="math">\(m\)</span> array of predictive variances</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>This is just the diagonal of the covariance of the GP over
+<span class="math">\(\log\ell\)</span> multiplied by the squared mean of the GP over
+<span class="math">\(\exp(\log\ell)\)</span>, i.e.:</p>
+<div class="math">
+\[\mathbb{V}[\bar{\ell}(\mathbf{x})] = \mathbb{V}_{\mathrm{GP}(\log\ell)}(\mathbf{x})\mathbb{E}_{\mathrm{GP}(\exp(\log\ell))}(\mathbf{x})^2\]</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="bayesian_quadrature.bq.BQ.plot">
+<tt class="descname">plot</tt><big>(</big><em>f_l=None</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="reference internal" href="_modules/bayesian_quadrature/bq.html#BQ.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bayesian_quadrature.bq.BQ.plot_expected_squared_mean">
+<tt class="descname">plot_expected_squared_mean</tt><big>(</big><em>ax</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_expected_squared_mean" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bayesian_quadrature.bq.BQ.plot_expected_variance">
+<tt class="descname">plot_expected_variance</tt><big>(</big><em>ax</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_expected_variance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bayesian_quadrature.bq.BQ.plot_gp_l">
+<tt class="descname">plot_gp_l</tt><big>(</big><em>ax</em>, <em>f_l=None</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_gp_l" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bayesian_quadrature.bq.BQ.plot_gp_log_l">
+<tt class="descname">plot_gp_log_l</tt><big>(</big><em>ax</em>, <em>f_l=None</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_gp_log_l" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bayesian_quadrature.bq.BQ.plot_l">
+<tt class="descname">plot_l</tt><big>(</big><em>ax</em>, <em>f_l=None</em>, <em>xmin=None</em>, <em>xmax=None</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq.BQ.plot_l" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -160,8 +286,8 @@ Information Processing Systems</em>, 25.</dd>
   <p class="topless"><a href="index.html"
                         title="previous chapter">Bayesian Quadrature</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="bq_mean.html"
-                        title="next chapter">Bayesian Quadrature: Mean Derivation</a></p>
+  <p class="topless"><a href="example.html"
+                        title="next chapter">Bayesian Quadrature Example</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/bayesian_quadrature.bq.txt"
@@ -197,12 +323,12 @@ Information Processing Systems</em>, 25.</dd>
           <a href="np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="bq_mean.html" title="Bayesian Quadrature: Mean Derivation"
+          <a href="example.html" title="Bayesian Quadrature Example"
              >next</a> |</li>
         <li class="right" >
           <a href="index.html" title="Bayesian Quadrature"
              >previous</a> |</li>
-        <li><a href="index.html">bayesian_quadrature 0.0.1 documentation</a> &raquo;</li> 
+        <li><a href="index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

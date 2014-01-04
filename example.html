@@ -1,0 +1,189 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Bayesian Quadrature Example &mdash; bayesian_quadrature 0.1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="index.html" />
+    <link rel="next" title="Bayesian Quadrature: Mean Derivation" href="bq_mean.html" />
+    <link rel="prev" title="Bayesian quadrature object" href="bayesian_quadrature.bq.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="bq_mean.html" title="Bayesian Quadrature: Mean Derivation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="bayesian_quadrature.bq.html" title="Bayesian quadrature object"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="bayesian-quadrature-example">
+<h1>Bayesian Quadrature Example<a class="headerlink" href="#bayesian-quadrature-example" title="Permalink to this headline">¶</a></h1>
+<div class="code python highlight-python"><pre># load matplotlib
+%matplotlib inline
+
+# imports
+import numpy as np
+import scipy.stats
+
+# import the bayesian quadrature object
+from bayesian_quadrature import BQ
+
+# seed the numpy random generator, so we always get the same randomness
+np.random.seed(8728)</pre>
+</div>
+<p>First, we need to define various parameters:</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="c"># number of times to try fitting the GP parameters</span>
+<span class="n">ntry</span> <span class="o">=</span> <span class="mi">10</span>
+
+<span class="c"># (maximum) number of candidate points to choose</span>
+<span class="n">n_candidate</span> <span class="o">=</span> <span class="mi">3</span>
+
+<span class="c"># prior mean and variance</span>
+<span class="n">x_mean</span> <span class="o">=</span> <span class="mf">3.141592653589793</span>
+<span class="n">x_var</span> <span class="o">=</span> <span class="mf">10.0</span>
+</pre></div>
+</div>
+<p>Now, sample some random <span class="math">\(x\)</span> points and compute the <span class="math">\(y\)</span>
+points from a standard normal distribution.</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="n">n</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+<span class="n">f_y</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">scipy</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">f_y</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Create the bayesian quadrature object, and fit its parameters.</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="n">bq</span> <span class="o">=</span> <span class="n">BQ</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">ntry</span><span class="p">,</span> <span class="n">n_candidate</span><span class="p">,</span> <span class="n">x_mean</span><span class="p">,</span> <span class="n">x_var</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">h</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">w</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">bq</span><span class="o">.</span><span class="n">_fit_log_l</span><span class="p">()</span>
+<span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+<span class="n">bq</span><span class="o">.</span><span class="n">_fit_l</span><span class="p">()</span>
+<span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python"><pre>INFO:bayesian_quadrature:Fitting parameters for GP over log(l)
+INFO:bayesian_quadrature:Fitting parameters for GP over exp(log(l))</pre>
+</div>
+<p>Plot the result.</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">f_y</span><span class="p">,</span> <span class="n">xmin</span><span class="o">=-</span><span class="mi">10</span><span class="p">,</span> <span class="n">xmax</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="c"># x = np.linspace(-10, 10, 1000)</span>
+<span class="c"># gp = GP(GaussianKernel(y.max(), 1, 0)</span>
+</pre></div>
+</div>
+<img alt="_images/example_9_0.png" src="_images/example_9_0.png" />
+<div class="code python highlight-python"><div class="highlight"><pre><span class="n">bq</span><span class="o">.</span><span class="n">Z_mean</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="mf">0.07961733849477463</span>
+</pre></div>
+</div>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="n">bq</span><span class="o">.</span><span class="n">Z_var</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="mf">6.01299010583034e-11</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="bayesian_quadrature.bq.html"
+                        title="previous chapter">Bayesian quadrature object</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="bq_mean.html"
+                        title="next chapter">Bayesian Quadrature: Mean Derivation</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/example.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="bq_mean.html" title="Bayesian Quadrature: Mean Derivation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="bayesian_quadrature.bq.html" title="Bayesian quadrature object"
+             >previous</a> |</li>
+        <li><a href="index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Jessica B. Hamrick.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

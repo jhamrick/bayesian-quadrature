@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Bayesian Quadrature &mdash; bayesian_quadrature 0.0.1 documentation</title>
+    <title>Bayesian Quadrature &mdash; bayesian_quadrature 0.1.0 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -16,7 +16,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '0.0.1',
+        VERSION:     '0.1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -26,7 +26,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="bayesian_quadrature 0.0.1 documentation" href="#" />
+    <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="#" />
     <link rel="next" title="Bayesian quadrature object" href="bayesian_quadrature.bq.html" /> 
   </head>
   <body>
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="bayesian_quadrature.bq.html" title="Bayesian quadrature object"
              accesskey="N">next</a> |</li>
-        <li><a href="#">bayesian_quadrature 0.0.1 documentation</a> &raquo;</li> 
+        <li><a href="#">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -69,6 +69,7 @@ Repository</a></li>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="bayesian_quadrature.bq.html">Bayesian quadrature object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html">Bayesian Quadrature Example</a></li>
 </ul>
 </div>
 <div class="section" id="derivations">
@@ -77,25 +78,8 @@ Repository</a></li>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="bq_mean.html">Bayesian Quadrature: Mean Derivation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="bq_var.html">Bayesian Quadrature: Variance Derivation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="bq_var.html#first-term">First Term</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="bq_var.html#first-integral">First integral</a></li>
-<li class="toctree-l3"><a class="reference internal" href="bq_var.html#second-integral">Second integral</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="bq_var.html#second-term">Second Term</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="bq_var.html#id1">First integral</a></li>
-<li class="toctree-l3"><a class="reference internal" href="bq_var.html#id2">Second Integral</a></li>
-<li class="toctree-l3"><a class="reference internal" href="bq_var.html#third-integral">Third Integral</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="bq_var.html#third-term">Third Term</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="bq_var.html#id3">First integral</a></li>
-<li class="toctree-l3"><a class="reference internal" href="bq_var.html#second-and-third-integrals">Second and third integrals</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="bq_var.html#variance-correction">Variance Correction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="bq_var.html#id4">First integral</a></li>
-<li class="toctree-l2"><a class="reference internal" href="bq_var.html#id5">Third integral</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bq_var.html#first-integral">First integral</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bq_var.html#second-integral">Second integral</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="bq_expected_variance.html">Bayesian Quadrature: Expected Variance</a></li>
@@ -106,10 +90,37 @@ Repository</a></li>
 <h3>Tests<a class="headerlink" href="#tests" title="Permalink to this headline">¶</a></h3>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="visual-tests.html">Visual and analytic solution comparison</a></li>
+<li class="toctree-l1"><a class="reference internal" href="visual-tests.html">Visual and analytic solution comparison</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="visual-tests.html#int-k">int_K</a></li>
+<li class="toctree-l2"><a class="reference internal" href="visual-tests.html#int-k1-k2">int_K1_K2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="visual-tests.html#int-int-k1-k2-k1">int_int_K1_K2_K1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="visual-tests.html#int-int-k1-k2">int_int_K1_K2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="visual-tests.html#int-int-k">int_int_K</a></li>
+<li class="toctree-l2"><a class="reference internal" href="visual-tests.html#int-k1-dk2">int_K1_dK2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="visual-tests.html#int-dk">int_dK</a></li>
+<li class="toctree-l2"><a class="reference internal" href="visual-tests.html#mean-of-z">Mean of Z</a></li>
+<li class="toctree-l2"><a class="reference internal" href="visual-tests.html#variance-of-z">Variance of Z</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="bayesian_quadrature.tests.html">Bayesian quadrature unit tests</a></li>
 </ul>
 </div>
+<p class="rubric">Bibliography</p>
+<table class="docutils citation" frame="void" id="od12" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label">[OD12]</td><td>Osborne, M. A., Duvenaud, D., Garnett, R., Rasmussen, C. E.,
+Roberts, S. J., &amp; Ghahramani, Z. (2012). Active Learning of
+Model Evidence Using Bayesian Quadrature. Advances in
+Neural Information Processing Systems, 25.</td></tr>
+</tbody>
+</table>
+<table class="docutils citation" frame="void" id="o13" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label">[O13]</td><td>Osborne, M. A. (2013). Gaussian Identities.</td></tr>
+</tbody>
+</table>
 </div>
 </div>
 </div>
@@ -176,7 +187,7 @@ Repository</a></li>
         <li class="right" >
           <a href="bayesian_quadrature.bq.html" title="Bayesian quadrature object"
              >next</a> |</li>
-        <li><a href="#">bayesian_quadrature 0.0.1 documentation</a> &raquo;</li> 
+        <li><a href="#">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

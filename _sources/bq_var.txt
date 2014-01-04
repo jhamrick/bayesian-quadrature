@@ -2,48 +2,24 @@
 Bayesian Quadrature: Variance Derivation
 ========================================
 
-We want to compute Equation 10 from :
+We want to compute:
 
-.. math:: V_Z = \int\int m_\ell(x)C_{\log \ell}(x, x^\prime)m_\ell(x^\prime)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime
+.. math:: \mathbb{V}[Z] \approx \int\int \bar{\ell}(x)C_{\log \ell}(x, x^\prime)\bar{\ell}(x^\prime)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime
 
-Because in practice actually use the transform
-:math:`\log\left(\frac{\ell(x)}{\gamma} + 1\right)`, this becomes:
-
-.. math:: V_Z = \int\int (m_\ell(x)+\gamma)C_{\log \ell}(x, x^\prime)(m_\ell(x^\prime)+\gamma)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime.
-
-This quantity expands out into three terms:
-
-.. math:: V_Z=E[m_\ell C_{\log\ell}m_\ell] + 2\gamma E[m_\ell C_{\log\ell}] + \gamma^2 E[C_{\log\ell}],
-
-where:
+We expand this to obtain:
 
 .. math::
 
 
    \begin{align*}
-   E[m_\ell C_{\log\ell}m_\ell] &= \int\int m_\ell(x)C_{\log \ell}(x, x^\prime)m_\ell(x^\prime)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   E[m_\ell C_{\log\ell}] &= \int\int m_\ell(x)C_{\log\ell}(x, x^\prime)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   E[C_{\log\ell}] &= \int\int C_{\log\ell}(x, x^\prime)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime.
+   E[\bar{\ell} C_{\log\ell}\bar{\ell}] &= \int \int \left(K_{\exp(\log\ell)}(x, \mathbf{x}_c)K(\mathbf{x}_c, \mathbf{x}_c)^{-1}\bar{\ell}(\mathbf{x}_c)\right)\left(K_{\log\ell}(x, x^\prime)-K_{\log\ell}(x, \mathbf{x}_c)K_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)^{-1}K_{\log\ell}(\mathbf{x}_c, x^\prime)\right)\left(K_{\exp(\log\ell)}(x^\prime, \mathbf{x}_c)K(\mathbf{x}_c, \mathbf{x}_c)^{-1}\bar{\ell}(\mathbf{x}_c)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
+   &= \int \int \left(K_{\exp(\log\ell)}(x, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right)\left(K_{\log\ell}(x, x^\prime)-K_{\log\ell}(x, \mathbf{x}_c)K_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)^{-1}K_{\log\ell}(\mathbf{x}_c, x^\prime)\right)\left(K_{\exp(\log\ell)}(x^\prime, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
+   &= \int \int \left(K_{\exp(\log\ell)}(x, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right)K_{\log\ell}(x, x^\prime)\left(K_{\exp(\log\ell)}(x^\prime, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
+   &\ \ \ \ - \int \int \left(K_{\exp(\log\ell)}(x, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right) K_{\log\ell}(x, \mathbf{x}_c)K_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)^{-1}K_{\log\ell}(\mathbf{x}_c, x^\prime)\left(K_{\exp(\log\ell)}(x^\prime, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime,
    \end{align*}
 
-These three terms are further expanded below.
-
-First Term
-----------
-
-We expand the first term to obtain:
-
-.. math::
-
-
-   \begin{align*}
-   E[m_\ell C_{\log\ell}m_\ell] &= \int \int \left(K_\ell(x, x_s)K(x_s, x_s)^{-1}\ell(x_s)\right)\left(K_{\log\ell}(x, x^\prime)-K_{\log\ell}(x, x_s)K_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x^\prime)\right)\left(K_\ell(x^\prime, x_s)K(x_s, x_s)^{-1}\ell(x_s)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= \int \int \left(K_\ell(x, x_s)\alpha_\ell(x_s)\right)\left(K_{\log\ell}(x, x^\prime)-K_{\log\ell}(x, x_s)K_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x^\prime)\right)\left(K_\ell(x^\prime, x_s)\alpha_\ell(x_s)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= \int \int \left(K_\ell(x, x_s)\alpha_\ell(x_s)\right)K_{\log\ell}(x, x^\prime)\left(K_\ell(x^\prime, x_s)\alpha_\ell(x_s)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &\ \ \ \ - \int \int \left(K_\ell(x, x_s)\alpha_\ell(x_s)\right) K_{\log\ell}(x, x_s)K_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x^\prime)\left(K_\ell(x^\prime, x_s)\alpha_\ell(x_s)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime,
-   \end{align*}
-
-where :math:`\alpha_\ell(x_s)=K_\ell(x_s, x_s)^{-1}\ell(x_s)`.
+where
+:math:`\alpha(\mathbf{x}_c)=K_{\exp(\log\ell)}(\mathbf{x}_c, \mathbf{x}_c)^{-1}\bar{\ell}(\mathbf{x}_c)`.
 
 The first part of this is:
 
@@ -51,8 +27,8 @@ The first part of this is:
 
 
    \begin{align*}
-   \int \int &\left(K_\ell(x, x_s)\alpha_\ell(x_s)\right)K_{\log\ell}(x, x^\prime)\left(K_\ell(x^\prime, x_s)\alpha_\ell(x_s)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= \alpha_\ell(x_s)^\top \left(\int\int K_\ell(x_s, x)K_{\log\ell}(x, x^\prime)K_\ell(x^\prime, x_s)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\right)\alpha_\ell(x_s)
+   \int \int &\left(K_{\exp(\log\ell)}(x, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right)K_{\log\ell}(x, x^\prime)\left(K_{\exp(\log\ell)}(x^\prime, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
+   &= \alpha(\mathbf{x}_c)^\top \left(\int\int K_{\exp(\log\ell)}(\mathbf{x}_c, x)K_{\log\ell}(x, x^\prime)K_{\exp(\log\ell)}(x^\prime, \mathbf{x}_c)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\right)\alpha(\mathbf{x}_c)
    \end{align*}
 
 And the second part is:
@@ -61,51 +37,51 @@ And the second part is:
 
 
    \begin{align*}
-   - \int \int &\left(K_\ell(x, x_s)\alpha_\ell(x_s)\right) K_{\log\ell}(x, x_s)K_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x^\prime)\left(K_\ell(x^\prime, x_s)\alpha_\ell(x_s)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= - \int \int \left(K_\ell(x, x_s)\alpha_\ell(x_s)\right) K_{\log\ell}(x, x_s)\left(L_{\log\ell}(x_s, x_s)^{-1}\right)^\top L_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x^\prime)\left(K_\ell(x^\prime, x_s)\alpha_\ell(x_s)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= - \int \int \left(L_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x) K_\ell(x, x_s)\alpha_\ell(x_s) \right)^\top \left(L_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x^\prime)K_\ell(x^\prime, x_s)\alpha_\ell(x_s)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= - \left[L_{\log\ell}(x_s, x_s)^{-1}\left(\int K_{\log\ell}(x_s, x) K_\ell(x, x_s)p(x)\ \mathrm{d}x \right)\alpha_\ell(x_s)\right]^\top\left[L_{\log\ell}(x_s, x_s)^{-1}\left(\int K_{\log\ell}(x_s, x) K_\ell(x, x_s)p(x)\ \mathrm{d}x \right)\alpha_\ell(x_s)\right]\\\\
-   &= -\beta(x_s)^\top\beta(x_s),
+   - \int \int &\left(K_{\exp(\log\ell)}(x, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right) K_{\log\ell}(x, \mathbf{x}_c)K_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)^{-1}K_{\log\ell}(\mathbf{x}_c, x^\prime)\left(K_{\exp(\log\ell)}(x^\prime, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
+   &= - \int \int \left(K_{\exp(\log\ell)}(x, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right) K_{\log\ell}(x, \mathbf{x}_c)\left(L_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)^{-1}\right)^\top L_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)^{-1}K_{\log\ell}(\mathbf{x}_c, x^\prime)\left(K_{\exp(\log\ell)}(x^\prime, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
+   &= - \int \int \left(L_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)^{-1}K_{\log\ell}(\mathbf{x}_c, x) K_{\exp(\log\ell)}(x, \mathbf{x}_c)\alpha(\mathbf{x}_c) \right)^\top \left(L_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)^{-1}K_{\log\ell}(\mathbf{x}_c, x^\prime)K_{\exp(\log\ell)}(x^\prime, \mathbf{x}_c)\alpha(\mathbf{x}_c)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
+   &= - \left[L_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)^{-1}\left(\int K_{\log\ell}(\mathbf{x}_c, x) K_{\exp(\log\ell)}(x, \mathbf{x}_c)p(x)\ \mathrm{d}x \right)\alpha(\mathbf{x}_c)\right]^\top\left[L_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)^{-1}\left(\int K_{\log\ell}(\mathbf{x}_c, x) K_{\exp(\log\ell)}(x, \mathbf{x}_c)p(x)\ \mathrm{d}x \right)\alpha(\mathbf{x}_c)\right]\\\\
+   &= -\beta(\mathbf{x}_c)^\top\beta(\mathbf{x}_c),
    \end{align*}
 
 where
-:math:`\beta(x_s)=L_{\log\ell}(x_s, x_s)^{-1}\left(\int K_{\log\ell}(x_s, x) K_\ell(x, x_s)p(x)\ \mathrm{d}x \right)\alpha_\ell(x_s)`
-and :math:`L_{\log\ell}(x_s, x_s)` is the Cholesky decomposition of
-:math:`K_{\log\ell}(x_s, x_s)`.
+:math:`\beta(\mathbf{x}_c)=L_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)^{-1}\left(\int K_{\log\ell}(\mathbf{x}_c, x) K_{\exp(\log\ell)}(x, \mathbf{x}_c)p(x)\ \mathrm{d}x \right)\alpha(\mathbf{x}_c)`
+and :math:`L_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)` is the Cholesky
+decomposition of :math:`K_{\log\ell}(\mathbf{x}_c, \mathbf{x}_c)`.
 
 Putting these together, we obtain:
 
-.. math:: E[m_\ell C_{\log\ell}m_\ell]=\alpha_\ell(x_s)^\top \left(\int\int K_\ell(x_s, x)K_{\log\ell}(x, x^\prime)K_\ell(x^\prime, x_s)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\right)\alpha_\ell(x_s)-\beta(x_s)^\top\beta(x_s)
+.. math:: E[\bar{\ell} C_{\log\ell}\bar{\ell}]=\alpha(\mathbf{x}_c)^\top \left(\int\int K_{\exp(\log\ell)}(\mathbf{x}_c, x)K_{\log\ell}(x, x^\prime)K_{\exp(\log\ell)}(x^\prime, \mathbf{x}_c)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\right)\alpha(\mathbf{x}_c)-\beta(\mathbf{x}_c)^\top\beta(\mathbf{x}_c)
 
 First integral
 ~~~~~~~~~~~~~~
 
 Assuming the kernels are Gaussian kernels, and :math:`p(x)` is also
 Gaussian with mean :math:`\mu` and covariance :math:`\Sigma`, we can
-derive the integrals analytically. For readability, let :math:`a=x_s`,
-:math:`b=x`, and :math:`c=x^\prime`. Then:
+derive the integrals analytically. Then:
 
 .. math::
 
 
    \begin{align*}
-   \int\int & K_\ell(a_{i}, b)K_{\log\ell}(b, c)K_\ell(c, a_{j})p(b)p(c)\ \mathrm{d}b\ \mathrm{d}c\\\\ 
-   &= h_1^4 h_2^2 \int\int \mathcal{N}\left(a_{i}\ \big\vert\  b, W_\ell\right)\mathcal{N}\left(b\ \big\vert\  c, W_{\log\ell}\right)\mathcal{N}\left(c\ \big\vert\  a_{j}, W_\ell\right)\mathcal{N}\left(b\ \big\vert\  \mu, \Sigma\right)\mathcal{N}\left(c\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}b\ \mathrm{d}c\\\\
+   \int\int & K_{\exp(\log\ell)}(x_{c,i}, x)K_{\log\ell}(x, x^\prime)K_{\exp(\log\ell)}(x^\prime, x_{c,j})p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\ 
+   &= h_1^4 h_2^2 \int\int \mathcal{N}\left(x_{c,i}\ \big\vert\  x, W_\ell\right)\mathcal{N}\left(x\ \big\vert\  x^\prime, W_{\log\ell}\right)\mathcal{N}\left(x^\prime\ \big\vert\  x_{c,j}, W_\ell\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\mathcal{N}\left(x^\prime\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
    \end{align*}
 
-From , we have:
+From [O13]\_, we have:
 
-.. math:: \mathcal{N}\left(a_{i}\ \big\vert\  b, W_\ell\right)\mathcal{N}\left(b\ \big\vert\  \mu, \Sigma\right) = \mathcal{N}\left(a_{i}\ \big\vert\  \mu, W_\ell + \Sigma\right)\mathcal{N}\left(b\ \big\vert\  \mu + \Gamma(a_{i}-\mu), \Sigma -\Gamma\Sigma\right),
+.. math:: \mathcal{N}\left(x_{c,i}\ \big\vert\  x, W_\ell\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right) = \mathcal{N}\left(x_{c,i}\ \big\vert\  \mu, W_\ell + \Sigma\right)\mathcal{N}\left(x\ \big\vert\  \mu + \Gamma(x_{c,i}-\mu), \Sigma -\Gamma\Sigma\right),
 
 where :math:`\Gamma = \Sigma(W_\ell + \Sigma)^{-1}`.
 
-Using this identity for both :math:`a_{i}` and :math:`a_{j}`, we obtain:
+Using this identity for both :math:`x_{c,i}` and :math:`x_{c,j}`, we
+obtain:
 
-.. math:: = h_1^4 h_2^2 \mathcal{N}\left(a_{i}\ \big\vert\  \mu, W_\ell + \Sigma\right)\mathcal{N}\left(a_{j}\ \big\vert\  \mu, W_\ell+\Sigma\right)\int \mathcal{N}\left(b\ \big\vert\  \mu + \Gamma(a_{i}-\mu), \Sigma -\Gamma\Sigma\right)\int \mathcal{N}\left(b-c\ \big\vert\  0, W_{\log\ell}\right)\mathcal{N}\left(c\ \big\vert\  \mu + \Gamma(a_{j}-\mu), \Sigma -\Gamma\Sigma\right)\ \mathrm{d}b\ \mathrm{d}c
+.. math:: = h_1^4 h_2^2 \mathcal{N}\left(x_{c,i}\ \big\vert\  \mu, W_\ell + \Sigma\right)\mathcal{N}\left(x_{c,j}\ \big\vert\  \mu, W_\ell+\Sigma\right)\int \mathcal{N}\left(x\ \big\vert\  \mu + \Gamma(x_{c,i}-\mu), \Sigma -\Gamma\Sigma\right)\int \mathcal{N}\left(x-x^\prime\ \big\vert\  0, W_{\log\ell}\right)\mathcal{N}\left(x^\prime\ \big\vert\  \mu + \Gamma(x_{c,j}-\mu), \Sigma -\Gamma\Sigma\right)\ \mathrm{d}x\ \mathrm{d}x^\prime
 
 The innermost integral is a convolution, giving us:
 
-.. math:: = h_1^4 h_2^2 \mathcal{N}\left(a_{i}\ \big\vert\  \mu, W_\ell + \Sigma\right)\mathcal{N}\left(a_{j}\ \big\vert\  \mu, W_\ell+\Sigma\right)\int \mathcal{N}\left(b\ \big\vert\  \mu + \Gamma(a_{i}-\mu), \Sigma -\Gamma\Sigma\right) \mathcal{N}\left(b\ \big\vert\  \mu + \Gamma(a_{j}-\mu), W_{\log\ell} + \Sigma -\Gamma\Sigma\right)\ \mathrm{d}b
+.. math:: = h_1^4 h_2^2 \mathcal{N}\left(x_{c,i}\ \big\vert\  \mu, W_\ell + \Sigma\right)\mathcal{N}\left(x_{c,j}\ \big\vert\  \mu, W_\ell+\Sigma\right)\int \mathcal{N}\left(x\ \big\vert\  \mu + \Gamma(x_{c,i}-\mu), \Sigma -\Gamma\Sigma\right) \mathcal{N}\left(x\ \big\vert\  \mu + \Gamma(x_{c,j}-\mu), W_{\log\ell} + \Sigma -\Gamma\Sigma\right)\ \mathrm{d}x
 
 This can also be rewritten in convolution form:
 
@@ -113,359 +89,22 @@ This can also be rewritten in convolution form:
 
 
    \begin{align*}
-   &= h_1^4 h_2^2 \mathcal{N}\left(a_{i}\ \big\vert\  \mu, W_\ell + \Sigma\right)\mathcal{N}\left(a_{j}\ \big\vert\  \mu, W_\ell+\Sigma\right)\int \mathcal{N}\left(a_{i}-b\ \big\vert\  a_{i} - \mu - \Gamma(a_{i}-\mu), \Sigma -\Gamma W_\ell\right) \mathcal{N}\left(b\ \big\vert\  \mu + \Gamma(a_{j}-\mu), W_{\log\ell} + \Sigma -\Gamma W_\ell\right)\ \mathrm{d}b\\\\
-   &= h_1^4 h_2^2 \mathcal{N}\left(a_{i}\ \big\vert\  \mu, W_\ell + \Sigma\right)\mathcal{N}\left(a_{j}\ \big\vert\  \mu, W_\ell+\Sigma\right) \mathcal{N}\left(a_{i}\ \big\vert\  a_{i} + \Gamma(a_{j}-a_{i}), W_{\log\ell} + 2\Sigma -2\Gamma\Sigma\right)\\\\
-   &= h_1^4 h_2^2 \left\vert \Gamma\right\vert^{-1} \mathcal{N}\left(a_{i}\ \big\vert\  \mu, W_\ell + \Sigma\right)\mathcal{N}\left(a_{j}\ \big\vert\  \mu, W_\ell+\Sigma\right) \mathcal{N}\left(a_{i}\ \big\vert\ a_{j}, \Gamma^{-1}(W_{\log\ell} + 2\Sigma -2\Gamma\Sigma)\Gamma^{-1}\right)
+   &= h_1^4 h_2^2 \mathcal{N}\left(x_{c,i}\ \big\vert\  \mu, W_\ell + \Sigma\right)\mathcal{N}\left(x_{c,j}\ \big\vert\  \mu, W_\ell+\Sigma\right)\int \mathcal{N}\left(x_{c,i}-x\ \big\vert\  x_{c,i} - \mu - \Gamma(x_{c,i}-\mu), \Sigma -\Gamma W_\ell\right) \mathcal{N}\left(x\ \big\vert\  \mu + \Gamma(x_{c,j}-\mu), W_{\log\ell} + \Sigma -\Gamma W_\ell\right)\ \mathrm{d}x\\\\
+   &= h_1^4 h_2^2 \mathcal{N}\left(x_{c,i}\ \big\vert\  \mu, W_\ell + \Sigma\right)\mathcal{N}\left(x_{c,j}\ \big\vert\  \mu, W_\ell+\Sigma\right) \mathcal{N}\left(x_{c,i}\ \big\vert\  x_{c,i} + \Gamma(x_{c,j}-x_{c,i}), W_{\log\ell} + 2\Sigma -2\Gamma\Sigma\right)\\\\
+   &= h_1^4 h_2^2 \left\vert \Gamma\right\vert^{-1} \mathcal{N}\left(x_{c,i}\ \big\vert\  \mu, W_\ell + \Sigma\right)\mathcal{N}\left(x_{c,j}\ \big\vert\  \mu, W_\ell+\Sigma\right) \mathcal{N}\left(x_{c,i}\ \big\vert\ x_{c,j}, \Gamma^{-1}(W_{\log\ell} + 2\Sigma -2\Gamma\Sigma)\Gamma^{-1}\right)
    \end{align*}
 
 Second integral
 ~~~~~~~~~~~~~~~
 
 The integral in :math:`\beta(x)` can be expressed analytically as
-follows, from :
+follows, from [O13]\_:
 
 .. math::
 
 
    \begin{align*}
-   \int K_{\log\ell}(x_s, x) K_\ell(x, x_s)p(x)\ \mathrm{d}x&=\int h_{\log\ell}^2 h_\ell^2\mathcal{N}\left(x_{s,i}\ \big\vert\  x, W_{\log\ell}\right)\mathcal{N}\left(x_{s,j}\ \big\vert\  x, W_\ell\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\\\\
+   \int K_{\log\ell}(\mathbf{x}_c, x) K_{\exp(\log\ell)}(x, \mathbf{x}_c)p(x)\ \mathrm{d}x&=\int h_{\log\ell}^2 h_\ell^2\mathcal{N}\left(x_{s,i}\ \big\vert\  x, W_{\log\ell}\right)\mathcal{N}\left(x_{s,j}\ \big\vert\  x, W_\ell\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\\\\
    &= h_{\log\ell}^2 h_\ell^2\int\mathcal{N}\left([x_{s,i}, x_{s,j}]\ \big\vert\  [x, x], [W_{\log\ell}, 0; 0, W_\ell]\right)\mathcal{N}\left(x\ \big\vert\  \mu, \Sigma\right)\ \mathrm{d}x\\\\
    &= h_{\log\ell}^2 h_\ell^2 \mathcal{N}\left([x_{s,i}, x_{s,j}]\ \big\vert\  [\mu, \mu], [W_{\log\ell}+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma]\right)
-   \end{align*}
-
-Second Term
------------
-
-The second term also expands into two parts:
-
-.. math::
-
-
-   \begin{align*}
-   E[m_\ell C_{\log\ell}] &= \int\int m_\ell(x)C_{\log\ell}(x, x^\prime)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= \int\int K_\ell(x, x_s)K_\ell(x_s, x_s)^{-1}\ell(x_s)\left(K_{\log\ell}(x, x^\prime) - K_{\log\ell}(x, x_s)K_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x^\prime)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= \int\int K_{\log\ell}(x^\prime, x)K_\ell(x, x_s)K_\ell(x_s, x_s)^{-1}\ell(x_s)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime - \int\int K_{\log\ell}(x^\prime, x_s)K_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x)K_\ell(x, x_s)K_\ell(x_s, x_s)^{-1}\ell(x_s)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime
-   \end{align*}
-
-The first part is just:
-
-.. math::
-
-
-   \begin{align*}
-   \int\int & K_{\log\ell}(x^\prime, x)K_\ell(x, x_s)K_\ell(x_s, x_s)^{-1}\ell(x_s)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= \left(\int\int K_{\log\ell}(x^\prime, x)K_\ell(x, x_s)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\right) \alpha_\ell(x_s)
-   \end{align*}
-
-The second part is:
-
-.. math::
-
-
-   \begin{align*}
-   - \int\int & K_{\log\ell}(x^\prime, x_s)K_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x)K_\ell(x, x_s)K_\ell(x_s, x_s)^{-1}\ell(x_s)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= - \left(\int\int K_{\log\ell}(x^\prime, x_s)K_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x)K_\ell(x, x_s)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\right)\alpha_\ell(x_s)\\\\
-   &= - \left(\int K_{\log\ell}(x, x_s)K_{\log\ell}(x_s, x_s)^{-1}p(x)\ \mathrm{d}x\right)\left(\int K_{\log\ell}(x_s, x)K_\ell(x, x_s)p(x)\ \mathrm{d}x\right)\alpha_\ell(x_s)\\\\
-   &= - \left(\int K_{\log\ell}(x, x_s)p(x)\ \mathrm{d}x\right)K_{\log\ell}(x_s, x_s)^{-1}\left(\int K_{\log\ell}(x_s, x)K_\ell(x, x_s)p(x)\ \mathrm{d}x\right)\alpha_\ell(x_s)
-   \end{align*}
-
-Putting these together, we get:
-
-.. math:: E[m_\ell C_{\log\ell}]=\left[\int\int K_{\log\ell}(x^\prime, x)K_\ell(x, x_s)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime-\left(\int K_{\log\ell}(x, x_s)p(x)\ \mathrm{d}x\right)K_{\log\ell}(x_s, x_s)^{-1}\left(\int K_{\log\ell}(x_s, x)K_\ell(x, x_s)p(x)\ \mathrm{d}x\right)\right]\alpha_\ell(x_s)
-
-First integral
-~~~~~~~~~~~~~~
-
-The first integral we need to resolve analytically is:
-
-.. math:: \int\int K_{\log\ell}(x^\prime, x)K_\ell(x, x_s)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime
-
-As above, the kernels are Gaussian kernels, and :math:`p(x)` is also
-Gaussian with mean :math:`\mu` and covariance :math:`\Sigma`. For
-readability, let :math:`a=x_s`, :math:`b=x`, and :math:`c=x^\prime`.
-Then:
-
-.. math::
-
-
-   \begin{align*}
-   h_{\log\ell}^2 h_\ell^2\int\int &\mathcal{N}\left(c\ \big\vert\ b, W_{\log\ell}\right)\mathcal{N}\left(b\ \big\vert\ a, W_\ell\right)\mathcal{N}\left(b\ \big\vert\ \mu, \Sigma\right)\mathcal{N}\left(c\ \big\vert\ \mu, \Sigma\right)\ \mathrm{d}b\ \mathrm{d}c\\\\
-   &= h_{\log\ell}^2 h_\ell^2\int \mathcal{N}\left(b\ \big\vert\ a, W_\ell\right)\mathcal{N}\left(b\ \big\vert\ \mu, \Sigma\right)\int\mathcal{N}\left(b - c\ \big\vert\ 0, W_{\log\ell}\right)\mathcal{N}\left(c\ \big\vert\ \mu, \Sigma\right)\ \mathrm{d}b\ \mathrm{d}c
-   \end{align*}
-
-The innermost integral is a convolution, giving:
-
-.. math:: = h_{\log\ell}^2 h_\ell^2\int \mathcal{N}\left(b\ \big\vert\ a, W_\ell\right)\mathcal{N}\left(b\ \big\vert\ \mu, \Sigma\right)\mathcal{N}\left(b\ \big\vert\ \mu, W_{\log\ell}+\Sigma\right)\ \mathrm{d}b
-
-From , we have:
-
-.. math::
-
-
-   \begin{align*}
-   \mathcal{N}\left(\mu\ \big\vert\  b, W_{\log\ell}+\Sigma\right)\mathcal{N}\left(b\ \big\vert\  \mu, \Sigma\right) &= \mathcal{N}\left(\mu\ \big\vert\  \mu, W_{\log\ell} + 2\Sigma\right)\mathcal{N}\left(b\ \big\vert\  \mu + \Sigma(W_{\log\ell}+2\Sigma)^{-1}(\mu-\mu), \Sigma -\Sigma(W_{\log\ell}+2\Sigma)^{-1}\Sigma\right)\\\\
-   &= \mathcal{N}\left(0\ \big\vert\ 0, W_{\log\ell}+2\Sigma\right)\mathcal{N}\left(b\ \big\vert\ \mu, \Sigma -\Sigma(W_{\log\ell}+2\Sigma)^{-1}\Sigma\right)
-   \end{align*}
-
-Plugging this in, we obtain another convolution:
-
-.. math::
-
-
-   \begin{align*}
-   &= h_{\log\ell}^2 h_\ell^2\mathcal{N}\left(0\ \big\vert\ 0, W_{\log\ell}+2\Sigma\right)\int \mathcal{N}\left(a-b\ \big\vert\ 0, W_\ell\right) \mathcal{N}\left(b\ \big\vert\ \mu, \Sigma -\Sigma(W_{\log\ell}+2\Sigma)^{-1}\Sigma\right)\\\\
-   &= h_{\log\ell}^2 h_\ell^2\mathcal{N}\left(0\ \big\vert\ 0, W_{\log\ell}+2\Sigma\right)\mathcal{N}\left(a\ \big\vert\ \mu, W_\ell+\Sigma -\Sigma(W_{\log\ell}+2\Sigma)^{-1}\Sigma\right)
-   \end{align*}
-
-Second Integral
-~~~~~~~~~~~~~~~
-
-The second integral is:
-
-.. math::
-
-
-   \begin{align*}
-   \int K_{\log\ell}(x, x_s)p(x)\ \mathrm{d}x &= h_{\log\ell}^2 \int \mathcal{N}\left( x \ \big\vert\ x_s, W_{\log\ell} \right)\mathcal{N}\left( x \ \big\vert\ \mu, \Sigma \right)\ \mathrm{d}x\\\\
-   &= h_{\log\ell}^2 \mathcal{N}\left( x_s \ \big\vert\ \mu, W_{\log\ell}+\Sigma \right)
-   \end{align*}
-
-Third Integral
-~~~~~~~~~~~~~~
-
-The third integral is:
-
-.. math::
-
-
-   \begin{align*}
-   \int & K_{\log\ell}(x_s, x)K_\ell(x, x_s)p(x)\ \mathrm{d}x\\\\
-   &= h_{\log\ell}^2 h_\ell^2 \int \mathcal{N}\left( x_{s,i} \ \big\vert\ x, W_{\log\ell} \right)\mathcal{N}\left( x \ \big\vert\ x_{s,j}, W_\ell \right)\mathcal{N}\left( x \ \big\vert\ \mu, \Sigma \right)\ \mathrm{d}x\\\\
-   &= h_{\log\ell}^2 h_\ell^2 \int \mathcal{N}\left( [x_{s,i}, x_{s,j}] \ \big\vert\ [x, x], [W_{\log\ell}, 0; 0, W_{\ell}] \right)\mathcal{N}\left( x \ \big\vert\ \mu, \Sigma \right)\ \mathrm{d}x\\\\
-   &= h_{\log\ell}^2 h_\ell^2 \mathcal{N}\left( [x_{s,i}, x_{s,j}] \ \big\vert\ [\mu, \mu], [W_{\log\ell}+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma] \right)
-   \end{align*}
-
-Third Term
-----------
-
-The third term is:
-
-.. math::
-
-
-   \begin{align*}
-   E[C_{\log\ell}] &= \int\int C_{\log\ell}(x, x^\prime)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= \int\int \left(K_{\log\ell}(x, x^\prime) - K_{\log\ell}(x, x_s)K_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x^\prime)\right)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= \int\int K_{\log\ell}(x, x^\prime)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime - \int\int K_{\log\ell}(x, x_s)K_{\log\ell}(x_s, x_s)^{-1}K_{\log\ell}(x_s, x^\prime)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= \int\int K_{\log\ell}(x, x^\prime)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime - \left(\int K_{\log\ell}(x, x_s)p(x)\ \mathrm{d}x\right)K_{\log\ell}(x_s, x_s)^{-1}\left(\int K_{\log\ell}(x, x_s)p(x)\ \mathrm{d}x\right)^\top
-   \end{align*}
-
-First integral
-~~~~~~~~~~~~~~
-
-The first integral is:
-
-.. math::
-
-
-   \begin{align*}
-   \int\int K_{\log\ell}(x, x^\prime)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime &= h_{\log\ell}^2\int\int \mathcal{N}\left( x \ \big\vert\ x^\prime, W_{\log\ell} \right)\mathcal{N}\left( x \ \big\vert\ \mu, \Sigma \right)\mathcal{N}\left( x^\prime \ \big\vert\ \mu, \Sigma \right)\ \mathrm{d}x \ \mathrm{d}x^\prime\\\\
-   &= h_{\log\ell}^2\int \mathcal{N}\left( x \ \big\vert\ \mu, \Sigma \right)\int \mathcal{N}\left( x - x^\prime \ \big\vert\ 0, W_{\log\ell} \right)\mathcal{N}\left( x^\prime \ \big\vert\ \mu, \Sigma \right)\ \mathrm{d}x \ \mathrm{d}x^\prime\\\\
-   &= h_{\log\ell}^2\int \mathcal{N}\left( x \ \big\vert\ \mu, \Sigma \right) \mathcal{N}\left( x \ \big\vert\ \mu, W_{\log\ell}+\Sigma \right) \ \mathrm{d}\\\\
-   &= h_{\log\ell}^2\mathcal{N}\left( \mu \ \big\vert\ \mu, W_{\log\ell}+2\Sigma \right)\\\\
-   &= h_{\log\ell}^2\mathcal{N}\left( 0 \ \big\vert\ 0, W_{\log\ell} + 2\Sigma \right)
-   \end{align*}
-
-Second and third integrals
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The other integrals are identical, and can be expressed analytically as:
-
-.. math::
-
-
-   \begin{align*}
-   \int K_{\log\ell}(x, x_s)p(x)\ \mathrm{d}x &= h_{\log\ell}^2 \int \mathcal{N}\left( x \ \big\vert\ x_s, W_{\log\ell} \right)\mathcal{N}\left( x \ \big\vert\ \mu, \Sigma \right)\ \mathrm{d}x\\\\
-   &= h_{\log\ell}^2 \mathcal{N}\left( x_s \ \big\vert\ \mu, W_{\log\ell}+\Sigma \right)
-   \end{align*}
-
-Variance Correction
--------------------
-
-We adjust the covariance :math:`C_{\log\ell}(x, x^\prime)` as follows:
-
-.. math:: C_{\log\ell}(x, x^\prime) = C_{\log\ell}(x, x^\prime)+\frac{\partial m_{\log\ell}(x)}{\partial\hat{W}}C_\hat{W}\frac{\partial m_{\log\ell}(x^\prime)}{\partial\hat{W}}^\top
-
-This requires that we adjust the previously calculated variance by a
-correction factor:
-
-.. math::
-
-
-   \begin{align*}
-   \epsilon &= \int\int (m_\ell(x) + \gamma)\frac{\partial m_{\log\ell}(x)}{\partial\hat{W}}C_{\hat{W}}\frac{\partial m_{\log\ell}(x^\prime)}{\partial\hat{W}}^\top(m_\ell(x^\prime) + \gamma)^\top p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\\\\
-   &= \left(\int (m_\ell(x) + \gamma)\frac{\partial m_{\log\ell}(x)}{\partial\hat{W}}p(x)\ \mathrm{d}x\right)C_{\hat{W}}\left(\int (m_\ell(x) + \gamma)\frac{\partial m_{\log\ell}(x)}{\partial\hat{W}}p(x)\ \mathrm{d}x\right)^\top\\\\
-   &= \nu C_{\hat{W}} \nu^\top
-   \end{align*}
-
-Where :math:`\nu` is defined as:
-
-.. math::
-
-
-   \begin{align*}
-   \nu &= \int (m_\ell(x) + \gamma)\frac{\partial m_{\log\ell}(x)}{\partial\hat{W}}p(x)\ \mathrm{d}x\\\\
-   &= \int m_\ell(x)\frac{\partial m_{\log\ell}(x)}{\partial\hat{W}}p(x)\ \mathrm{d}x + \gamma\int \frac{\partial m_{\log\ell}(x)}{\partial\hat{W}}p(x)\ \mathrm{d}x
-   \end{align*}
-
-The derivative of the mean with respect to :math:`\hat{W}` is:
-
-.. math::
-
-
-   \begin{align*}
-   \frac{\partial m_{\log\ell}(x)}{\partial\hat{W}} &= \frac{\partial K_{\log\ell}(x, x_s)}{\partial\hat{W}}K_{\log\ell}(x_s, x_s)^{-1}\log\ell(x_s) - K_{\log\ell}(x, x_s)K_{\log\ell}(x_s, x_s)^{-1}\frac{\partial K_{\log\ell}(x_s, x_s)}{\partial\hat{W}}K_{\log\ell}(x_s, x_s)^{-1}\log\ell(x_s)\\\\
-   &= \frac{\partial K_{\log\ell}(x, x_s)}{\partial\hat{W}}\alpha_{\log\ell}(x_s) - K_{\log\ell}(x, x_s)K_{\log\ell}(x_s, x_s)^{-1}\frac{\partial K_{\log\ell}(x_s, x_s)}{\partial\hat{W}}\alpha_{\log\ell}(x_s)
-   \end{align*}
-
-So the first term of :math:`\nu` becomes:
-
-.. math::
-
-
-   \begin{align*}
-   \int & K_\ell(x,x_s)\alpha_\ell(x_s)\frac{\partial K_{\log\ell}(x, x_s)}{\partial\hat{W}}\alpha_{\log\ell}(x_s)p(x)\ \mathrm{d}x - \int K_\ell(x,x_s)\alpha_\ell(x_s)K_{\log\ell}(x, x_s)K_{\log\ell}(x_s, x_s)^{-1}\frac{\partial K_{\log\ell}(x_s, x_s)}{\partial\hat{W}}\alpha_{\log\ell}(x_s)p(x)\ \mathrm{d}x\\\\
-   &= \alpha_\ell(x_s)^\top \left[\int K_\ell(x_s,x)\frac{\partial K_{\log\ell}(x, x_s)}{\partial\hat{W}}p(x)\ \mathrm{d}x - \left(\int K_\ell(x_s,x)K_{\log\ell}(x, x_s)p(x)\ \mathrm{d}x\right)K_{\log\ell}(x_s, x_s)^{-1}\frac{\partial K_{\log\ell}(x_s, x_s)}{\partial\hat{W}}\right] \alpha_{\log\ell}(x_s)\\\\
-   &= \alpha_\ell(x_s)^\top \left[\int K_\ell(x_s,x)\frac{\partial K_{\log\ell}(x, x_s)}{\partial\hat{W}}p(x)\ \mathrm{d}x - \left(\int K_\ell(x_s,x)K_{\log\ell}(x, x_s)p(x)\ \mathrm{d}x\right)\zeta(x_s)\right] \alpha_{\log\ell}(x_s),
-   \end{align*}
-
-where
-:math:`\zeta(x_s)=K_{\log\ell}(x_s, x_s)^{-1}\frac{\partial K_{\log\ell}(x_s, x_s)}{\partial\hat{W}}`.
-
-And the second term of :math:`\nu` becomes:
-
-.. math::
-
-
-   \begin{align*}
-   \gamma\int &\frac{\partial m_{\log\ell}(x)}{\partial\hat{W}}p(x)\ \mathrm{d}x\\\\
-   &= \gamma \left(\int\frac{\partial K_{\log\ell}(x, x_s)}{\partial\hat{W}}\alpha_{\log\ell}(x_s)p(x)\ \mathrm{d}x - \int K_{\log\ell}(x, x_s)\zeta(x_s)\alpha_{\log\ell}(x_s)p(x)\ \mathrm{d}x\right)\\\\
-   &= \gamma \left[\int\frac{\partial K_{\log\ell}(x, x_s)}{\partial\hat{W}}p(x)\ \mathrm{d}x - \left(\int K_{\log\ell}(x, x_s)p(x)\ \mathrm{d}x\right) \zeta(x_s)\right]\alpha_{\log\ell}(x_s)
-   \end{align*}
-
-Putting these together, we have:
-
-.. math::
-
-
-   \begin{align*}
-   \nu = &\alpha_\ell(x_s)^\top \left( \int K_\ell(x_s, x)\frac{\partial K_{\log\ell}(x, x_s)}{\partial \hat{W}}p(x) \ \mathrm{d}x\right)\alpha_{\log\ell}(x_s)\\\\
-   &\ \ - \alpha_\ell(x_s)^\top \left(\int K_\ell(x_s, s)K_{\log\ell}(x, x_s)p(x) \ \mathrm{d}x\right)\zeta(x_s)\alpha_{\log\ell}(x_s)\\\\
-   &\ \ + \gamma\left(\int\frac{\partial K_{\log\ell}(x, x_s)}{\partial\hat{W}}p(x) \ \mathrm{d}x\right)\alpha_{\log\ell}(x_s)\\\\
-   &\ \ - \gamma\left(\int K_{\log\ell}(x, x_s)p(x) \ \mathrm{d}x\right)\zeta(x_s)\alpha_{\log\ell}(x_s)
-   \end{align*}
-
-The analytic form of the second and fourth integrals is defined above.
-The first and third integrals are defined as follows, using the
-following identity:
-
-.. math::
-
-
-   \begin{align*}
-   \frac{\partial K_{\log\ell}(x, x_s)}{\partial\hat{W}} = K_{\log\ell}(x, x_s) \left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right)
-   \end{align*}
-
-First integral
---------------
-
-.. math::
-
-
-   \begin{align*}
-   \int & K_\ell(x_s^\prime, x)\frac{\partial K_{\log\ell}(x, x_s)}{\partial \hat{W}}p(x) \ \mathrm{d}x = \int K_\ell(x_s^\prime, x)K_{\log\ell}(x, x_s)p(x) \left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right) \ \mathrm{d}x\\\\
-   &= \int\mathcal{N}\left( x_s^\prime \ \big\vert\ x, W_\ell \right)\mathcal{N}\left( x_s \ \big\vert\ x, \hat{W} \right)\mathcal{N}\left( x \ \big\vert\ \mu, \Sigma \right)\left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right) \ \mathrm{d}x\\\\
-   &= \mathcal{N}\left( x_s \ \big\vert\ \mu, \hat{W}+\Sigma \right)\int \mathcal{N}\left( x_s^\prime \ \big\vert\ x, W_\ell \right)\mathcal{N}\left( x \ \big\vert\ \mu + A(x_s-\mu), B \right)\left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right) \ \mathrm{d}x,
-   \end{align*}
-
-where :math:`A=\Sigma(\hat{W}+\Sigma)^{-1}` and
-:math:`B=\Sigma-A\Sigma=\Sigma-\Sigma(\hat{W}+\Sigma)^{-1}\Sigma`.
-
-.. math::
-
-
-   \begin{align*}
-   &= \mathcal{N}\left( x_s \ \big\vert\ \mu, \hat{W}+\Sigma \right)\mathcal{N}\left( x_s^\prime \ \big\vert\ \mu+A(x_s-\mu),B+W_\ell \right)\int \mathcal{N}\left( x \ \big\vert\ \mu +A(x_s-\mu)+C(x_s^\prime-\mu-A(x_s-\mu)), B-CB \right)\left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right) \ \mathrm{d}x\\\\
-   &= \mathcal{N}\left( x_s \ \big\vert\ \mu, \hat{W}+\Sigma \right)\mathcal{N}\left( x_s^\prime \ \big\vert\ \mu+A(x_s-\mu),B+W_\ell \right)\int \mathcal{N}\left( x \ \big\vert\ \mu +A(x_s-\mu)+C(x_s^\prime-\mu-A(x_s-\mu)), B-CB \right)\left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right) \ \mathrm{d}x\\\\
-   \end{align*}
-
-where
-:math:`C=B(B+W_\ell)^{-1}=(\Sigma-\Sigma(\hat{W}+\Sigma)^{-1}\Sigma)(\Sigma-\Sigma(\hat{W}+\Sigma)^{-1}\Sigma+W_\ell)^{-1}`.
-
-.. math::
-
-
-   \begin{align*}
-   &= \mathcal{N}\left( [x_s, x_s^\prime] \ \big\vert\ [\mu, \mu], [\hat{W}+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma] \right)\int \mathcal{N}\left( x \ \big\vert\ \mu +A(x_s-\mu)+C(x_s^\prime-\mu-A(x_s-\mu)), B-CB \right)\left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right) \ \mathrm{d}x\\\\
-   &= \mathcal{N}\left( [x_s, x_s^\prime] \ \big\vert\ [\mu, \mu], [\hat{W}+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma] \right)\int \mathcal{N}\left( x - x_s\ \big\vert\ \mu -x_s+A(x_s-\mu)+C(x_s^\prime-\mu-A(x_s-\mu)), B-CB \right)\left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right) \ \mathrm{d}x\\\\
-   &= \mathcal{N}\left( [x_s, x_s^\prime] \ \big\vert\ [\mu, \mu], [\hat{W}+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma] \right)\int \mathcal{N}\left( x - x_s\ \big\vert\ (A-CA-1)(x_s-\mu)+C(x_s^\prime-\mu), B-CB \right)\left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right) \ \mathrm{d}x\\\\
-   \end{align*}
-
-Let :math:`y=x-x_s`, :math:`m=(A-CA-1)(x_s-\mu)+C(x_s^\prime-\mu)`, and
-:math:`S=B-CB`. Then:
-
-.. math::
-
-
-   \begin{align*}
-   &= \mathcal{N}\left( [x_s, x_s^\prime] \ \big\vert\ [\mu, \mu], [\hat{W}+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma] \right)\int \mathcal{N}\left( y \ \big\vert\ m, S \right)\left( -\frac{1}{2}\hat{W}^{-1}+\frac{1}{2}\hat{W}^{-1}yy^\top\hat{W}^{-1} \right) \ \mathrm{d}y
-   \end{align*}
-
-From , we have that
-:math:`E \left[ (Ay)(Ay)^\top \right]=A(S+mm^\top)A^\top`, where
-:math:`y\sim \mathcal{N}\left( m, S \right)`. Then:
-
-.. math::
-
-
-   \begin{align*}
-   &= \mathcal{N}\left( [x_s, x_s^\prime] \ \big\vert\ [\mu, \mu], [\hat{W}+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma] \right)\left( - \frac{1}{2}\hat{W}^{-1} + \frac{1}{2}E\left[(\hat{W}^{-1}y)(\hat{W}^{-1}y)^\top\right] \right)\\\\
-   &=\mathcal{N}\left( [x_s, x_s^\prime] \ \big\vert\ [\mu, \mu], [\hat{W}+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma] \right)\left( - \frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(S+mm^\top)\hat{W}^{-1}\right)\\\\
-   &= \mathcal{N}\left( [x_s, x_s^\prime] \ \big\vert\ [\mu, \mu], [\hat{W}+\Sigma, \Sigma; \Sigma, W_\ell+\Sigma] \right)\left[ - \frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}\left( B-CB+\left((A-CA-1)(x_s-\mu)+C(x_s^\prime-\mu)\right)\left((A-CA-1)(x_s-\mu)+C(x_s^\prime-\mu)\right)^\top\right)\hat{W}^{-1}\right]
-   \end{align*}
-
-Third integral
---------------
-
-.. math::
-
-
-   \begin{align*}
-   \int\frac{\partial K_{\log\ell}(x, x_s)}{\partial\hat{W}}p(x) \ \mathrm{d}x &= \int K_{\log\ell}(x, x_s)p(x) \left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right) \ \mathrm{d}x\\\\
-   &= \int \mathcal{N}\left( x_s \ \big\vert\ x, \hat{W} \right) \mathcal{N}\left( x \ \big\vert\ \mu, \Sigma \right) \left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right) \ \mathrm{d}x\\\\
-   &= \mathcal{N}\left( x_s \ \big\vert\ \mu, \hat{W} + \Sigma \right)\int \mathcal{N}\left( x \ \big\vert\ \mu + \Sigma(\hat{W} + \Sigma)^{-1}(x_s - \mu), \Sigma - \Sigma(\hat{W} + \Sigma)^{-1}\Sigma \right)\left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right)\ \mathrm{d}x\\\\
-   &= \mathcal{N}\left( x_s \ \big\vert\ \mu, \hat{W} + \Sigma \right)\int \mathcal{N}\left( x -x_s\ \big\vert\ (\Sigma(\hat{W} + \Sigma)^{-1}-1)(x_s - \mu), \Sigma - \Sigma(\hat{W} + \Sigma)^{-1}\Sigma \right)\left( -\frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(x - x_s)(x-x_s)^\top\hat{W}^{-1} \right)\ \mathrm{d}x
-   \end{align*}
-
-Let :math:`y=x-x_s`, :math:`m=(\Sigma(\hat{W}+\Sigma)^{-1}-1)(x_s-\mu)`,
-and :math:`S=\Sigma-\Sigma(\hat{W}+\Sigma)^{-1}\Sigma`. Then:
-
-.. math::
-
-
-   \begin{align*}
-   &= \mathcal{N}\left( x_s \ \big\vert\ \mu, \hat{W} + \Sigma \right) \int \mathcal{N}\left( y \ \big\vert\ m, S \right)\left( - \frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}yy^\top\hat{W}^{-1} \right) \ \mathrm{d}y
-   \end{align*}
-
-From , we have that
-:math:`E \left[ (Ay)(Ay)^\top \right]=A(S+mm^\top)A^\top`, where
-:math:`y\sim \mathcal{N}\left( m, S \right)`. Then:
-
-.. math::
-
-
-   \begin{align*}
-   &= \mathcal{N}\left( x_s \ \big\vert\ \mu, \hat{W} + \Sigma \right)\left( - \frac{1}{2}\hat{W}^{-1} + \frac{1}{2}E\left[(\hat{W}^{-1}y)(\hat{W}^{-1}y)^\top\right] \right)\\\\
-   &=\mathcal{N}\left( x_s \ \big\vert\ \mu, \hat{W} + \Sigma \right)\left( - \frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}(S+mm^\top)\hat{W}^{-1}\right)\\\\
-   &= \mathcal{N}\left( x_s \ \big\vert\ \mu, \hat{W} + \Sigma \right)\left[ - \frac{1}{2}\hat{W}^{-1} + \frac{1}{2}\hat{W}^{-1}\left(\Sigma-\Sigma(\hat{W}+\Sigma)^{-1}\Sigma + \left( \Sigma(\hat{W}+\Sigma)^{-1}-1\right)(x_s-\mu)(x_s-\mu)^\top \left( \Sigma(\hat{W}+\Sigma)^{-1}\Sigma-1 \right)\right)\hat{W}^{-1}\right]
    \end{align*}

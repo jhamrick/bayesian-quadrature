@@ -1,0 +1,179 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Periodic Kernel Example &mdash; bayesian_quadrature 0.1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="periodic-kernel-example">
+<h1>Periodic Kernel Example<a class="headerlink" href="#periodic-kernel-example" title="Permalink to this headline">¶</a></h1>
+<div class="code python highlight-python"><pre># load matplotlib
+%matplotlib inline
+
+# imports
+import numpy as np
+import scipy.stats
+
+# import the bayesian quadrature object
+from bayesian_quadrature import BQ
+from gp import PeriodicKernel
+
+# seed the numpy random generator, so we always get the same randomness
+np.random.seed(8706)</pre>
+</div>
+<p>First, we need to define various parameters:</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="n">options</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">&#39;ntry&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="s">&#39;n_candidate&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="s">&#39;x_mean&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="s">&#39;x_var&#39;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">,</span>
+    <span class="s">&#39;candidate_thresh&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+    <span class="s">&#39;kernel&#39;</span><span class="p">:</span> <span class="n">PeriodicKernel</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Now, sample some random <span class="math">\(x\)</span> points and compute the <span class="math">\(y\)</span>
+points from a standard normal distribution.</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">vmpdf</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">kappa</span><span class="p">):</span>
+    <span class="n">C</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">scipy</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">iv</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">kappa</span><span class="p">))</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">C</span> <span class="o">+</span> <span class="p">(</span><span class="n">kappa</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">p</span>
+</pre></div>
+</div>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mf">1.75</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mf">1.25</span><span class="p">])</span>
+<span class="n">f_y</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">vmpdf</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">f_y</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Create the bayesian quadrature object, and fit its parameters.</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="n">bq</span> <span class="o">=</span> <span class="n">BQ</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+<span class="n">bq</span><span class="o">.</span><span class="n">fit_log_l</span><span class="p">((</span><span class="mf">3.5</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+<span class="n">bq</span><span class="o">.</span><span class="n">fit_l</span><span class="p">((</span><span class="mf">0.4</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mf">2.</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-python"><pre>WARNING:bayesian_quadrature:Using approximate solutions for non-Gaussian kernel</pre>
+</div>
+<p>Plot the result.</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">f_y</span><span class="p">,</span> <span class="n">xmin</span><span class="o">=-</span><span class="mi">10</span><span class="p">,</span> <span class="n">xmax</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="_images/periodic-example_10_0.png" src="_images/periodic-example_10_0.png" />
+<p>Print out the mean and variance of the integral, <span class="math">\(Z\)</span>:</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="n">bq</span><span class="o">.</span><span class="n">_make_approx_x</span><span class="p">(</span><span class="n">xmin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">xmax</span><span class="o">=</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+<span class="k">print</span> <span class="s">&quot;E[Z] = </span><span class="si">%f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">bq</span><span class="o">.</span><span class="n">Z_mean</span><span class="p">()</span>
+<span class="k">print</span> <span class="s">&quot;V(Z) = </span><span class="si">%f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">bq</span><span class="o">.</span><span class="n">Z_var</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.164879</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.000452</span>
+</pre></div>
+</div>
+<p>Compute the expected variance given a potential new observation, and
+then plot the curve of the expected variances, along with the final
+approximation.</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="n">fig</span><span class="p">,</span> <span class="p">(</span><span class="n">ax1</span><span class="p">,</span> <span class="n">ax2</span><span class="p">,</span> <span class="n">ax3</span><span class="p">)</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">sharex</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span> <span class="o">=</span> <span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span>
+<span class="n">bq</span><span class="o">.</span><span class="n">plot_l</span><span class="p">(</span><span class="n">ax1</span><span class="p">,</span> <span class="n">f_l</span><span class="o">=</span><span class="n">f_y</span><span class="p">,</span> <span class="n">xmin</span><span class="o">=</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="o">=</span><span class="n">xmax</span><span class="p">)</span>
+<span class="n">bq</span><span class="o">.</span><span class="n">plot_expected_squared_mean</span><span class="p">(</span><span class="n">ax2</span><span class="p">,</span> <span class="n">xmin</span><span class="o">=</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="o">=</span><span class="n">xmax</span><span class="p">)</span>
+<span class="n">bq</span><span class="o">.</span><span class="n">plot_expected_variance</span><span class="p">(</span><span class="n">ax3</span><span class="p">,</span> <span class="n">xmin</span><span class="o">=</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="o">=</span><span class="n">xmax</span><span class="p">)</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">set_figheight</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="_images/periodic-example_14_0.png" src="_images/periodic-example_14_0.png" />
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/periodic-example.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Jessica B. Hamrick.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,282 @@
+
+Active Sampling Example
+=======================
+
+.. code:: python
+
+    # load matplotlib
+    %matplotlib inline
+    
+    # imports
+    import numpy as np
+    import scipy.stats
+    import scipy.optimize as optim
+    
+    # import the bayesian quadrature object
+    from bayesian_quadrature import BQ
+    
+    # seed the numpy random generator, so we always get the same randomness
+    np.random.seed(8706)
+First, we need to define various parameters:
+
+.. code:: python
+
+    options = {
+        'ntry': 10,
+        'n_candidate': 10,
+        'x_mean': 0.0,
+        'x_var': 10.0,
+        'candidate_thresh': 0.5,
+        's': 0,
+        'h': 30,
+        'w': 1
+    }
+.. code:: python
+
+    def plot(bq):
+        fig, axes = plt.subplots(1, 3)
+        xmin, xmax = -10, 10
+    
+        bq.plot_gp_log_l(axes[0], f_l=f_y, xmin=xmin, xmax=xmax)
+        axes[0].set_ylim(-60, 2)
+    
+        bq.plot_l(axes[1], f_l=f_y, xmin=xmin, xmax=xmax)
+        axes[1].set_ylim(-0.1, 0.5)
+    
+        bq.plot_expected_variance(axes[2], xmin=xmin, xmax=xmax)
+    
+        fig.set_figwidth(16)
+        fig.set_figheight(3.5)
+Now, sample some random :math:`x` points and compute the :math:`y`
+points from a standard normal distribution.
+
+.. code:: python
+
+    x = np.random.uniform(-5, -5, 1)
+    f_y = lambda x: scipy.stats.norm.pdf(x, 0, 1)
+    y = f_y(x)
+Create the bayesian quadrature object, and fit its parameters.
+
+.. code:: python
+
+    bq = BQ(x, y, **options)
+    bq._fit_log_l(params=(30, 5, 0))
+    bq._fit_l(params=(y.max(), 1, 0))
+    
+    plot(bq)
+
+
+.. image:: active-sampling-example_files/active-sampling-example_8_0.png
+
+
+.. code:: python
+
+    def add(bq):
+        f = lambda x: -bq.expected_squared_mean(x)
+        result = optim.minimize(f, x0=bq.x_s[[-1]], method='Anneal')
+        x = result['x']
+        print "x = %s" % x
+    
+        mean = bq.Z_mean()
+        var = bq.Z_var()
+        print "E[Z] = %s" % mean
+        print "V(Z) = %s" % var
+    
+        conf = 1.96 * np.sqrt(var)
+        lower = mean - conf
+        upper = mean + conf
+        print "Z = %.4f [%.4f, %.4f]" % (mean, lower, upper)
+    
+        bq.add_observation(x, f_y(x), update_hypers=False)
+        plot(bq)
+.. code:: python
+
+    add(bq)
+
+.. parsed-literal::
+
+    x = [ 8.38072719]
+    E[Z] = 3.91311660415e-05
+    V(Z) = 7.35821724873e-08
+    Z = 0.0000 [-0.0005, 0.0006]
+
+
+
+.. image:: active-sampling-example_files/active-sampling-example_10_1.png
+
+
+.. code:: python
+
+    add(bq)
+
+.. parsed-literal::
+
+    x = [-13.99486275]
+    E[Z] = 1.82838280487e-06
+    V(Z) = 1.92734121513e-11
+    Z = 0.0000 [-0.0000, 0.0000]
+
+
+
+.. image:: active-sampling-example_files/active-sampling-example_11_1.png
+
+
+.. code:: python
+
+    add(bq)
+
+.. parsed-literal::
+
+    x = [ 22.38841161]
+    E[Z] = 0.00498128729266
+    V(Z) = 0.000718758731603
+    Z = 0.0050 [-0.0476, 0.0575]
+
+
+
+.. image:: active-sampling-example_files/active-sampling-example_12_1.png
+
+
+.. code:: python
+
+    add(bq)
+
+.. parsed-literal::
+
+    x = [ 0.68794779]
+    E[Z] = 0.0120439137555
+    V(Z) = 0.00339976596937
+    Z = 0.0120 [-0.1022, 0.1263]
+
+
+
+.. image:: active-sampling-example_files/active-sampling-example_13_1.png
+
+
+.. code:: python
+
+    add(bq)
+
+.. parsed-literal::
+
+    x = [-26.11690899]
+    E[Z] = 0.111067061737
+    V(Z) = 0.000969252758332
+    Z = 0.1111 [0.0500, 0.1721]
+
+
+
+.. image:: active-sampling-example_files/active-sampling-example_14_1.png
+
+
+.. code:: python
+
+    add(bq)
+
+.. parsed-literal::
+
+    x = [ 37.00028536]
+    E[Z] = 0.0934449401357
+    V(Z) = 7.25604358277e-05
+    Z = 0.0934 [0.0767, 0.1101]
+
+
+
+.. image:: active-sampling-example_files/active-sampling-example_15_1.png
+
+
+.. code:: python
+
+    add(bq)
+
+.. parsed-literal::
+
+    x = [-1.42074313]
+    E[Z] = 0.092918444988
+    V(Z) = 6.70379039832e-05
+    Z = 0.0929 [0.0769, 0.1090]
+
+
+
+.. image:: active-sampling-example_files/active-sampling-example_16_1.png
+
+
+.. code:: python
+
+    add(bq)
+
+.. parsed-literal::
+
+    x = [ 0.50438492]
+    E[Z] = 0.115564444982
+    V(Z) = 2.91463372003e-05
+    Z = 0.1156 [0.1050, 0.1261]
+
+
+
+.. image:: active-sampling-example_files/active-sampling-example_17_1.png
+
+
+.. code:: python
+
+    add(bq)
+
+.. parsed-literal::
+
+    x = [-6.42252679]
+    E[Z] = 0.118322542482
+    V(Z) = 1.6026047549e-06
+    Z = 0.1183 [0.1158, 0.1208]
+
+
+
+.. image:: active-sampling-example_files/active-sampling-example_18_1.png
+
+
+.. code:: python
+
+    add(bq)
+
+.. parsed-literal::
+
+    x = [ 1.75389045]
+    E[Z] = 0.116513262652
+    V(Z) = 1.07857228737e-06
+    Z = 0.1165 [0.1145, 0.1185]
+
+
+
+.. image:: active-sampling-example_files/active-sampling-example_19_1.png
+
+
+.. code:: python
+
+    add(bq)
+
+.. parsed-literal::
+
+    x = [ 0.66158667]
+    E[Z] = 0.121449680361
+    V(Z) = 8.82840192951e-07
+    Z = 0.1214 [0.1196, 0.1233]
+
+
+
+.. image:: active-sampling-example_files/active-sampling-example_20_1.png
+
+
+.. code:: python
+
+    add(bq)
+
+.. parsed-literal::
+
+    x = [ 1.69273804]
+    E[Z] = 0.12009898129
+    V(Z) = 7.7039271662e-07
+    Z = 0.1201 [0.1184, 0.1218]
+
+
+
+.. image:: active-sampling-example_files/active-sampling-example_21_1.png
+

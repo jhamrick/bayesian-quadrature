@@ -1,0 +1,99 @@
+
+Periodic Kernel Example
+=======================
+
+.. code:: python
+
+    # load matplotlib
+    %matplotlib inline
+    
+    # imports
+    import numpy as np
+    import scipy.stats
+    
+    # import the bayesian quadrature object
+    from bayesian_quadrature import BQ
+    from gp import PeriodicKernel
+    
+    # seed the numpy random generator, so we always get the same randomness
+    np.random.seed(8706)
+First, we need to define various parameters:
+
+.. code:: python
+
+    options = {
+        'ntry': 10,
+        'n_candidate': 5,
+        'x_mean': 0.0,
+        'x_var': 10.0,
+        'candidate_thresh': 0.5,
+        'kernel': PeriodicKernel
+    }
+Now, sample some random :math:`x` points and compute the :math:`y`
+points from a standard normal distribution.
+
+.. code:: python
+
+    def vmpdf(x, mu, kappa):
+        C = -np.log(2 * np.pi * scipy.special.iv(0, kappa))
+        p = np.exp(C + (kappa * np.cos(x - mu)))
+        return p
+.. code:: python
+
+    x = np.array([-1.75, -1, 1.25])
+    f_y = lambda x: vmpdf(x, 0.1, 1.1)
+    y = f_y(x)
+Create the bayesian quadrature object, and fit its parameters.
+
+.. code:: python
+
+    bq = BQ(x, y, **options)
+    bq.fit_log_l((3.5, np.pi, 1, 0))
+    bq.fit_l((0.4, np.pi / 2., 1, 0))
+
+.. parsed-literal::
+
+    WARNING:bayesian_quadrature:Using approximate solutions for non-Gaussian kernel
+
+
+Plot the result.
+
+.. code:: python
+
+    fig, axes = bq.plot(f_y, xmin=-10, xmax=10)
+
+
+.. image:: periodic-example_files/periodic-example_10_0.png
+
+
+Print out the mean and variance of the integral, :math:`Z`:
+
+.. code:: python
+
+    bq._make_approx_x(xmin=0, xmax=2 * np.pi, n=1000)
+    print "E[Z] = %f" % bq.Z_mean()
+    print "V(Z) = %f" % bq.Z_var()
+
+.. parsed-literal::
+
+    E[Z] = 0.164879
+    V(Z) = 0.000452
+
+
+Compute the expected variance given a potential new observation, and
+then plot the curve of the expected variances, along with the final
+approximation.
+
+.. code:: python
+
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+    xmin, xmax = -10, 10
+    bq.plot_l(ax1, f_l=f_y, xmin=xmin, xmax=xmax)
+    bq.plot_expected_squared_mean(ax2, xmin=xmin, xmax=xmax)
+    bq.plot_expected_variance(ax3, xmin=xmin, xmax=xmax)
+    fig.set_figheight(8)
+    plt.tight_layout()
+
+
+.. image:: periodic-example_files/periodic-example_14_0.png
+
