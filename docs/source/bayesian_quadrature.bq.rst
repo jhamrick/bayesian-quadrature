@@ -1,5 +1,5 @@
-Bayesian quadrature object
-==========================
+Bayesian Quadrature (`BQ`) object
+=================================
 
 .. autoclass:: bayesian_quadrature.bq.BQ
     :members:
