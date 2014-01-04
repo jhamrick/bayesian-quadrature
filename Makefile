@@ -15,6 +15,8 @@ install:
 
 clean:
 	$(PYCMD) clean --all
+	make -C docs clean
+	make -C docs/ipynb clean
 	rm -rf dist
 	rm -f MANIFEST
 	rm -f README
@@ -24,6 +26,7 @@ clean:
 	rm -rf *.egg-info
 	rm -f .coverage
 	rm -rf htmlcov
+	rm -rf docs/_build
 
 cython:
 	$(PYCMD) build_ext --inplace
@@ -42,7 +45,7 @@ gh-pages:
 	python setup.py build_ext --inplace
 	make -C docs html
 	mv -fv docs/_build/html/* .
-	rm -rf $(GH_PAGES_SOURCES) README.rst
+	rm -rf $(GH_PAGES_SOURCES) README.rst build
 	git add -A
 	git ci -m "Generated gh-pages for `git log master -1 --pretty=short --abbrev-commit`" && git push origin gh-pages
 	git checkout master
