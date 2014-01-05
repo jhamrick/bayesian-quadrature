@@ -63,7 +63,7 @@ class BQ(object):
         self.candidate_thresh = float(options['candidate_thresh'])
         self.x_mean = np.array([options['x_mean']], dtype=DTYPE)
         self.x_cov = np.array([[options['x_var']]], dtype=DTYPE)
-        self.kernel = options.get('kernel', GaussianKernel)
+        self.kernel = options['kernel']
 
         # we only have an analytic solution for Gaussian kernels, so
         # we have to use a slower approximation for any other type of
@@ -109,14 +109,13 @@ class BQ(object):
             self.x_s, self.tl_s, 
             s=params_tl[-1])
 
-        self._fit_log_l()
-
         self.gp_l = GP(
             self.kernel(*params_l[:-1]),
-            self.x_sc, self.l_sc, 
+            self.x_s, self.l_s,
             s=params_l[-1])
 
-        self._fit_l()
+        self._update_gp_log_l()
+        self._update_gp_l()
 
     def _choose_candidates(self):
         logger.debug("Choosing candidate points")
@@ -210,35 +209,71 @@ class BQ(object):
 
         return p
 
-    def _fit_log_l(self):
-        logger.debug("Setting parameters for GP over log(l)")
+    def _update_gp_log_l(self):
+        self.gp_log_l.x = self.x_s
+        self.gp_log_l.y = self.tl_s
+        self.gp_log_l.jitter = np.zeros(self.ns, dtype=DTYPE)
+
         self._improve_tail_covariance()
         self._improve_gp_conditioning(self.gp_log_l)
-        self._log_l_hypers = self._sample_gp_hypers(self.gp_log_l)
-
+            
         # choose candidate points
         self.x_c = self._choose_candidates()
         self.x_sc = np.concatenate([self.x_s, self.x_c], axis=0)
-
-        # approximately integrate over lengthscales to get marginal
-        # mean function
-        gp = self.gp_log_l.copy()
-        m_l = np.empty((self._log_l_hypers.shape[0], self.x_c.shape[0]))
-        for i in xrange(m_l.shape[0]):
-            gp.set_param('w', self._log_l_hypers[i])
-            m_l[i] = gp.mean(self.x_c)
-
-        self.l_c = np.exp(np.mean(m_l, axis=0))
-        self.l_sc = np.concatenate([self.l_s, self.l_c], axis=0)
         self.nsc = self.ns + self.x_c.shape[0]
 
-    def _fit_l(self):
-        logger.debug("Setting parameters for GP over exp(log(l))")
+        self.l_c = np.exp(self.gp_log_l.mean(self.x_c))
+        self.l_sc = np.concatenate([self.l_s, self.l_c], axis=0)
+
+    def _update_gp_l(self):
+        self.gp_l.x = self.x_sc
+        self.gp_l.y = self.l_sc
+        self.gp_l.jitter = np.zeros(self.nsc, dtype=DTYPE)
         self._improve_gp_conditioning(self.gp_l)
-        self._l_hypers = self._sample_gp_hypers(self.gp_l)
 
         if self.use_approx:
             self._approx_x = self._make_approx_x()
+
+    def sample_hypers(self, params, n=100, nburn=10):
+        window = np.ones(len(params))
+
+        def logpdf(x):
+            for p, v in zip(params, x):
+                try:
+                    self.gp_log_l.set_param(p, v)
+                except ValueError:
+                    return -np.inf
+
+            llh = self.gp_log_l.log_lh
+            return llh
+
+        logger.debug("Sampling log(l) hypers (%s)..." % str(params))
+        p0 = np.array([self.gp_log_l.get_param(p) for p in params])
+        hypers = util.slice_sample(logpdf, n, window, p0, nburn=nburn, freq=1)
+        for p, v in zip(params, np.mean(hypers, axis=0)):
+            self.gp_log_l.set_param(p, v)
+        self._update_gp_log_l()
+        self._update_gp_l()
+
+        def logpdf(x):
+            for p, v in zip(params, x):
+                try:
+                    self.gp_l.set_param(p, v)
+                except ValueError:
+                    return -np.inf
+
+            llh = self.gp_l.log_lh
+            return llh
+
+        logger.debug("Sampling exp(log(l)) hypers (%s)..." % str(params))
+        p0 = np.array([self.gp_l.get_param(p) for p in params])
+        hypers = util.slice_sample(logpdf, n, window, p0, nburn=nburn, freq=1)
+        for p, v in zip(params, np.mean(hypers, axis=0)):
+            self.gp_l.set_param(p, v)
+        self._update_gp_l()
+
+    def sample_lengthscales(self):
+        self.sample_hypers(['w'], n=10, nburn=9)
 
     def l_mean(self, x):
         r"""
@@ -263,9 +298,7 @@ class BQ(object):
             \mathbb{E}[\bar{\ell}(\mathbf{x})] = \mathbb{E}_{\mathrm{GP}(\exp(\log\ell))}(\mathbf{x})
 
         """
-        # the estimated mean of l
-        l_mean = self.gp_l.mean(x)
-        return l_mean
+        return self.gp_l.mean(x)
 
     def l_var(self, x):
         r"""
@@ -292,9 +325,8 @@ class BQ(object):
             \mathbb{V}[\bar{\ell}(\mathbf{x})] = \mathbb{V}_{\mathrm{GP}(\log\ell)}(\mathbf{x})\mathbb{E}_{\mathrm{GP}(\exp(\log\ell))}(\mathbf{x})^2
 
         """
-        # the estimated variance of l
         v_log_l = np.diag(self.gp_log_l.cov(x)).copy()
-        m_l = self.l_mean(x)
+        m_l = self.gp_l.mean(x)
         l_var = v_log_l * m_l ** 2
         l_var[l_var < 0] = 0
         return l_var
@@ -474,18 +506,18 @@ class BQ(object):
         # compute expected transformed covariance
         tC_a = self.gp_log_l.cov(x_a)
 
-        expected_sqd_mean = bq_c.expected_squared_mean(
+        esm = bq_c.expected_squared_mean(
             x_sca[:, None], self.l_sc,
             inv_K_l, tm_a, tC_a,
             self.gp_l.K.h, np.array([self.gp_l.K.w]),
             self.x_mean, self.x_cov)
 
-        if np.isnan(expected_sqd_mean) or expected_sqd_mean < 0:
+        if np.isnan(esm) or esm < 0:
             raise RuntimeError(
                 "invalid expected squared mean for x_a=%s: %s" % (
-                    x_a, expected_sqd_mean))
+                    x_a, esm))
 
-        return expected_sqd_mean
+        return esm
 
     def expected_squared_mean(self, x_a):
         if self.use_approx:
@@ -677,20 +709,16 @@ class BQ(object):
         return fig, axes
 
     def add_observation(self, x_a, l_a):
+        if np.isclose(x_a, self.x_s).any():
+            raise ValueError("point already sampled")
+
         self.x_s = np.concatenate([self.x_s, x_a])
         self.l_s = np.concatenate([self.l_s, l_a])
         self.ns += x_a.shape[0]
         self.tl_s = np.concatenate([self.tl_s, np.log(l_a)])
 
-        self.gp_log_l.x = self.x_s
-        self.gp_log_l.y = self.tl_s
-        self.gp_log_l.jitter = np.zeros(self.ns, dtype=DTYPE)
-        self._fit_log_l()
-
-        self.gp_l.x = self.x_sc
-        self.gp_l.y = self.l_sc
-        self.gp_l.jitter = np.zeros(self.nsc, dtype=DTYPE)
-        self._fit_l()
+        self._update_gp_log_l()
+        self._update_gp_l()
 
     def choose_next(self, cost_fun=None, n=5):
         x = np.empty(n)
@@ -723,27 +751,3 @@ class BQ(object):
 
         target = x[np.argmin(y)]
         return target
-
-
-    def _sample_gp_hypers(self, gp):
-        g = gp.copy()
-
-        def logpdf(w):
-            if w < EPS:
-                return -np.inf
-
-            g.set_param('w', float(w))
-            llh = g.log_lh
-            return llh
-
-        window = np.ones(1)
-        w0 = np.array([g.get_param('w')])
-
-        logger.info("sampling lengthscales...")
-        samps = util.slice_sample(
-            logpdf, 110,
-            window, w0, 
-            nburn=10, freq=1)
-        logger.info("done sampling lengthscales")
-
-        return samps
