@@ -45,10 +45,8 @@ def test_choose_candidates():
 def test_l_mean():
     util.npseed()
     bq = util.make_bq()
-    xo = util.make_xo()
-    yo = util.f_x(xo)
-    l = bq.l_mean(xo)
-    assert np.allclose(l, yo, atol=1e-3)
+    l = bq.l_mean(bq.x_s)
+    assert np.allclose(l, bq.l_s, atol=1e-4)
 
 
 def test_Z_mean():
@@ -58,7 +56,7 @@ def test_Z_mean():
     approx_Z = bq._approx_Z_mean(xo)
     calc_Z = bq._exact_Z_mean()
 
-    assert np.allclose(approx_Z, calc_Z)
+    assert np.allclose(approx_Z, calc_Z, atol=1e-5)
 
 
 def test_Z_mean_same():
@@ -126,7 +124,7 @@ def test_expected_squared_mean():
     for xa in x_a:
         esm = bq._exact_expected_squared_mean(xa)
         approx = bq._approx_expected_squared_mean(xa, x)
-        assert np.allclose(esm, approx)
+        assert np.allclose(esm, approx, atol=1e-4)
 
 
 def test_plot_gp_log_l():
@@ -312,7 +310,7 @@ def test_add_observation():
     l = bq.l_s.copy()
     tl = bq.tl_s.copy()
 
-    x_a = np.random.randint(-5, 5, 2)
+    x_a = np.random.uniform(-5, 5, 1)
     l_a = util.f_x(x_a)
     tl_a = np.log(l_a)
 
@@ -332,7 +330,7 @@ def test_approx_add_observation():
     l = bq.l_s.copy()
     tl = bq.tl_s.copy()
 
-    x_a = np.random.randint(-np.pi, np.pi, 2)
+    x_a = np.random.randint(-np.pi, np.pi, 1)
     l_a = util.f_x(x_a)
     tl_a = np.log(l_a)
 

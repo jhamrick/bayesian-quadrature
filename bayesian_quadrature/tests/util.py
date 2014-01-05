@@ -2,7 +2,7 @@ import numpy as np
 import scipy.stats
 import pytest
 import matplotlib.pyplot as plt
-from gp import PeriodicKernel
+from gp import PeriodicKernel, GaussianKernel
 
 from .. import BQ
 from .. import bq_c
@@ -14,6 +14,7 @@ options = {
     'x_mean': 0.0,
     'x_var': 10.0,
     'candidate_thresh': 0.5,
+    'kernel': GaussianKernel
 }
 
 
@@ -48,8 +49,7 @@ def make_bq(n=9, x=None, nc=None):
         opt['n_candidate'] = nc
 
     bq = BQ(x, y, **opt)
-    bq.fit_log_l((30, 5, 0))
-    bq.fit_l((y.max(), 1, 0))
+    bq.init(params_tl=(30, 5, 0), params_l=(0.2, 1.3, 0))
     return bq
 
 
@@ -78,7 +78,8 @@ def make_periodic_bq(x=None, nc=None):
     y = f_xp(x)
     
     bq = BQ(x, y, **opt)
-    bq.fit_log_l((3.5, np.pi, 1, 0))
-    bq.fit_l((0.4, np.pi / 2., 1, 0))
+    bq.init(
+        params_tl=(3.5, np.pi, 1, 0), 
+        params_l=(0.4, np.pi / 2., 1, 0))
 
     return bq
