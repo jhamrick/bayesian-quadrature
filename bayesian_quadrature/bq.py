@@ -361,6 +361,7 @@ class BQ(object):
         tC_a = self.gp_log_l.cov(x_a)
 
         if self.options['use_approx']:
+            xo = self._approx_x
             p_xo = self._make_approx_px(xo)
             int_K_l = np.trapz(self.gp_l.K(x_sca, xo) * p_xo, xo)
 
@@ -745,14 +746,14 @@ class BQ(object):
 
     def _make_approx_px(self, x):
         mu = float(self.options['x_mean'])
-        sigma = float(self.options['x_cov'])
+        sigma2 = float(self.options['x_cov'])
 
         if self.options['kernel'] is PeriodicKernel:
-            kappa = 1. / sigma
+            kappa = 1. / sigma2
             C = -np.log(2 * np.pi * scipy.special.iv(0, kappa))
             p = np.exp(C + (kappa * np.cos(x - mu)))
 
         else:
-            p = scipy.stats.norm.pdf(x, mu, sigma)
+            p = scipy.stats.norm.pdf(x, mu, np.sqrt(sigma2))
 
         return p
