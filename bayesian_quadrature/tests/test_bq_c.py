@@ -46,7 +46,7 @@ def test_mvn_logpdf():
     pdf = np.empty_like(y)
     mu = np.array([x_mean])
     cov = np.array([[x_var]])
-    bq_c.mvn_logpdf(pdf, x[:, None], mu, cov)
+    bq_c.mvn_logpdf(pdf, np.array(x[:, None]), mu, cov)
     assert np.allclose(np.log(y), pdf)
 
 
@@ -60,7 +60,7 @@ def test_mvn_logpdf_same():
     cov = np.array([[x_var]])
     pdf = np.empty((100, x.size))
     for i in xrange(pdf.shape[0]):
-        bq_c.mvn_logpdf(pdf[i], x[:, None], mu, cov)
+        bq_c.mvn_logpdf(pdf[i], np.array(x[:, None]), mu, cov)
 
     assert (pdf[0] == pdf).all()
 
@@ -70,12 +70,15 @@ def test_int_K():
     bq = util.make_bq()
     xo = util.make_xo()
 
-    approx_int = bq_c.approx_int_K(xo, bq.gp_l, bq.x_mean, bq.x_cov)
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
+    approx_int = bq_c.approx_int_K(xo, bq.gp_l, x_mean, x_cov)
     calc_int = np.empty(bq.gp_l.x.shape[0])
     bq_c.int_K(
-        calc_int, bq.gp_l.x[:, None],
+        calc_int, np.array(bq.gp_l.x[:, None]),
         bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-        bq.x_mean, bq.x_cov)
+        x_mean, x_cov)
     assert np.allclose(calc_int, approx_int, atol=1e-5)
 
 
@@ -83,12 +86,15 @@ def test_int_K_same():
     util.npseed()
     bq = util.make_bq()
 
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
     vals = np.empty((100, bq.gp_log_l.x.shape[0]))
     for i in xrange(vals.shape[0]):
         bq_c.int_K(
-            vals[i], bq.gp_log_l.x[:, None],
+            vals[i], np.array(bq.gp_log_l.x[:, None]),
             bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
-            bq.x_mean, bq.x_cov)
+            x_mean, x_cov)
 
     assert (vals[0] == vals).all()
 
@@ -98,15 +104,19 @@ def test_int_K1_K2():
     bq = util.make_bq()
     xo = util.make_xo()
 
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
     approx_int = bq_c.approx_int_K1_K2(
-        xo, bq.gp_l, bq.gp_log_l, bq.x_mean, bq.x_cov)
+        xo, bq.gp_l, bq.gp_log_l, x_mean, x_cov)
 
     calc_int = np.empty((bq.gp_l.x.shape[0], bq.gp_log_l.x.shape[0]))
     bq_c.int_K1_K2(
-        calc_int, bq.gp_l.x[:, None], bq.gp_log_l.x[:, None],
+        calc_int, np.array(bq.gp_l.x[:, None]), 
+        np.array(bq.gp_log_l.x[:, None]),
         bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
         bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
-        bq.x_mean, bq.x_cov)
+        x_mean, x_cov)
 
     assert np.allclose(calc_int, approx_int, atol=1e-3)
 
@@ -115,13 +125,17 @@ def test_int_K1_K2_same():
     util.npseed()
     bq = util.make_bq()
 
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
     vals = np.empty((100, bq.gp_l.x.shape[0], bq.gp_log_l.x.shape[0]))
     for i in xrange(vals.shape[0]):
         bq_c.int_K1_K2(
-            vals[i], bq.gp_l.x[:, None], bq.gp_log_l.x[:, None],
+            vals[i], np.array(bq.gp_l.x[:, None]), 
+            np.array(bq.gp_log_l.x[:, None]),
             bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
             bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
-            bq.x_mean, bq.x_cov)
+            x_mean, x_cov)
 
     assert (vals[0] == vals).all()
 
@@ -131,15 +145,18 @@ def test_int_int_K1_K2_K1():
     bq = util.make_bq()
     xo = util.make_xo()
 
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
     approx_int = bq_c.approx_int_int_K1_K2_K1(
-        xo, bq.gp_l, bq.gp_log_l, bq.x_mean, bq.x_cov)
+        xo, bq.gp_l, bq.gp_log_l, x_mean, x_cov)
 
     calc_int = np.empty((bq.gp_l.x.shape[0], bq.gp_l.x.shape[0]))
     bq_c.int_int_K1_K2_K1(
-        calc_int, bq.gp_l.x[:, None],
+        calc_int, np.array(bq.gp_l.x[:, None]),
         bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
         bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
-        bq.x_mean, bq.x_cov)
+        x_mean, x_cov)
 
     assert np.allclose(calc_int, approx_int, atol=1e-5)
 
@@ -148,13 +165,16 @@ def test_int_int_K1_K2_K1_same():
     util.npseed()
     bq = util.make_bq()
 
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
     vals = np.empty((100, bq.gp_l.x.shape[0], bq.gp_l.x.shape[0]))
     for i in xrange(vals.shape[0]):
         bq_c.int_int_K1_K2_K1(
-            vals[i], bq.gp_l.x[:, None],
+            vals[i], np.array(bq.gp_l.x[:, None]),
             bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
             bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
-            bq.x_mean, bq.x_cov)
+            x_mean, x_cov)
 
     assert (vals[0] == vals).all()
 
@@ -164,15 +184,18 @@ def test_int_int_K1_K2():
     bq = util.make_bq()
     xo = util.make_xo()
 
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
     approx_int = bq_c.approx_int_int_K1_K2(
-        xo, bq.gp_l, bq.gp_log_l, bq.x_mean, bq.x_cov)
+        xo, bq.gp_l, bq.gp_log_l, x_mean, x_cov)
 
     calc_int = np.empty(bq.gp_log_l.x.shape[0])
     bq_c.int_int_K1_K2(
-        calc_int, bq.gp_log_l.x[:, None],
+        calc_int, np.array(bq.gp_log_l.x[:, None]),
         bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
         bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
-        bq.x_mean, bq.x_cov)
+        x_mean, x_cov)
 
     assert np.allclose(calc_int, approx_int, atol=1e-5)
 
@@ -181,13 +204,16 @@ def test_int_int_K1_K2_same():
     util.npseed()
     bq = util.make_bq()
 
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
     vals = np.empty((100, bq.gp_log_l.x.shape[0]))
     for i in xrange(vals.shape[0]):
         bq_c.int_int_K1_K2(
-            vals[i], bq.gp_log_l.x[:, None],
+            vals[i], np.array(bq.gp_log_l.x[:, None]),
             bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
             bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
-            bq.x_mean, bq.x_cov)
+            x_mean, x_cov)
 
     assert (vals[0] == vals).all()
 
@@ -197,10 +223,13 @@ def test_int_int_K():
     bq = util.make_bq()
     xo = util.make_xo()
 
-    approx_int = bq_c.approx_int_int_K(xo, bq.gp_l, bq.x_mean, bq.x_cov)
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
+    approx_int = bq_c.approx_int_int_K(xo, bq.gp_l, x_mean, x_cov)
     calc_int = bq_c.int_int_K(
         1, bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-        bq.x_mean, bq.x_cov)
+        x_mean, x_cov)
     assert np.allclose(calc_int, approx_int, atol=1e-6)
 
 
@@ -208,46 +237,16 @@ def test_int_int_K_same():
     util.npseed()
     bq = util.make_bq()
 
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
     vals = np.empty(100)
     for i in xrange(vals.shape[0]):
         vals[i] = bq_c.int_int_K(
             1, bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-            bq.x_mean, bq.x_cov)
+            x_mean, x_cov)
 
     assert (vals[0] == vals).all()
-
-
-@pytest.mark.xfail(reason="implementation has a bug, see visual tests")
-def test_int_K1_dK2():
-    util.npseed()
-    bq = util.make_bq()
-    xo = util.make_xo()
-
-    approx_int = bq_c.approx_int_K1_dK2(
-        xo, bq.gp_l, bq.gp_log_l, bq.x_mean, bq.x_cov)
-
-    calc_int = np.empty((bq.gp_l.x.shape[0], bq.gp_log_l.x.shape[0], 1))
-    bq_c.int_K1_dK2(
-        calc_int, bq.gp_l.x[:, None], bq.gp_log_l.x[:, None],
-        bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-        bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
-        bq.x_mean, bq.x_cov)
-
-    assert np.allclose(calc_int, approx_int)
-
-
-def test_int_dK():
-    util.npseed()
-    bq = util.make_bq()
-    xo = util.make_xo()
-
-    approx_int = bq_c.approx_int_dK(xo, bq.gp_l, bq.x_mean, bq.x_cov)
-    calc_int = np.empty((bq.gp_l.x.shape[0], 1))
-    bq_c.int_dK(
-        calc_int, bq.gp_l.x[:, None],
-        bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-        bq.x_mean, bq.x_cov)
-    assert np.allclose(calc_int, approx_int, atol=1e-4)
 
 
 def test_remove_jitter():
