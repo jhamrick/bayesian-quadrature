@@ -350,9 +350,19 @@ class BQ(object):
         # include new x_a
         x_sca = np.concatenate([self.x_sc, x_a])
 
-        # compute K_l(x_sca, x_sca)^-1
-        # TODO: make sure conditioning is ok
+        # compute K_l(x_sca, x_sca)
         K_l = self.gp_l.Kxoxo(x_sca)
+        jitter = np.zeros(self.nsc + 1)
+
+        # add noise to the candidate points closest to x_a, since they
+        # are likely to change
+        close = np.abs(self.x_c - x_a) < self.options['candidate_thresh']
+        if close.any():
+            idx = np.array(np.nonzero(close)[0]) + self.ns
+            bq_c.improve_covariance_conditioning(K_l, jitter, idx)
+
+        # also add noise to the new point
+        bq_c.improve_covariance_conditioning(K_l, jitter, np.array([self.nsc]))
 
         # compute expected transformed mean
         tm_a = self.gp_log_l.mean(x_a)
