@@ -119,12 +119,15 @@ def test_expected_squared_mean_valid():
 def test_expected_squared_mean():
     util.npseed()
     bq = util.make_bq()
-    x_a = np.random.uniform(-10, 10, 20)[:, None]
-    x = bq._make_approx_x()
-    for xa in x_a:
-        esm = bq._exact_expected_squared_mean(xa)
-        approx = bq._approx_expected_squared_mean(xa, x)
-        assert np.allclose(esm, approx, atol=1e-4)
+    x_a = np.random.uniform(-10, 10, 20)
+
+    esm = bq.expected_squared_mean(x_a)
+    
+    bq.options['use_approx'] = True
+    bq._approx_x = bq._make_approx_x()
+    approx = bq.expected_squared_mean(x_a)
+
+    assert np.allclose(approx, esm, rtol=1)
 
 
 def test_plot_gp_log_l():
@@ -341,16 +344,3 @@ def test_approx_add_observation():
 
     assert (bq.x_s == bq.x_sc[:bq.ns]).all()
     assert (bq.l_s == bq.l_sc[:bq.ns]).all()
-
-
-def test_choose_next():
-    util.npseed()
-    bq = util.make_bq()
-    bq.choose_next(n=1)
-
-
-def test_choose_next_with_cost():
-    util.npseed()
-    bq = util.make_bq()
-    f = lambda x: x ** 2
-    bq.choose_next(cost_fun=f, n=1)

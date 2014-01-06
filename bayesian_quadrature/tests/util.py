@@ -49,7 +49,7 @@ def make_bq(n=9, x=None, nc=None):
         opt['n_candidate'] = nc
 
     bq = BQ(x, y, **opt)
-    bq.init(params_tl=(30, 5, 0), params_l=(0.2, 1.3, 0))
+    bq.init(params_tl=(15, 2, 0), params_l=(0.2, 1.3, 0))
     return bq
 
 
@@ -74,12 +74,12 @@ def make_periodic_bq(x=None, nc=None):
         opt['n_candidate'] = nc
 
     if x is None:
-        x = np.linspace(-np.pi, np.pi, 9)
+        x = np.linspace(-np.pi, np.pi, 9)[:-1]
     y = f_xp(x)
     
     bq = BQ(x, y, **opt)
     bq.init(
-        params_tl=(3.5, np.pi, 1, 0), 
-        params_l=(0.4, np.pi / 2., 1, 0))
+        params_tl=(5, 2 * np.pi, 1, 0),
+        params_l=(0.2, np.pi / 2., 1, 0))
 
     return bq
