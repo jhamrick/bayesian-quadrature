@@ -3,7 +3,6 @@ cimport numpy as np
 
 from libc.math cimport exp, log
 from libc.stdlib cimport rand, srand, RAND_MAX
-from warnings import warn
 from cpython cimport bool
 
 
@@ -20,11 +19,11 @@ cdef DTYPE_t uniform(DTYPE_t lo, DTYPE_t hi):
     return (rand() / FRAND_MAX) * (hi - lo) + lo
 
 
-def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, np.ndarray[DTYPE_t, ndim=1] xval, np.ndarray[DTYPE_t, ndim=1] w, bool verbose):
-    cdef np.ndarray[DTYPE_t, ndim=1] dir
-    cdef np.ndarray[DTYPE_t, ndim=1] left
-    cdef np.ndarray[DTYPE_t, ndim=1] right
-    cdef np.ndarray[DTYPE_t, ndim=1] loc
+def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarray[DTYPE_t, mode='c', ndim=1] xval, np.ndarray[DTYPE_t, mode='c', ndim=1] w, bool verbose):
+    cdef np.ndarray[DTYPE_t, mode='c', ndim=1] dir
+    cdef np.ndarray[DTYPE_t, mode='c', ndim=1] left
+    cdef np.ndarray[DTYPE_t, mode='c', ndim=1] right
+    cdef np.ndarray[DTYPE_t, mode='c', ndim=1] loc
     cdef DTYPE_t xpr, pr, yval, logyval
     cdef int pct, newpct, i, j, n
 
@@ -71,7 +70,8 @@ def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, np.ndarray[DTYPE_t
             left -= w
             j += 1
             if j > 100:
-                warn("slice is too wide, stopping adjustment")
+                if verbose:
+                    print "[%d] Slice is too wide, stopping adjustment" % i
                 break
 
         if verbose:
@@ -81,7 +81,8 @@ def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, np.ndarray[DTYPE_t
             right += w
             j += 1
             if j > 100:
-                warn("slice is too wide, stopping adjustment")
+                if verbose:
+                    print "[%d] Slice is too wide, stopping adjustment" % i
                 break
 
         # now sample a new x value
@@ -89,7 +90,8 @@ def slice_sample(np.ndarray[DTYPE_t, ndim=2] samples, logpdf, np.ndarray[DTYPE_t
 
             # check the window size to make sure it's not too small
             if ((right - left) < 1e-9).any():
-                warn("sampling window shrunk to zero on iter %d" % i)
+                if verbose:
+                    print "[%d] Sampling window shrunk to zero!" % i
                 break
 
             # choose the x and evaluate its probability
