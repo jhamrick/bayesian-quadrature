@@ -6,39 +6,78 @@ cimport numpy as np
 import scipy.stats
 import scipy.linalg
 
+from numpy.linalg import LinAlgError
 from libc.math cimport exp, log, fmax, copysign, fabs, M_PI
 from cpython cimport bool
 from warnings import warn
 
 cdef dot = np.dot
 cdef slogdet = np.linalg.slogdet
-cdef cholesky = scipy.linalg.cho_factor
-cdef solve = scipy.linalg.cho_solve
 
 DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
+ctypedef np.int32_t integer
 
 cdef DTYPE_t MIN = log(np.exp2(DTYPE(np.finfo(DTYPE).minexp + 4)))
 cdef DTYPE_t EPS = np.finfo(DTYPE).eps
 cdef DTYPE_t NAN = np.nan
+cdef char UPLO = 'L'
 
+cdef extern from "clapack.h":
+    integer dpotrf_(char *uplo, integer *n, DTYPE_t *a, integer *lda, integer *info)
+    integer dpotrs_(char *uplo, integer *n, integer *nrhs, DTYPE_t *a, integer *lda, DTYPE_t *b, integer *ldb, integer *info)
 
 cdef cho_factor(np.ndarray[DTYPE_t, mode='c', ndim=2] C):
     cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] L
-    L = cholesky(C, lower=True, overwrite_a=False, check_finite=True)[0]
-    return np.asarray(L, order='C')
+    cdef integer n = C.shape[0]
+    cdef integer info
+    cdef int i, j
+
+    L = np.empty((n, n), dtype=DTYPE, order='F')
+    for i in xrange(n):
+        for j in xrange(n):
+            L[i, j] = C[i, j]
+
+    dpotrf_(&UPLO, &n, &L[0, 0], &n, &info)
+
+    if info < 0:
+        raise ValueError("illegal value in argument %d" % (-info,))
+    elif info > 0:
+        raise LinAlgError("leading minor of order %d is not positive definite" % info)
+
+    return L
 
 
-cdef cho_solve_vec(np.ndarray[DTYPE_t, mode='c', ndim=2] L, np.ndarray[DTYPE_t, mode='c', ndim=1] b):
-    cdef np.ndarray[DTYPE_t, mode='c', ndim=1] x
-    x = solve((L, True), b, overwrite_b=False, check_finite=True)
-    return x
+cdef cho_solve_vec(np.ndarray[DTYPE_t, mode='fortran', ndim=2] L, np.ndarray[DTYPE_t, mode='c', ndim=1] b):
+    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=1] xf = np.array(b, dtype=DTYPE, copy=True, order='F')
+    cdef np.ndarray[DTYPE_t, mode='c', ndim=1] xc
+    cdef integer n = L.shape[0]
+    cdef integer nrhs = 1
+    cdef integer info
+
+    dpotrs_(&UPLO, &n, &nrhs, &L[0, 0], &n, &xf[0], &n, &info)
+
+    if info < 0:
+        raise ValueError("illegal value in argument %d" % (-info,))
+
+    xc = np.array(xf, dtype=DTYPE, order='C')
+    return xc
 
 
-cdef cho_solve_mat(np.ndarray[DTYPE_t, mode='c', ndim=2] L, np.ndarray[DTYPE_t, mode='c', ndim=2] b):
-    cdef np.ndarray[DTYPE_t, mode='c', ndim=2] x
-    x = solve((L, True), b, overwrite_b=False, check_finite=True)
-    return x
+cdef cho_solve_mat(np.ndarray[DTYPE_t, mode='fortran', ndim=2] L, np.ndarray[DTYPE_t, mode='c', ndim=2] b):
+    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] xf = np.array(b, dtype=DTYPE, copy=True, order='F')
+    cdef np.ndarray[DTYPE_t, mode='c', ndim=2] xc
+    cdef integer n = L.shape[0]
+    cdef integer nrhs = 2
+    cdef integer info
+
+    dpotrs_(&UPLO, &n, &nrhs, &L[0, 0], &n, &xf[0, 0], &n, &info)
+
+    if info < 0:
+        raise ValueError("illegal value in argument %d" % (-info,))
+
+    xc = np.array(xf, dtype=DTYPE, order='C')
+    return xc
 
 
 def mvn_logpdf(np.ndarray[DTYPE_t, mode='c', ndim=1] out, np.ndarray[DTYPE_t, mode='c', ndim=2] x, np.ndarray[DTYPE_t, mode='c', ndim=1] m, np.ndarray[DTYPE_t, mode='c', ndim=2] C):
@@ -48,7 +87,7 @@ def mvn_logpdf(np.ndarray[DTYPE_t, mode='c', ndim=1] out, np.ndarray[DTYPE_t, mo
            = -0.5*log(2*pi)*d - 0.5*(x_i-m)*C^-1*(x_i-m) - 0.5*log(|C|)
 
     """
-    cdef np.ndarray[DTYPE_t, mode='c', ndim=2] L
+    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] L
     cdef np.ndarray[DTYPE_t, mode='c', ndim=1] b
     cdef int n, d, i, j, k
     cdef DTYPE_t c
@@ -221,7 +260,7 @@ def int_int_K1_K2_K1(np.ndarray[DTYPE_t, mode='c', ndim=2] out, np.ndarray[DTYPE
     """
 
     cdef np.ndarray[DTYPE_t, mode='c', ndim=2] W1_cov
-    cdef np.ndarray[DTYPE_t, mode='c', ndim=2] L
+    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] L
     cdef np.ndarray[DTYPE_t, mode='c', ndim=2] C
     cdef np.ndarray[DTYPE_t, mode='c', ndim=2] cLc
     cdef np.ndarray[DTYPE_t, mode='c', ndim=2] cx
@@ -419,7 +458,7 @@ def Z_mean(np.ndarray[DTYPE_t, mode='c', ndim=2] x_sc, np.ndarray[DTYPE_t, mode=
     return m_Z
 
 
-def Z_var(np.ndarray[DTYPE_t, mode='c', ndim=2] x_s, np.ndarray[DTYPE_t, mode='c', ndim=2] x_sc, np.ndarray[DTYPE_t, mode='c', ndim=1] alpha_l, np.ndarray[DTYPE_t, mode='c', ndim=2] L_tl, DTYPE_t h_l, np.ndarray[DTYPE_t, mode='c', ndim=1] w_l, DTYPE_t h_tl, np.ndarray[DTYPE_t, mode='c', ndim=1] w_tl, np.ndarray[DTYPE_t, mode='c', ndim=1] mu, np.ndarray[DTYPE_t, mode='c', ndim=2] cov):
+def Z_var(np.ndarray[DTYPE_t, mode='c', ndim=2] x_s, np.ndarray[DTYPE_t, mode='c', ndim=2] x_sc, np.ndarray[DTYPE_t, mode='c', ndim=1] alpha_l, np.ndarray[DTYPE_t, mode='fortran', ndim=2] L_tl, DTYPE_t h_l, np.ndarray[DTYPE_t, mode='c', ndim=1] w_l, DTYPE_t h_tl, np.ndarray[DTYPE_t, mode='c', ndim=1] w_tl, np.ndarray[DTYPE_t, mode='c', ndim=1] mu, np.ndarray[DTYPE_t, mode='c', ndim=2] cov):
 
     cdef np.ndarray[DTYPE_t, mode='c', ndim=2] int_K_l_K_tl_K_l
     cdef np.ndarray[DTYPE_t, mode='c', ndim=2] int_K_tl_K_l_mat
