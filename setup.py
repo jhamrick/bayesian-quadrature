@@ -17,6 +17,12 @@ extensions = [
     ),
 
     Extension(
+        "bayesian_quadrature.gauss_c", ["bayesian_quadrature/gauss_c.pyx"],
+        include_dirs=includes,
+        libraries=["m"]
+    ),
+
+    Extension(
         "bayesian_quadrature.bq_c", ["bayesian_quadrature/bq_c.pyx"],
         include_dirs=includes,
         libraries=["m"]
