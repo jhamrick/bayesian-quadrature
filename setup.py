@@ -11,6 +11,12 @@ includes = [blas_include, np.get_include()]
 
 extensions = [
     Extension(
+        "bayesian_quadrature.linalg_c", ["bayesian_quadrature/linalg_c.pyx"],
+        include_dirs=includes,
+        libraries=["m"]
+    ),
+
+    Extension(
         "bayesian_quadrature.bq_c", ["bayesian_quadrature/bq_c.pyx"],
         include_dirs=includes,
         libraries=["m"]
