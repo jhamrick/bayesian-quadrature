@@ -79,25 +79,25 @@ cpdef cho_solve_vec(ndarray[float64_t, mode='fortran', ndim=2] L, ndarray[float6
         value_error("illegal value")
 
 
-cpdef cho_solve_mat(ndarray[float64_t, mode='fortran', ndim=2] L, ndarray[float64_t, mode='fortran', ndim=2] b, ndarray[float64_t, mode='fortran', ndim=2] x):
+cpdef cho_solve_mat(ndarray[float64_t, mode='fortran', ndim=2] L, ndarray[float64_t, mode='fortran', ndim=2] B, ndarray[float64_t, mode='fortran', ndim=2] X):
     cdef int32_t n = L.shape[0]
-    cdef int32_t nrhs = 2
+    cdef int32_t nrhs = B.shape[1]
     cdef int32_t info
     cdef int i, j
 
     if L.shape[1] != n:
         value_error("L is not square")
-    if b.shape[0] != n or b.shape[1] != n:
-        value_error("b has invalid shape")
-    if x.shape[0] != n or x.shape[1] != n:
-        value_error("x has invalid shape")
+    if B.shape[0] != n or B.shape[1] != n:
+        value_error("B has invalid shape")
+    if X.shape[0] != n or X.shape[1] != n:
+        value_error("X has invalid shape")
 
-    if &x[0, 0] != &b[0, 0]:
+    if &X[0, 0] != &B[0, 0]:
         for i in xrange(n):
             for j in xrange(n):
-                x[i, j] = b[i, j]
+                X[i, j] = B[i, j]
 
-    dpotrs_(&UPLO, &n, &nrhs, &L[0, 0], &n, &x[0, 0], &n, &info)
+    dpotrs_(&UPLO, &n, &nrhs, &L[0, 0], &n, &X[0, 0], &n, &info)
 
     if info < 0:
         value_error("illegal value")
