@@ -1,3 +1,5 @@
+# cython: profile=True
+
 from __future__ import division
 
 import numpy as np
@@ -12,7 +14,6 @@ from cpython cimport bool
 from warnings import warn
 
 cdef dot = np.dot
-cdef slogdet = np.linalg.slogdet
 
 DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
@@ -26,17 +27,15 @@ cdef char UPLO = 'L'
 cdef extern from "clapack.h":
     integer dpotrf_(char *uplo, integer *n, DTYPE_t *a, integer *lda, integer *info)
     integer dpotrs_(char *uplo, integer *n, integer *nrhs, DTYPE_t *a, integer *lda, DTYPE_t *b, integer *ldb, integer *info)
+    integer dgetrf_(integer *m, integer *n, DTYPE_t *a, integer *lda, integer *ipiv, integer *info)
 
 cdef cho_factor(np.ndarray[DTYPE_t, mode='c', ndim=2] C):
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] L
+    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] L = np.array(C, dtype=DTYPE, copy=True, order='F')
     cdef integer n = C.shape[0]
     cdef integer info
-    cdef int i, j
 
-    L = np.empty((n, n), dtype=DTYPE, order='F')
-    for i in xrange(n):
-        for j in xrange(n):
-            L[i, j] = C[i, j]
+    if C.shape[1] != n:
+        raise ValueError("C is not square")
 
     dpotrf_(&UPLO, &n, &L[0, 0], &n, &info)
 
@@ -55,6 +54,11 @@ cdef cho_solve_vec(np.ndarray[DTYPE_t, mode='fortran', ndim=2] L, np.ndarray[DTY
     cdef integer nrhs = 1
     cdef integer info
 
+    if L.shape[1] != n:
+        raise ValueError("L is not square")
+    if b.shape[0] != n:
+        raise ValueError("b has invalid size %s" % b.shape[0])
+
     dpotrs_(&UPLO, &n, &nrhs, &L[0, 0], &n, &xf[0], &n, &info)
 
     if info < 0:
@@ -71,6 +75,11 @@ cdef cho_solve_mat(np.ndarray[DTYPE_t, mode='fortran', ndim=2] L, np.ndarray[DTY
     cdef integer nrhs = 2
     cdef integer info
 
+    if L.shape[1] != n:
+        raise ValueError("L is not square")
+    if b.shape[0] != n or b.shape[1] != n:
+        raise ValueError("b has invalid shape (%d, %d)" % (b.shape[0], b.shape[1]))
+
     dpotrs_(&UPLO, &n, &nrhs, &L[0, 0], &n, &xf[0, 0], &n, &info)
 
     if info < 0:
@@ -78,6 +87,34 @@ cdef cho_solve_mat(np.ndarray[DTYPE_t, mode='fortran', ndim=2] L, np.ndarray[DTY
 
     xc = np.array(xf, dtype=DTYPE, order='C')
     return xc
+
+
+cdef logdet(np.ndarray[DTYPE_t, mode='c', ndim=2] A):
+    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] LU
+    cdef np.ndarray[integer, mode='fortran', ndim=1] P
+    cdef integer n = A.shape[0]
+    cdef integer info
+    cdef DTYPE_t logdet
+    cdef int i
+
+    if A.shape[1] != n:
+        raise ValueError("A is not square")
+
+    LU = np.array(A, dtype=DTYPE, copy=True, order='F')
+    P = np.empty(n, dtype=np.int32, order='F')
+
+    dgetrf_(&n, &n, &LU[0, 0], &n, &P[0], &info)
+
+    if info < 0:
+        raise ValueError("illegal value in argument %d" % (-info,))
+    elif info > 0:
+        raise LinAlgError("U(%d, %d) is zero; matrix is singular" % (info, info))
+    
+    logdet = 0
+    for i in xrange(n):
+        logdet += log(LU[i, i])
+
+    return logdet
 
 
 def mvn_logpdf(np.ndarray[DTYPE_t, mode='c', ndim=1] out, np.ndarray[DTYPE_t, mode='c', ndim=2] x, np.ndarray[DTYPE_t, mode='c', ndim=1] m, np.ndarray[DTYPE_t, mode='c', ndim=2] C):
@@ -98,7 +135,7 @@ def mvn_logpdf(np.ndarray[DTYPE_t, mode='c', ndim=1] out, np.ndarray[DTYPE_t, mo
     b = np.empty(d, dtype=DTYPE)
 
     L = cho_factor(C)
-    c = log(2 * M_PI) * (-d / 2.) -0.5 * slogdet(C)[1]
+    c = log(2 * M_PI) * (-d / 2.) -0.5 * logdet(C)
 
     for i in xrange(n):
         b[:] = cho_solve_vec(L, x[i] - m)
