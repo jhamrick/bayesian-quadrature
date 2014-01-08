@@ -1,4 +1,3 @@
-# cython: profile=True
 # cython: boundscheck=False
 # cython: wraparound=False
 
@@ -8,8 +7,8 @@ from numpy import float64, int32
 
 ######################################################################
 
-from numpy cimport ndarray, float64_t, int32_t
-from libc.math cimport log
+from numpy cimport float64_t, int32_t
+from libc.math cimport log, sqrt, fabs
 
 cdef extern from "cblas.h":
     float64_t cblas_ddot(int32_t N, float64_t *X, int32_t incX, float64_t *Y, int32_t incY)
@@ -31,7 +30,7 @@ cdef void value_error(str msg):
 cdef void linalg_error(str msg):
     raise LinAlgError(msg)
 
-cpdef cho_factor(ndarray[float64_t, mode='fortran', ndim=2] C, ndarray[float64_t, mode='fortran', ndim=2] L):
+cpdef cho_factor(float64_t[::1, :] C, float64_t[::1, :] L):
     cdef int32_t n = C.shape[0]
     cdef int32_t info
     cdef int i, j
@@ -42,9 +41,7 @@ cpdef cho_factor(ndarray[float64_t, mode='fortran', ndim=2] C, ndarray[float64_t
         value_error("invalid shape for L")
 
     if &C[0, 0] != &L[0, 0]:
-        for i in xrange(n):
-            for j in xrange(n):
-                L[i, j] = C[i, j]
+        L[:, :] = C[:, :]
 
     dpotrf_(&UPLO, &n, &L[0, 0], &n, &info)
 
@@ -56,7 +53,7 @@ cpdef cho_factor(ndarray[float64_t, mode='fortran', ndim=2] C, ndarray[float64_t
     return
 
 
-cpdef cho_solve_vec(ndarray[float64_t, mode='fortran', ndim=2] L, ndarray[float64_t, mode='fortran', ndim=1] b, ndarray[float64_t, mode='fortran', ndim=1] x):
+cpdef cho_solve_vec(float64_t[::1, :] L, float64_t[::1] b, float64_t[::1] x):
     cdef int32_t n = L.shape[0]
     cdef int32_t nrhs = 1
     cdef int32_t info
@@ -70,8 +67,7 @@ cpdef cho_solve_vec(ndarray[float64_t, mode='fortran', ndim=2] L, ndarray[float6
         value_error("x has invalid size")
 
     if &x[0] != &b[0]:
-        for i in xrange(n):
-            x[i] = b[i]
+        x[:] = b[:]
 
     dpotrs_(&UPLO, &n, &nrhs, &L[0, 0], &n, &x[0], &n, &info)
 
@@ -79,7 +75,7 @@ cpdef cho_solve_vec(ndarray[float64_t, mode='fortran', ndim=2] L, ndarray[float6
         value_error("illegal value")
 
 
-cpdef cho_solve_mat(ndarray[float64_t, mode='fortran', ndim=2] L, ndarray[float64_t, mode='fortran', ndim=2] B, ndarray[float64_t, mode='fortran', ndim=2] X):
+cpdef cho_solve_mat(float64_t[::1, :] L, float64_t[::1, :] B, float64_t[::1, :] X):
     cdef int32_t n = L.shape[0]
     cdef int32_t nrhs = B.shape[1]
     cdef int32_t info
@@ -93,9 +89,7 @@ cpdef cho_solve_mat(ndarray[float64_t, mode='fortran', ndim=2] L, ndarray[float6
         value_error("X has invalid shape")
 
     if &X[0, 0] != &B[0, 0]:
-        for i in xrange(n):
-            for j in xrange(n):
-                X[i, j] = B[i, j]
+        X[:, :] = B[:, :]
 
     dpotrs_(&UPLO, &n, &nrhs, &L[0, 0], &n, &X[0, 0], &n, &info)
 
@@ -105,7 +99,7 @@ cpdef cho_solve_mat(ndarray[float64_t, mode='fortran', ndim=2] L, ndarray[float6
     return
 
 
-cpdef float64_t logdet(ndarray[float64_t, mode='fortran', ndim=2] L):
+cpdef float64_t logdet(float64_t[::1, :] L):
     cdef int32_t n = L.shape[0]
     cdef float64_t logdet
     cdef int i
@@ -121,7 +115,7 @@ cpdef float64_t logdet(ndarray[float64_t, mode='fortran', ndim=2] L):
     return logdet
 
 
-cpdef float64_t dot11(ndarray[float64_t, mode='fortran', ndim=1] x, ndarray[float64_t, mode='fortran', ndim=1] y):
+cpdef float64_t dot11(float64_t[::1] x, float64_t[::1] y):
     cdef float64_t out
     cdef int32_t n = x.shape[0]
 
@@ -140,7 +134,7 @@ cpdef float64_t dot11(ndarray[float64_t, mode='fortran', ndim=1] x, ndarray[floa
     return out
 
 
-cpdef dot12(ndarray[float64_t, mode='fortran', ndim=1] x, ndarray[float64_t, mode='fortran', ndim=2] Y, ndarray[float64_t, mode='fortran', ndim=1] xY):
+cpdef dot12(float64_t[::1] x, float64_t[::1, :] Y, float64_t[::1] xY):
     cdef int32_t n = x.shape[0]
     cdef int32_t p = Y.shape[1]
     cdef int j
@@ -163,7 +157,7 @@ cpdef dot12(ndarray[float64_t, mode='fortran', ndim=1] x, ndarray[float64_t, mod
     return
 
 
-cpdef dot21(ndarray[float64_t, mode='fortran', ndim=2] X, ndarray[float64_t, mode='fortran', ndim=1] y, ndarray[float64_t, mode='fortran', ndim=1] Xy):
+cpdef dot21(float64_t[::1, :] X, float64_t[::1] y, float64_t[::1] Xy):
     cdef int32_t m = X.shape[0]
     cdef int32_t n = X.shape[1]
     cdef int i
@@ -186,7 +180,7 @@ cpdef dot21(ndarray[float64_t, mode='fortran', ndim=2] X, ndarray[float64_t, mod
     return
 
 
-cpdef dot22(ndarray[float64_t, mode='fortran', ndim=2] X, ndarray[float64_t, mode='fortran', ndim=2] Y, ndarray[float64_t, mode='fortran', ndim=2] XY):
+cpdef dot22(float64_t[::1, :] X, float64_t[::1, :] Y, float64_t[::1, :] XY):
     cdef int32_t m = X.shape[0]
     cdef int32_t n = X.shape[1]
     cdef int32_t p = Y.shape[1]
@@ -209,3 +203,24 @@ cpdef dot22(ndarray[float64_t, mode='fortran', ndim=2] X, ndarray[float64_t, mod
                 XY[i, j] = cblas_ddot(n, &X[i, 0], m, &Y[0, j], 1)
 
     return
+
+
+cpdef float64_t vecdiff(float64_t[::1] x, float64_t[::1] y):
+    cdef n = x.shape[0]
+    cdef float64_t diff = 0
+
+    if y.shape[1] != n:
+        value_error("shape mismatch")
+
+    if n == 1:
+        diff = fabs(x[0] - y[0])
+
+    elif n == 2:
+        diff = sqrt((x[0] - y[0]) ** 2 + (x[1] - y[1]) ** 2)
+
+    else:
+        for i in xrange(n):
+            diff += (x[i] - y[i]) ** 2
+        diff = sqrt(diff)
+
+    return diff

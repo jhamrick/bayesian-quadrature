@@ -133,3 +133,15 @@ def test_dot22():
         la.dot22(x, y, d2)
         
         assert np.allclose(d1, d2)
+
+
+def test_vecdiff():
+    for i in xrange(1, 11):
+        x = np.array(np.random.rand(i), order='F')
+        y = np.array(np.random.rand(i), order='F')
+
+        d1 = np.sqrt(np.sum((x - y) ** 2))
+        d2 = la.vecdiff(x, y)
+        
+        assert np.allclose(d1, d2)
+    
