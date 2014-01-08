@@ -24,13 +24,13 @@ cdef char UPLO = 'L'
 
 ######################################################################
 
-cdef void value_error(str msg):
+cdef void value_error(str msg) except *:
     raise ValueError(msg)
 
-cdef void linalg_error(str msg):
+cdef void linalg_error(str msg) except *:
     raise LinAlgError(msg)
 
-cpdef cho_factor(float64_t[::1, :] C, float64_t[::1, :] L):
+cpdef int cho_factor(float64_t[::1, :] C, float64_t[::1, :] L) except -1:
     cdef int32_t n = C.shape[0]
     cdef int32_t info
     cdef int i, j
@@ -50,10 +50,10 @@ cpdef cho_factor(float64_t[::1, :] C, float64_t[::1, :] L):
     elif info > 0:
         linalg_error("matrix is not positive definite")
 
-    return
+    return 0
 
 
-cpdef cho_solve_vec(float64_t[::1, :] L, float64_t[::1] b, float64_t[::1] x):
+cpdef int cho_solve_vec(float64_t[::1, :] L, float64_t[::1] b, float64_t[::1] x) except -1:
     cdef int32_t n = L.shape[0]
     cdef int32_t nrhs = 1
     cdef int32_t info
@@ -74,8 +74,10 @@ cpdef cho_solve_vec(float64_t[::1, :] L, float64_t[::1] b, float64_t[::1] x):
     if info < 0:
         value_error("illegal value")
 
+    return 0
 
-cpdef cho_solve_mat(float64_t[::1, :] L, float64_t[::1, :] B, float64_t[::1, :] X):
+
+cpdef int cho_solve_mat(float64_t[::1, :] L, float64_t[::1, :] B, float64_t[::1, :] X) except -1:
     cdef int32_t n = L.shape[0]
     cdef int32_t nrhs = B.shape[1]
     cdef int32_t info
@@ -96,10 +98,10 @@ cpdef cho_solve_mat(float64_t[::1, :] L, float64_t[::1, :] B, float64_t[::1, :] 
     if info < 0:
         value_error("illegal value")
 
-    return
+    return 0
 
 
-cpdef float64_t logdet(float64_t[::1, :] L):
+cpdef float64_t logdet(float64_t[::1, :] L) except? -1:
     cdef int32_t n = L.shape[0]
     cdef float64_t logdet
     cdef int i
@@ -115,7 +117,7 @@ cpdef float64_t logdet(float64_t[::1, :] L):
     return logdet
 
 
-cpdef float64_t dot11(float64_t[::1] x, float64_t[::1] y):
+cpdef float64_t dot11(float64_t[::1] x, float64_t[::1] y) except? -1:
     cdef float64_t out
     cdef int32_t n = x.shape[0]
 
@@ -134,7 +136,7 @@ cpdef float64_t dot11(float64_t[::1] x, float64_t[::1] y):
     return out
 
 
-cpdef dot12(float64_t[::1] x, float64_t[::1, :] Y, float64_t[::1] xY):
+cpdef int dot12(float64_t[::1] x, float64_t[::1, :] Y, float64_t[::1] xY) except -1:
     cdef int32_t n = x.shape[0]
     cdef int32_t p = Y.shape[1]
     cdef int j
@@ -154,10 +156,10 @@ cpdef dot12(float64_t[::1] x, float64_t[::1, :] Y, float64_t[::1] xY):
         else:
             xY[j] = cblas_ddot(n, &x[0], 1, &Y[0, j], 1)
 
-    return
+    return 0
 
 
-cpdef dot21(float64_t[::1, :] X, float64_t[::1] y, float64_t[::1] Xy):
+cpdef int dot21(float64_t[::1, :] X, float64_t[::1] y, float64_t[::1] Xy) except -1:
     cdef int32_t m = X.shape[0]
     cdef int32_t n = X.shape[1]
     cdef int i
@@ -177,10 +179,10 @@ cpdef dot21(float64_t[::1, :] X, float64_t[::1] y, float64_t[::1] Xy):
         else:
             Xy[i] = cblas_ddot(n, &X[i, 0], m, &y[0], 1)
 
-    return
+    return 0
 
 
-cpdef dot22(float64_t[::1, :] X, float64_t[::1, :] Y, float64_t[::1, :] XY):
+cpdef int dot22(float64_t[::1, :] X, float64_t[::1, :] Y, float64_t[::1, :] XY) except -1:
     cdef int32_t m = X.shape[0]
     cdef int32_t n = X.shape[1]
     cdef int32_t p = Y.shape[1]
@@ -202,15 +204,15 @@ cpdef dot22(float64_t[::1, :] X, float64_t[::1, :] Y, float64_t[::1, :] XY):
             else:
                 XY[i, j] = cblas_ddot(n, &X[i, 0], m, &Y[0, j], 1)
 
-    return
+    return 0
 
 
-cpdef float64_t vecdiff(float64_t[::1] x, float64_t[::1] y):
+cpdef float64_t vecdiff(float64_t[::1] x, float64_t[::1] y) except? -1:
     cdef int n = x.shape[0]
     cdef float64_t diff = 0
     cdef int i
 
-    if y.shape[1] != n:
+    if y.shape[0] != n:
         value_error("shape mismatch")
 
     if n == 1:

@@ -1,4 +1,5 @@
-# cython: profile=True
+# cython: boundscheck=False
+# cython: wraparound=False
 
 from numpy.linalg import LinAlgError
 from numpy import array, empty, zeros
@@ -11,13 +12,10 @@ import scipy.stats
 from numpy cimport ndarray, float64_t, int32_t
 from libc.math cimport sqrt, exp, log, fmax, copysign, fabs, M_PI
 cimport linalg_c as la
-cimport cython
 
 ######################################################################
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cpdef float64_t mvn_logpdf(float64_t[::1] x, float64_t[::1] m, float64_t[::1, :] L, float64_t logdet):
+cpdef float64_t mvn_logpdf(float64_t[::1] x, float64_t[::1] m, float64_t[::1, :] L, float64_t logdet) except? -1:
     """Computes the logpdf for a multivariate normal distribution:
 
     out = N(x | m, C)
@@ -53,9 +51,7 @@ cpdef float64_t int_exp_norm(float64_t c, float64_t m, float64_t S):
     return out
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cpdef int_K(float64_t[::1] out, float64_t[::1, :] x, float64_t h, float64_t[::1] w, float64_t[::1] mu, float64_t[::1, :] cov):
+cpdef int int_K(float64_t[::1] out, float64_t[::1, :] x, float64_t h, float64_t[::1] w, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
     """Computes integrals of the form:
 
     int K(x', x) N(x' | mu, cov) dx'
@@ -99,12 +95,10 @@ cpdef int_K(float64_t[::1] out, float64_t[::1, :] x, float64_t h, float64_t[::1]
     for i in xrange(n):
         out[i] = h_2 * exp(mvn_logpdf(x[:, i], mu, W, logdet))
 
-    return
+    return 0
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cpdef approx_int_K(float64_t[::1] out, float64_t[::1, :] xo, float64_t[::1, :] Kxxo, float64_t[::1] mu, float64_t[::1, :] cov):
+cpdef int approx_int_K(float64_t[::1] out, float64_t[::1, :] xo, float64_t[::1, :] Kxxo, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
     """
     out is (m,)
     xo is (d, n)
@@ -149,10 +143,10 @@ cpdef approx_int_K(float64_t[::1] out, float64_t[::1, :] xo, float64_t[::1, :] K
             Kp2 = Kxxo[i, j+1] * p_xo[j+1]
             out[i] += diff[j] * (Kp1 + Kp2) / 2.
 
-    return
+    return 0
 
 
-cpdef int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] x1, float64_t[::1, :] x2, float64_t h1, float64_t[::1] w1, float64_t h2, float64_t[::1] w2, float64_t[::1] mu, float64_t[::1, :] cov):
+cpdef int int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] x1, float64_t[::1, :] x2, float64_t h1, float64_t[::1] w1, float64_t h2, float64_t[::1] w2, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
     """Computes integrals of the form:
 
     int K_1(x1, x') K_2(x', x2) N(x' | mu, cov) dx'
@@ -179,7 +173,7 @@ cpdef int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] x1, float64_t[::1, :] x
     cdef float64_t logdet
     cdef int i, j, k
 
-    if out.shape[0] != n1 or out.shape[0] != n2:
+    if out.shape[0] != n1 or out.shape[1] != n2:
         la.value_error("out has invalid shape")
     if x2.shape[0] != d:
         la.value_error("x2 has invalid shape")
@@ -226,10 +220,10 @@ cpdef int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] x1, float64_t[::1, :] x
         for j in xrange(n2):
             out[i, j] = h1_2_h2_2 * exp(mvn_logpdf(x[:, i, j], m, C, logdet))
 
-    return
+    return 0
 
 
-cpdef approx_int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] xo, float64_t[::1, :] K1xxo, float64_t[::1, :] K2xxo, float64_t[::1] mu, float64_t[::1, :] cov):
+cpdef int approx_int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] xo, float64_t[::1, :] K1xxo, float64_t[::1, :] K2xxo, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
     cdef int m1 = K1xxo.shape[0]
     cdef int m2 = K2xxo.shape[0]
     cdef int d = xo.shape[0]
@@ -270,8 +264,10 @@ cpdef approx_int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] xo, float64_t[::
                 Kp2 = K1xxo[i1, j+1] * K2xxo[i2, j] * p_xo[j+1]
                 out[i1, i2] += diff[j] * (Kp1 + Kp2) / 2.
 
+    return 0
 
-cpdef int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] x, float64_t h1, float64_t[::1] w1, float64_t h2, float64_t[::1] w2, float64_t[::1] mu, float64_t[::1, :] cov):
+
+cpdef int int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] x, float64_t h1, float64_t[::1] w1, float64_t h2, float64_t[::1] w2, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
     """Computes integrals of the form:
 
     int int K_1(x, x1') K_2(x1', x2') K_1(x2', x) N(x1' | mu, cov) N(x2' | mu, cov) dx1' dx2'
@@ -358,8 +354,10 @@ cpdef int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] x, float64_t h1,
         for j in xrange(n):
             out[i, j] = h1_4_h2_2 * exp(N1[i] + N1[j] + N2[i, j])
 
+    return 0
 
-cpdef approx_int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] xo, float64_t[::1, :] K1xxo, float64_t[::1, :] K2xoxo, float64_t[::1] mu, float64_t[::1, :] cov):
+
+cpdef int approx_int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] xo, float64_t[::1, :] K1xxo, float64_t[::1, :] K2xoxo, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
     cdef int m = K1xxo.shape[0]
     cdef int d = xo.shape[0]
     cdef int n = xo.shape[1]
@@ -409,9 +407,10 @@ cpdef approx_int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] xo, float
                 Kp2 = buf[i2, j1+1] * K1xxo[i1, j1+1] * p_xo[j1+1]
                 out[i1, i2] += diff[j1] * (Kp1 + Kp2) / 2.
 
+    return 0
 
 
-cpdef int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] x, float64_t h1, float64_t[::1] w1, float64_t h2, float64_t[::1] w2, float64_t[::1] mu, float64_t[::1, :] cov):
+cpdef int int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] x, float64_t h1, float64_t[::1] w1, float64_t h2, float64_t[::1] w2, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
     """Computes integrals of the form:
 
     int int K_1(x2', x1') K_2(x1', x) N(x1' | mu, cov) N(x2' | mu, cov) dx1' dx2'
@@ -479,8 +478,10 @@ cpdef int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] x, float64_t h1, float
     for i in xrange(n):
         out[i] = h1_2_h2_2 * exp(N + mvn_logpdf(x[:, i], mu, C, logdet))
 
+    return 0
 
-cpdef approx_int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] xo, float64_t[::1, :] K1xoxo, float64_t[::1, :] K2xxo, float64_t[::1] mu, float64_t[::1, :] cov):
+
+cpdef int approx_int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] xo, float64_t[::1, :] K1xoxo, float64_t[::1, :] K2xxo, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
     cdef int m = K2xxo.shape[0]
     cdef int d = xo.shape[0]
     cdef int n = xo.shape[1]
@@ -527,8 +528,10 @@ cpdef approx_int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] xo, float64_t[:
             Kp2 = buf[j1+1] * p_xo[j1+1]
             out[i] += diff[j1] * (Kp1 + Kp2) / 2.
 
+    return 0
 
-cpdef float64_t int_int_K(int32_t d, float64_t h, float64_t[::1] w, float64_t[::1] mu, float64_t[::1, :] cov):
+
+cpdef float64_t int_int_K(int32_t d, float64_t h, float64_t[::1] w, float64_t[::1] mu, float64_t[::1, :] cov) except? -1:
     """Computes integrals of the form:
 
     int int K(x1', x2') N(x1' | mu, cov) N(x2' | mu, cov) dx1' dx2'
@@ -566,7 +569,7 @@ cpdef float64_t int_int_K(int32_t d, float64_t h, float64_t[::1] w, float64_t[::
     return (h ** 2) * exp(mvn_logpdf(z, z, W_2cov, la.logdet(W_2cov)))
 
 
-cpdef float64_t approx_int_int_K(float64_t[::1, :] xo, float64_t[::1, :] Kxoxo, float64_t[::1] mu, float64_t[::1, :] cov):
+cpdef float64_t approx_int_int_K(float64_t[::1, :] xo, float64_t[::1, :] Kxoxo, float64_t[::1] mu, float64_t[::1, :] cov) except? -1:
     cdef int d = xo.shape[0]
     cdef int n = xo.shape[1]
 
