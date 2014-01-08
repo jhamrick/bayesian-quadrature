@@ -625,6 +625,11 @@ class BQ(object):
 
     def __getstate__(self):
         state = {}
+
+        state['x_s'] = self.x_s
+        state['l_s'] = self.l_s
+        state['tl_s'] = self.tl_s
+
         state['options'] = self.options
         state['initialized'] = self.initialized
 
