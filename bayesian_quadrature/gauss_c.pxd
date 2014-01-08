@@ -16,4 +16,5 @@ cpdef approx_int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] xo, float
 cpdef int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] x, float64_t h1, float64_t[::1] w1, float64_t h2, float64_t[::1] w2, float64_t[::1] mu, float64_t[::1, :] cov)
 cpdef approx_int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] xo, float64_t[::1, :] K1xoxo, float64_t[::1, :] K2xxo, float64_t[::1] mu, float64_t[::1, :] cov)
 
-cpdef float64_t int_int_K(int32_t d, float64_t h, ndarray[float64_t, mode='fortran', ndim=1] w, ndarray[float64_t, mode='fortran', ndim=1] mu, ndarray[float64_t, mode='fortran', ndim=2] cov)
+cpdef float64_t int_int_K(int32_t d, float64_t h, float64_t[::1] w, float64_t[::1] mu, float64_t[::1, :] cov)
+cpdef float64_t approx_int_int_K(float64_t[::1, :] xo, float64_t[::1, :] Kxoxo, float64_t[::1] mu, float64_t[::1, :] cov)

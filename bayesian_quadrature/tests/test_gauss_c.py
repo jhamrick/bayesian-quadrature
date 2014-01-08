@@ -343,10 +343,15 @@ def test_int_int_K():
     x_mean = bq.options['x_mean']
     x_cov = bq.options['x_cov']
 
-    approx_int = gauss_c.approx_int_int_K(xo, bq.gp_l, x_mean, x_cov)
+    Kxoxo = np.array(bq.gp_l.Kxoxo(xo), order='F')
+    approx_int = gauss_c.approx_int_int_K(
+        np.array(xo[None], order='F'), 
+        Kxoxo, x_mean, x_cov)
+
     calc_int = gauss_c.int_int_K(
         1, bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
         x_mean, x_cov)
+
     assert np.allclose(calc_int, approx_int, atol=1e-6)
 
 
@@ -362,5 +367,24 @@ def test_int_int_K_same():
         vals[i] = gauss_c.int_int_K(
             1, bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
             x_mean, x_cov)
+
+    assert (vals[0] == vals).all()
+
+
+def test_approx_int_int_K_same():
+    util.npseed()
+    bq = util.make_bq()
+    xo = util.make_xo()
+
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
+    Kxoxo = np.array(bq.gp_l.Kxoxo(xo), order='F')
+
+    vals = np.empty(20)
+    for i in xrange(vals.shape[-1]):
+        vals[i] = gauss_c.approx_int_int_K(
+            np.array(xo[None], order='F'), 
+            Kxoxo, x_mean, x_cov)
 
     assert (vals[0] == vals).all()
