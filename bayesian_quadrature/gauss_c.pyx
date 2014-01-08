@@ -1,6 +1,4 @@
 # cython: profile=True
-# cython: boundscheck=False
-# cython: wraparound=False
 
 from numpy.linalg import LinAlgError
 from numpy import array, empty, zeros
@@ -11,12 +9,15 @@ import scipy.stats
 ######################################################################
 
 from numpy cimport ndarray, float64_t, int32_t
-from libc.math cimport exp, log, fmax, copysign, fabs, M_PI
+from libc.math cimport sqrt, exp, log, fmax, copysign, fabs, M_PI
 cimport linalg_c as la
+cimport cython
 
 ######################################################################
 
-cpdef float64_t mvn_logpdf(ndarray[float64_t, mode='fortran', ndim=1] x, ndarray[float64_t, mode='fortran', ndim=1] m, ndarray[float64_t, mode='fortran', ndim=2] L, float64_t logdet):
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef float64_t mvn_logpdf(float64_t[::1] x, float64_t[::1] m, float64_t[::1, :] L, float64_t logdet):
     """Computes the logpdf for a multivariate normal distribution:
 
     out = N(x | m, C)
@@ -24,16 +25,22 @@ cpdef float64_t mvn_logpdf(ndarray[float64_t, mode='fortran', ndim=1] x, ndarray
 
     """
     cdef int d = x.shape[0]
-    cdef ndarray[float64_t, mode='fortran', ndim=1] buf = empty(d, dtype=float64, order='F')
+    cdef float64_t[::1] diff = empty(d, dtype=float64)
+    cdef float64_t[::1] buf = empty(d, dtype=float64)
     cdef float64_t c = log(2 * M_PI) * d + logdet
+    cdef float64_t out
 
     if m.shape[0] != d:
         la.value_error("m has invalid size")
     if L.shape[0] != d or L.shape[1] != d:
         la.value_error("C has invalid size")
 
-    la.cho_solve_vec(L, x - m, buf)
-    return -0.5 * (c + la.dot11(x - m, buf))
+    for i in xrange(d):
+        diff[i] = x[i] - m[i]
+
+    la.cho_solve_vec(L, diff, buf)
+    out = -0.5 * (c + la.dot11(diff, buf))
+    return out
 
 
 cpdef float64_t int_exp_norm(float64_t c, float64_t m, float64_t S):
@@ -42,10 +49,13 @@ cpdef float64_t int_exp_norm(float64_t c, float64_t m, float64_t S):
     int exp(cx) N(x | m, S) = exp(cm + (1/2) c^2 S)
 
     """
-    return exp((c * m) + (0.5 * c ** 2 * S))
+    cdef float64_t out = exp((c * m) + (0.5 * c ** 2 * S))
+    return out
 
 
-cpdef int_K(ndarray[float64_t, mode='fortran', ndim=1] out, ndarray[float64_t, mode='fortran', ndim=2] x, float64_t h, ndarray[float64_t, mode='fortran', ndim=1] w, ndarray[float64_t, mode='fortran', ndim=1] mu, ndarray[float64_t, mode='fortran', ndim=2] cov):
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef int_K(float64_t[::1] out, float64_t[::1, :] x, float64_t h, float64_t[::1] w, float64_t[::1] mu, float64_t[::1, :] cov):
     """Computes integrals of the form:
 
     int K(x', x) N(x' | mu, cov) dx'
@@ -58,10 +68,10 @@ cpdef int_K(ndarray[float64_t, mode='fortran', ndim=1] out, ndarray[float64_t, m
 
     """
 
-    cdef int n = x.shape[0]
-    cdef int d = x.shape[1]
+    cdef int d = x.shape[0]
+    cdef int n = x.shape[1]
 
-    cdef ndarray[float64_t, mode='fortran', ndim=2] W = empty((d, d), dtype=float64, order='F')
+    cdef float64_t[::1, :] W = empty((d, d), dtype=float64, order='F')
 
     cdef float64_t h_2 = h ** 2
     cdef float64_t logdet
@@ -87,16 +97,59 @@ cpdef int_K(ndarray[float64_t, mode='fortran', ndim=1] out, ndarray[float64_t, m
     logdet = la.logdet(W)
 
     for i in xrange(n):
-        out[i] = h_2 * exp(mvn_logpdf(x[i], mu, W, logdet))
+        out[i] = h_2 * exp(mvn_logpdf(x[:, i], mu, W, logdet))
 
     return
 
 
-# def approx_int_K(xo, gp, mu, cov):
-#     Kxxo = gp.Kxxo(xo)
-#     p_xo = scipy.stats.norm.pdf(xo, mu[0], np.sqrt(cov[0, 0]))
-#     approx_int = np.trapz(Kxxo * p_xo, xo)
-#     return approx_int
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef approx_int_K(float64_t[::1] out, float64_t[::1, :] xo, float64_t[::1, :] Kxxo, float64_t[::1] mu, float64_t[::1, :] cov):
+    """
+    out is (m,)
+    xo is (d, n)
+    Kxxo is (m, n)
+    mu is (d,)
+    cov is (d, d)
+    """
+
+    cdef int m = Kxxo.shape[0]
+    cdef int d = xo.shape[0]
+    cdef int n = xo.shape[1]
+
+    cdef float64_t[::1, :] L = empty((d, d), dtype=float64)
+    cdef float64_t[::1] p_xo = empty(n, dtype=float64)
+    cdef float64_t[::1] diff = empty(n-1, dtype=float64)
+    cdef float64_t logdet, Kp1, Kp2
+    cdef int i, j
+
+    if out.shape[0] != m:
+        la.value_error("out has invalid shape")
+    if Kxxo.shape[1] != n:
+        la.value_error("Kxxo has invalid shape")
+    if mu.shape[0] != d:
+        la.value_error("mu has invalid shape")
+    if cov.shape[0] != d or cov.shape[1] != d:
+        la.value_error("mu has invalid shape")
+
+    la.cho_factor(cov, L)
+    logdet = la.logdet(L)
+
+    for i in xrange(n):
+        p_xo[i] = exp(mvn_logpdf(xo[:, i], mu, L, logdet))
+
+    for i in xrange(n-1):
+        diff[i] = la.vecdiff(xo[:, i+1], xo[:, i])
+
+    # compute approximate integral with trapezoidal rule
+    for i in xrange(m):
+        out[i] = 0
+        for j in xrange(n-1):
+            Kp1 = Kxxo[i, j] * p_xo[j]
+            Kp2 = Kxxo[i, j+1] * p_xo[j+1]
+            out[i] += diff[j] * (Kp1 + Kp2) / 2.
+
+    return
 
 
 cpdef int_K1_K2(ndarray[float64_t, mode='fortran', ndim=2] out, ndarray[float64_t, mode='fortran', ndim=2] x1, ndarray[float64_t, mode='fortran', ndim=2] x2, float64_t h1, ndarray[float64_t, mode='fortran', ndim=1] w1, float64_t h2, ndarray[float64_t, mode='fortran', ndim=1] w2, ndarray[float64_t, mode='fortran', ndim=1] mu, ndarray[float64_t, mode='fortran', ndim=2] cov):

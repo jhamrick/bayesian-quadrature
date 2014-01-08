@@ -56,6 +56,31 @@ def test_mvn_logpdf_same():
     assert (pdf[0] == pdf).all()
 
 
+def test_int_exp_norm():
+    def approx_int_exp_norm(xo, c, m, S):
+        e = np.exp(xo * c)
+        p = scipy.stats.norm.pdf(xo, m, np.sqrt(S))
+        return np.trapz(e * p, xo)
+
+    xo = np.linspace(-20, 20, 1000)
+
+    approx = approx_int_exp_norm(xo, 2, 0, 1)
+    calc = gauss_c.int_exp_norm(2, 0, 1)
+    assert np.allclose(approx, calc)
+
+    approx = approx_int_exp_norm(xo, 1, 0, 1)
+    calc = gauss_c.int_exp_norm(1, 0, 1)
+    assert np.allclose(approx, calc)
+
+    approx = approx_int_exp_norm(xo, 2, 1, 1)
+    calc = gauss_c.int_exp_norm(2, 1, 1)
+    assert np.allclose(approx, calc)
+
+    approx = approx_int_exp_norm(xo, 2, 1, 2)
+    calc = gauss_c.int_exp_norm(2, 1, 2)
+    assert np.allclose(approx, calc)
+
+
 def test_int_K():
     util.npseed()
     bq = util.make_bq()
@@ -64,30 +89,58 @@ def test_int_K():
     x_mean = bq.options['x_mean']
     x_cov = bq.options['x_cov']
 
-    approx_int = gauss_c.approx_int_K(xo, bq.gp_l, x_mean, x_cov)
-    calc_int = np.empty(bq.gp_l.x.shape[0])
+    Kxxo = np.array(bq.gp_l.Kxxo(xo), order='F')
+    approx_int = np.empty(bq.gp_l.x.shape[0], order='F')
+    gauss_c.approx_int_K(
+        approx_int, np.array(xo[None], order='F'), 
+        Kxxo, x_mean, x_cov)
+
+    calc_int = np.empty(bq.gp_l.x.shape[0], order='F')
     gauss_c.int_K(
-        calc_int, np.array(bq.gp_l.x[:, None]),
+        calc_int, np.array(bq.gp_l.x[None], order='F'),
         bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
         x_mean, x_cov)
+
     assert np.allclose(calc_int, approx_int, atol=1e-5)
 
 
 def test_int_K_same():
     util.npseed()
     bq = util.make_bq()
+    xo = util.make_xo()
 
     x_mean = bq.options['x_mean']
     x_cov = bq.options['x_cov']
 
-    vals = np.empty((100, bq.gp_log_l.x.shape[0]))
-    for i in xrange(vals.shape[0]):
+    vals = np.empty((bq.gp_l.x.shape[0], 100), order='F')
+    for i in xrange(100):
         gauss_c.int_K(
-            vals[i], np.array(bq.gp_log_l.x[:, None]),
-            bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
+            vals[:, i], np.array(bq.gp_l.x[None], order='F'),
+            bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
             x_mean, x_cov)
 
-    assert (vals[0] == vals).all()
+    assert (vals[:, [0]] == vals).all()
+
+
+def test_approx_int_K_same():
+    util.npseed()
+    bq = util.make_bq()
+    xo = util.make_xo()
+
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
+    Kxxo = np.array(bq.gp_l.Kxxo(xo), order='F')
+
+    vals = np.zeros((bq.gp_l.x.shape[0], 100), order='F')
+    xo = np.array(xo[None], order='F')
+    for i in xrange(100):
+        gauss_c.approx_int_K(
+            vals[:, i], xo, 
+            np.array(Kxxo, order='F'), 
+            x_mean, x_cov)
+
+    assert (vals[:, [0]] == vals).all()
 
 
 def test_int_K1_K2():
@@ -238,28 +291,3 @@ def test_int_int_K_same():
             x_mean, x_cov)
 
     assert (vals[0] == vals).all()
-
-
-def test_int_exp_norm():
-    def approx_int_exp_norm(xo, c, m, S):
-        e = np.exp(xo * c)
-        p = scipy.stats.norm.pdf(xo, m, np.sqrt(S))
-        return np.trapz(e * p, xo)
-
-    xo = np.linspace(-20, 20, 1000)
-
-    approx = approx_int_exp_norm(xo, 2, 0, 1)
-    calc = bq_c.int_exp_norm(2, 0, 1)
-    assert np.allclose(approx, calc)
-
-    approx = approx_int_exp_norm(xo, 1, 0, 1)
-    calc = bq_c.int_exp_norm(1, 0, 1)
-    assert np.allclose(approx, calc)
-
-    approx = approx_int_exp_norm(xo, 2, 1, 1)
-    calc = bq_c.int_exp_norm(2, 1, 1)
-    assert np.allclose(approx, calc)
-
-    approx = approx_int_exp_norm(xo, 2, 1, 2)
-    calc = bq_c.int_exp_norm(2, 1, 2)
-    assert np.allclose(approx, calc)
