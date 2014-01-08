@@ -34,6 +34,38 @@ cpdef float64_t vonmises_logpdf(float64_t x, float64_t mu, float64_t kappa):
     return p
 
 
+def p_x_gaussian(float64_t[::1] p_x, float64_t[::1, :] x, float64_t[::1] mu, float64_t[::1, :] cov):
+    cdef int d = x.shape[0]
+    cdef int n = x.shape[1]
+
+    cdef float64_t[::1, :] L = empty((d, d), dtype=float64, order='F')
+    cdef int i
+    
+    if p_x.shape[0] != n:
+        la.value_error("p_x has invalid shape")
+    if mu.shape[0] != d:
+        la.value_error("mu has invalid shape")
+    if cov.shape[0] != d or cov.shape[1] != d:
+        la.value_error("cov has invalid shape")
+
+    la.cho_factor(cov, L)
+    logdet = la.logdet(L)
+
+    for i in xrange(n):
+        p_x[i] = exp(ga.mvn_logpdf(x[:, i], mu, L, logdet))
+
+
+def p_x_vonmises(float64_t[::1] p_x, float64_t[::1] x, float64_t mu, float64_t kappa):
+    cdef int n = x.shape[0]
+    cdef int i
+    
+    if p_x.shape[0] != n:
+        la.value_error("p_x has invalid shape")
+
+    for i in xrange(n):
+        p_x[i] = exp(vonmises_logpdf(x[i], mu, kappa))
+
+
 def improve_covariance_conditioning(float64_t[:, ::1] M, float64_t[::1] jitters, long[::1] idx):
     cdef float64_t sqd_jitter = fmax(EPS, np.max(M)) * 1e-4
     cdef int i
@@ -75,28 +107,18 @@ def Z_mean(float64_t[::1, :] x_sc, float64_t[::1] alpha_l, float64_t h_l, float6
     return m_Z
 
 
-def approx_Z_mean(float64_t[::1, :] xo, float64_t[::1] l, float64_t[::1] mu, float64_t[::1, :] cov):
+def approx_Z_mean(float64_t[::1, :] xo, float64_t[::1] p_xo, float64_t[::1] l):
     cdef int d = xo.shape[0]
     cdef int n = xo.shape[1]
 
-    cdef float64_t[::1, :] L = empty((d, d), dtype=float64, order='F')
-    cdef float64_t[::1] p_xo = empty(n, dtype=float64)
     cdef float64_t[::1] diff = empty(n-1, dtype=float64)
-    cdef float64_t logdet, Kp1, Kp2
+    cdef float64_t Kp1, Kp2
     cdef int i
 
+    if p_xo.shape[0] != n:
+        la.value_error("p_xo has invalid shape")
     if l.shape[0] != n:
         la.value_error("l has invalid shape")
-    if mu.shape[0] != d:
-        la.value_error("mu has invalid shape")
-    if cov.shape[0] != d or cov.shape[1] != d:
-        la.value_error("cov has invalid shape")
-
-    la.cho_factor(cov, L)
-    logdet = la.logdet(L)
-
-    for i in xrange(n):
-        p_xo[i] = exp(ga.mvn_logpdf(xo[:, i], mu, L, logdet))
 
     for i in xrange(n-1):
         diff[i] = la.vecdiff(xo[:, i+1], xo[:, i])
@@ -164,31 +186,21 @@ def Z_var(float64_t[::1, :] x_s, float64_t[::1, :] x_sc, float64_t[::1] alpha_l,
     return V_Z
 
 
-def approx_Z_var(float64_t[::1, :] xo, float64_t[::1] m_l, float64_t[::1, :] C_tl, float64_t[::1] mu, float64_t[::1, :] cov):
+def approx_Z_var(float64_t[::1, :] xo, float64_t[::1] p_xo, float64_t[::1] m_l, float64_t[::1, :] C_tl):
     cdef int d = xo.shape[0]
     cdef int n = xo.shape[1]
 
-    cdef float64_t[::1, :] L = empty((d, d), dtype=float64, order='F')
-    cdef float64_t[::1] p_xo = empty(n, dtype=float64)
     cdef float64_t[::1] diff = empty(n-1, dtype=float64)
     cdef float64_t[::1] buf = empty(n, dtype=float64, order='F')
-    cdef float64_t logdet, Kp1, Kp2
+    cdef float64_t Kp1, Kp2
     cdef int i, j
 
+    if p_xo.shape[0] != n:
+        la.value_error("p_xo has invalid shape")
     if m_l.shape[0] != n:
         la.value_error("m_l has invalid shape")
     if C_tl.shape[0] != n or C_tl.shape[1] != n:
         la.value_error("C_tl has invalid shape")
-    if mu.shape[0] != d:
-        la.value_error("mu has invalid shape")
-    if cov.shape[0] != d or cov.shape[1] != d:
-        la.value_error("cov has invalid shape")
-
-    la.cho_factor(cov, L)
-    logdet = la.logdet(L)
-
-    for i in xrange(n):
-        p_xo[i] = exp(ga.mvn_logpdf(xo[:, i], mu, L, logdet))
 
     for i in xrange(n-1):
         diff[i] = la.vecdiff(xo[:, i+1], xo[:, i])
@@ -250,10 +262,31 @@ def expected_squared_mean(float64_t[::1] l_sc, float64_t[::1, :] K_l, float64_t 
     return esm
 
 
-def approx_expected_squared_mean(float64_t[::1] l_sc, float64_t[::1, :] K_l, float64_t tm_a, float64_t tC_a, float64_t[::1, :] xo, float64_t[::1, :] Kxxo, float64_t[::1] mu, float64_t[::1, :] cov):
+def approx_expected_squared_mean(float64_t[::1] l_sc, float64_t[::1, :] K_l, float64_t tm_a, float64_t tC_a, float64_t[::1, :] xo, float64_t[::1] p_xo, float64_t[::1, :] Kxxo):
     cdef int m = Kxxo.shape[0]
+    cdef int n = xo.shape[1]
+
     cdef float64_t[::1] int_K_l = empty(m, dtype=float64, order='F')
-    ga.approx_int_K(int_K_l, xo, Kxxo, mu, cov)
+    cdef float64_t[::1] diff = empty(n-1, dtype=float64)
+    cdef float64_t Kp1, Kp2
+    cdef int i, j
+
+    if p_xo.shape[0] != n:
+        la.value_error("p_xo has invalid shape")
+    if Kxxo.shape[1] != n:
+        la.value_error("Kxxo has invalid shape")
+
+    for i in xrange(n-1):
+        diff[i] = la.vecdiff(xo[:, i+1], xo[:, i])
+
+    # compute approximate integral with trapezoidal rule
+    for i in xrange(m):
+        int_K_l[i] = 0
+        for j in xrange(n-1):
+            Kp1 = Kxxo[i, j] * p_xo[j]
+            Kp2 = Kxxo[i, j+1] * p_xo[j+1]
+            int_K_l[i] += diff[j] * (Kp1 + Kp2) / 2.0
+
     esm = _esm(int_K_l, l_sc, K_l, tm_a, tC_a)
     return esm
 

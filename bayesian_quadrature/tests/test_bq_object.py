@@ -125,6 +125,7 @@ def test_expected_squared_mean():
     
     bq.options['use_approx'] = True
     bq._approx_x = bq._make_approx_x()
+    bq._approx_px = bq._make_approx_px()
     approx = bq.expected_squared_mean(x_a)
 
     assert np.allclose(approx, esm, rtol=1)

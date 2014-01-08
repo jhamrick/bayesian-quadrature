@@ -86,6 +86,7 @@ class BQ(object):
         self.nsc = None  #: Number of observations plus candidates
 
         self._approx_x = None
+        self._approx_px = None
 
     def load_options(self, kernel, n_candidate, candidate_thresh, x_mean, x_var):
         r"""
@@ -158,6 +159,7 @@ class BQ(object):
         # make the vector of locations for approximations
         if self.options['use_approx']:
             self._approx_x = self._make_approx_x()
+            self._approx_px = self._make_approx_px()
 
         self.initialized = True
 
@@ -241,12 +243,15 @@ class BQ(object):
         else:
             return self._exact_Z_mean()
 
-    def _approx_Z_mean(self, xo):
+    def _approx_Z_mean(self, xo=None):
+        if xo is None:
+            xo = self._approx_x
+            p_xo = self._approx_px
+        else:
+            p_xo = self._make_approx_px(xo)
+
         approx = bq_c.approx_Z_mean(
-            np.array(xo[None], order='F'),
-            self.l_mean(xo),
-            self.options['x_mean'],
-            self.options['x_cov'])
+            np.array(xo[None], order='F'), p_xo, self.l_mean(xo))
 
         return approx
 
@@ -295,13 +300,18 @@ class BQ(object):
         else:
             return self._exact_Z_var()
 
-    def _approx_Z_var(self, xo):
+    def _approx_Z_var(self, xo=None):
+        if xo is None:
+            xo = self._approx_x
+            p_xo = self._approx_px
+        else:
+            p_xo = self._make_approx_px(xo)
+
         approx = bq_c.approx_Z_var(
-            np.array(xo[None], order='F'),
+            np.array(xo[None], order='F'), p_xo,
             np.array(self.l_mean(xo), order='F'),
-            np.array(self.gp_log_l.cov(xo), order='F'),
-            self.options['x_mean'],
-            self.options['x_cov'])
+            np.array(self.gp_log_l.cov(xo), order='F'))
+
         return approx
 
     def _exact_Z_var(self):
@@ -376,20 +386,15 @@ class BQ(object):
 
         if self.options['use_approx']:
             xo = self._approx_x
+            p_xo = self._approx_px
             Kxxo = np.array(self.gp_l.K(x_sca, xo), order='F')
             esm = bq_c.approx_expected_squared_mean(
-                self.l_sc, 
-                np.array(K_l, order='F'),
-                tm_a, tC_a,
-                np.array(xo[None], order='F'), Kxxo,
-                self.options['x_mean'],
-                self.options['x_cov'])
+                self.l_sc, np.array(K_l, order='F'), tm_a, tC_a,
+                np.array(xo[None], order='F'), p_xo, Kxxo)
 
         else:
             esm = bq_c.expected_squared_mean(
-                self.l_sc, 
-                np.array(K_l, order='F'),
-                tm_a, tC_a,
+                self.l_sc, np.array(K_l, order='F'), tm_a, tC_a,
                 np.array(x_sca[None], order='F'),
                 self.gp_l.K.h, np.array([self.gp_l.K.w]),
                 self.options['x_mean'],
@@ -749,7 +754,7 @@ class BQ(object):
         self.l_sc = np.concatenate([self.l_s, self.l_c], axis=0)
         self.nsc = self.ns + self.nc
 
-    def _make_approx_x(self, xmin=None, xmax=None, n=300):
+    def _make_approx_x(self, xmin=None, xmax=None, n=1000):
         if xmin is None:
             if self.options['kernel'] is PeriodicKernel:
                 xmin = -np.pi * self.gp_log_l.K.p
@@ -764,16 +769,22 @@ class BQ(object):
 
         return np.linspace(xmin, xmax, n)
 
-    def _make_approx_px(self, x):
-        mu = float(self.options['x_mean'])
-        sigma2 = float(self.options['x_cov'])
+    def _make_approx_px(self, x=None):
+        if x is None:
+            x = self._approx_x
 
-        if self.options['kernel'] is PeriodicKernel:
-            kappa = 1. / sigma2
-            C = -np.log(2 * np.pi * scipy.special.iv(0, kappa))
-            p = np.exp(C + (kappa * np.cos(x - mu)))
+        p = np.empty(x.size, order='F')
 
-        else:
-            p = scipy.stats.norm.pdf(x, mu, np.sqrt(sigma2))
+        if self.options['kernel'] is GaussianKernel:
+            bq_c.p_x_gaussian(
+                p, np.array(x[None], order='F'),
+                self.options['x_mean'],
+                self.options['x_cov'])
+
+        elif self.options['kernel'] is PeriodicKernel:
+            bq_c.p_x_vonmises(
+                p, x,
+                float(self.options['x_mean']),
+                1. / float(self.options['x_cov']))
 
         return p
