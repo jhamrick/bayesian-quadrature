@@ -376,19 +376,25 @@ class BQ(object):
 
         if self.options['use_approx']:
             xo = self._approx_x
-            p_xo = self._make_approx_px(xo)
-            int_K_l = np.trapz(self.gp_l.K(x_sca, xo) * p_xo, xo)
-
-        else:
-            # int K_l(x, x_s) p(x) dx inv(K_l(x_s, x_s))
-            int_K_l = np.empty(x_sca.shape[0], dtype=DTYPE)
-            bq_c.int_K(
-                int_K_l, np.array(x_sca[:, None]), 
-                self.gp_l.K.h, np.array([self.gp_l.K.w]),
-                self.options['x_mean'], 
+            Kxxo = np.array(self.gp_l.K(x_sca, xo), order='F')
+            esm = bq_c.approx_expected_squared_mean(
+                self.l_sc, 
+                np.array(K_l, order='F'),
+                tm_a, tC_a,
+                np.array(xo[None], order='F'), Kxxo,
+                self.options['x_mean'],
                 self.options['x_cov'])
 
-        esm = bq_c.expected_squared_mean(int_K_l, self.l_sc, K_l, tm_a, tC_a)
+        else:
+            esm = bq_c.expected_squared_mean(
+                self.l_sc, 
+                np.array(K_l, order='F'),
+                tm_a, tC_a,
+                np.array(x_sca[None], order='F'),
+                self.gp_l.K.h, np.array([self.gp_l.K.w]),
+                self.options['x_mean'],
+                self.options['x_cov'])
+
         if np.isnan(esm) or esm < 0:
             raise RuntimeError(
                 "invalid expected squared mean for x_a=%s: %s" % (

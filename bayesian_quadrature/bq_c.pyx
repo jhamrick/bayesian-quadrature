@@ -11,7 +11,7 @@ from numpy import empty
 ######################################################################
 
 from libc.math cimport exp, log, fmax, fabs
-from numpy cimport float64_t, int32_t
+from numpy cimport float64_t
 
 cimport cython
 cimport linalg_c as la
@@ -25,7 +25,7 @@ cdef float64_t NAN = np.nan
 
 ######################################################################
 
-def improve_covariance_conditioning(float64_t[:, ::1] M, float64_t[::1] jitters, int32_t[::1] idx):
+def improve_covariance_conditioning(float64_t[:, ::1] M, float64_t[::1] jitters, long[::1] idx):
     cdef float64_t sqd_jitter = fmax(EPS, np.max(M)) * 1e-4
     cdef int i
     for i in xrange(len(idx)):
@@ -33,7 +33,7 @@ def improve_covariance_conditioning(float64_t[:, ::1] M, float64_t[::1] jitters,
         M[idx[i], idx[i]] += sqd_jitter
 
 
-def remove_jitter(float64_t[:, ::1] M, float64_t[::1] jitters, int32_t[::1] idx):
+def remove_jitter(float64_t[:, ::1] M, float64_t[::1] jitters, long[::1] idx):
     cdef int i
     for i in xrange(len(idx)):
         M[idx[i], idx[i]] -= jitters[idx[i]]
@@ -202,21 +202,24 @@ def approx_Z_var(float64_t[::1, :] xo, float64_t[::1] m_l, float64_t[::1, :] C_t
     return out
 
 
-def expected_squared_mean(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[:, ::1] K_l, float64_t tm_a, float64_t tC_a):
-    cdef int n = K_l.shape[0]
+cdef float64_t _esm(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[::1, :] K_l, float64_t tm_a, float64_t tC_a) except? -1:
+    cdef int nca = K_l.shape[0]
+    cdef int nc = nca - 1
 
-    cdef float64_t[::1, :] fK_l = empty((n, n), dtype=float64, order='F')
-    cdef float64_t[::1, :] L = empty((n, n), dtype=float64, order='F')
-    cdef float64_t[::1] A_sca = empty(n, dtype=float64, order='F')
+    cdef float64_t[::1, :] L = empty((nca, nca), dtype=float64, order='F')
+    cdef float64_t[::1] A_sca = empty(nca, dtype=float64, order='F')
 
     cdef float64_t A_a, A_sc_l, e1, e2, E_m2
     cdef int i, j
 
-    for i in xrange(n):
-        for j in xrange(n):
-            fK_l[i, j] = K_l[i, j]
+    if K_l.shape[1] != nca:
+        la.value_error("K_l is not square")
+    if int_K_l.shape[0] != nca:
+        la.value_error("int_K_l has invalid shape")
+    if l_sc.shape[0] != nc:
+        la.value_error("l_sc has invalid shape")
 
-    la.cho_factor(fK_l, L)
+    la.cho_factor(K_l, L)
     la.cho_solve_vec(L, int_K_l, A_sca)
 
     A_a = A_sca[-1]
@@ -228,6 +231,22 @@ def expected_squared_mean(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t
     E_m2 = (A_sc_l**2) + (2*A_sc_l*A_a * e1) + (A_a**2 * e2)
 
     return E_m2
+
+
+def expected_squared_mean(float64_t[::1] l_sc, float64_t[::1, :] K_l, float64_t tm_a, float64_t tC_a, float64_t[::1, :] x_sca, float64_t h_l, float64_t[::1] w_l, float64_t[::1] mu, float64_t[::1, :] cov):
+    cdef int n = x_sca.shape[1]
+    cdef float64_t[::1] int_K_l = empty(n, dtype=float64, order='F')
+    ga.int_K(int_K_l, x_sca, h_l, w_l, mu, cov)
+    esm = _esm(int_K_l, l_sc, K_l, tm_a, tC_a)
+    return esm
+
+
+def approx_expected_squared_mean(float64_t[::1] l_sc, float64_t[::1, :] K_l, float64_t tm_a, float64_t tC_a, float64_t[::1, :] xo, float64_t[::1, :] Kxxo, float64_t[::1] mu, float64_t[::1, :] cov):
+    cdef int m = Kxxo.shape[0]
+    cdef float64_t[::1] int_K_l = empty(m, dtype=float64, order='F')
+    ga.approx_int_K(int_K_l, xo, Kxxo, mu, cov)
+    esm = _esm(int_K_l, l_sc, K_l, tm_a, tC_a)
+    return esm
 
 
 def filter_candidates(float64_t[::1] x_c, float64_t[::1] x_s, float64_t thresh):
