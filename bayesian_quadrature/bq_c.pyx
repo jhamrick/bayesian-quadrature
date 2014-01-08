@@ -10,12 +10,15 @@ from numpy import empty
 
 ######################################################################
 
-from libc.math cimport exp, log, fmax, fabs
+from libc.math cimport exp, log, fmax, fabs, M_PI, cos
 from numpy cimport float64_t
 
 cimport cython
 cimport linalg_c as la
 cimport gauss_c as ga
+
+cdef extern from "math.h":
+    double j0(double x)
 
 ######################################################################
 
@@ -24,6 +27,12 @@ cdef float64_t EPS = np.finfo(float64).eps
 cdef float64_t NAN = np.nan
 
 ######################################################################
+
+cpdef float64_t vonmises_logpdf(float64_t x, float64_t mu, float64_t kappa):
+    C = -log(2 * M_PI * j0(kappa))
+    p = C + (kappa * cos(x - mu))
+    return p
+
 
 def improve_covariance_conditioning(float64_t[:, ::1] M, float64_t[::1] jitters, long[::1] idx):
     cdef float64_t sqd_jitter = fmax(EPS, np.max(M)) * 1e-4
