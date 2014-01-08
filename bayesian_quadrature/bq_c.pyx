@@ -48,6 +48,15 @@ def Z_mean(float64_t[::1, :] x_sc, float64_t[::1] alpha_l, float64_t h_l, float6
     cdef float64_t[::1] int_K_l = empty(nc, dtype=float64, order='F')
     cdef float64_t m_Z
 
+    if alpha_l.shape[0] != nc:
+        la.value_error("alpha_l has invalid shape")
+    if w_l.shape[0] != d:
+        la.value_error("w_l has invalid shape")
+    if mu.shape[0] != d:
+        la.value_error("mu has invalid shape")
+    if cov.shape[0] != d or cov.shape[1] != d:
+        la.value_error("cov has invalid shape")
+
     # E[m_l | x_s] = (int K_l(x, x_s) p(x) dx) alpha_l(x_s)
     ga.int_K(int_K_l, x_sc, h_l, w_l, mu, cov)
     m_Z = la.dot11(int_K_l, alpha_l)
@@ -93,15 +102,11 @@ def approx_Z_mean(float64_t[::1, :] xo, float64_t[::1] l, float64_t[::1] mu, flo
     return out
 
 
-def Z_var(float64_t[:, ::1] x_s, float64_t[:, ::1] x_sc, float64_t[::1] alpha_l, float64_t[::1, :] L_tl, float64_t h_l, float64_t[::1] w_l, float64_t h_tl, float64_t[::1] w_tl, float64_t[::1] mu, float64_t[:, ::1] cov):
+def Z_var(float64_t[::1, :] x_s, float64_t[::1, :] x_sc, float64_t[::1] alpha_l, float64_t[::1, :] L_tl, float64_t h_l, float64_t[::1] w_l, float64_t h_tl, float64_t[::1] w_tl, float64_t[::1] mu, float64_t[::1, :] cov):
 
-    cdef int ns = x_s.shape[0]
-    cdef int nc = x_sc.shape[0]
-    cdef int d = x_sc.shape[1]
-
-    cdef float64_t[::1, :] fx_s = empty((ns, d), dtype=float64, order='F')
-    cdef float64_t[::1, :] fx_sc = empty((nc, d), dtype=float64, order='F')
-    cdef float64_t[::1, :] fcov = empty((d, d), dtype=float64, order='F')
+    cdef int ns = x_s.shape[1]
+    cdef int nc = x_sc.shape[1]
+    cdef int d = x_sc.shape[0]
 
     cdef float64_t[::1, :] int_K_l_K_tl_K_l = empty((nc, nc), dtype=float64, order='F')
     cdef float64_t[::1, :] int_K_tl_K_l_mat = empty((ns, nc), dtype=float64, order='F')
@@ -112,17 +117,20 @@ def Z_var(float64_t[:, ::1] x_s, float64_t[:, ::1] x_sc, float64_t[::1] alpha_l,
     cdef float64_t beta2, alpha_int_alpha, V_Z
     cdef int i, j
 
-    for i in xrange(ns):
-        for j in xrange(d):
-            fx_s[i, j] = x_s[i, j]
-
-    for i in xrange(nc):
-        for j in xrange(d):
-            fx_sc[i, j] = x_sc[i, j]
-
-    for i in xrange(d):
-        for j in xrange(d):
-            fcov[i, j] = cov[i, j]
+    if x_s.shape[0] != d:
+        la.value_error("x_s has invalid shape")
+    if alpha_l.shape[0] != nc:
+        la.value_error("alpha_l has invalid shape")
+    if L_tl.shape[0] != ns or L_tl.shape[1] != ns:
+        la.value_error("L_tl has invalid shape")
+    if w_l.shape[0] != d:
+        la.value_error("w_l has invalid shape")
+    if w_tl.shape[0] != d:
+        la.value_error("w_tl has invalid shape")
+    if mu.shape[0] != d:
+        la.value_error("mu has invalid shape")
+    if cov.shape[0] != d or cov.shape[1] != d:
+        la.value_error("cov has invalid shape")
 
     # E[m_l C_tl m_l | x_sc] = alpha_l(x_sc)' *
     #    int int K_l(x_sc, x) K_tl(x, x') K_l(x', x_sc) p(x) p(x') dx dx' *
@@ -131,11 +139,11 @@ def Z_var(float64_t[:, ::1] x_s, float64_t[:, ::1] x_sc, float64_t[::1] alpha_l,
     # beta(x_sc) = inv(L_tl(x_s, x_s)) *
     #    int K_tl(x_s, x) K_l(x, x_sc) p(x) dx *
     #    alpha_l(x_sc)
-    ga.int_int_K1_K2_K1(int_K_l_K_tl_K_l, fx_sc, h_l, w_l, h_tl, w_tl, mu, fcov)
+    ga.int_int_K1_K2_K1(int_K_l_K_tl_K_l, x_sc, h_l, w_l, h_tl, w_tl, mu, cov)
     la.dot12(alpha_l, int_K_l_K_tl_K_l, alpha_int)
     alpha_int_alpha = la.dot11(alpha_int, alpha_l)
 
-    ga.int_K1_K2(int_K_tl_K_l_mat, fx_s, fx_sc, h_tl, w_tl, h_l, w_l, mu, fcov)
+    ga.int_K1_K2(int_K_tl_K_l_mat, x_s, x_sc, h_tl, w_tl, h_l, w_l, mu, cov)
     la.dot21(int_K_tl_K_l_mat, alpha_l, beta)
     la.cho_solve_vec(L_tl, beta, L_tl_beta)
     beta2 = la.dot11(beta, L_tl_beta)
@@ -145,6 +153,53 @@ def Z_var(float64_t[:, ::1] x_s, float64_t[:, ::1] x_sc, float64_t[::1] alpha_l,
         warn("V_Z = %s" % V_Z)
 
     return V_Z
+
+
+def approx_Z_var(float64_t[::1, :] xo, float64_t[::1] m_l, float64_t[::1, :] C_tl, float64_t[::1] mu, float64_t[::1, :] cov):
+    cdef int d = xo.shape[0]
+    cdef int n = xo.shape[1]
+
+    cdef float64_t[::1, :] L = empty((d, d), dtype=float64, order='F')
+    cdef float64_t[::1] p_xo = empty(n, dtype=float64)
+    cdef float64_t[::1] diff = empty(n-1, dtype=float64)
+    cdef float64_t[::1] buf = empty(n, dtype=float64, order='F')
+    cdef float64_t logdet, Kp1, Kp2
+    cdef int i, j
+
+    if m_l.shape[0] != n:
+        la.value_error("m_l has invalid shape")
+    if C_tl.shape[0] != n or C_tl.shape[1] != n:
+        la.value_error("C_tl has invalid shape")
+    if mu.shape[0] != d:
+        la.value_error("mu has invalid shape")
+    if cov.shape[0] != d or cov.shape[1] != d:
+        la.value_error("cov has invalid shape")
+
+    la.cho_factor(cov, L)
+    logdet = la.logdet(L)
+
+    for i in xrange(n):
+        p_xo[i] = exp(ga.mvn_logpdf(xo[:, i], mu, L, logdet))
+
+    for i in xrange(n-1):
+        diff[i] = la.vecdiff(xo[:, i+1], xo[:, i])
+
+    # inner integral
+    for i in xrange(n):
+        buf[i] = 0
+        for j in xrange(n-1):
+            Kp1 = C_tl[i, j] * m_l[j] * p_xo[j]
+            Kp2 = C_tl[i, j+1] * m_l[j+1] * p_xo[j+1]
+            buf[i] += diff[j] * (Kp1 + Kp2) / 2.0
+
+    # outer integral
+    out = 0
+    for i in xrange(n-1):
+        Kp1 = buf[i] * m_l[i] * p_xo[i]
+        Kp2 = buf[i+1] * m_l[i+1] * p_xo[i+1]
+        out += diff[i] * (Kp1 + Kp2) / 2.0
+
+    return out
 
 
 def expected_squared_mean(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[:, ::1] K_l, float64_t tm_a, float64_t tC_a):

@@ -296,11 +296,12 @@ class BQ(object):
             return self._exact_Z_var()
 
     def _approx_Z_var(self, xo):
-        m_l = self.l_mean(xo)
-        C_tl = self.gp_log_l.cov(xo)
-        p_xo = self._make_approx_px(xo)
-        approx = np.trapz(
-            np.trapz(C_tl * m_l * p_xo, xo) * m_l * p_xo, xo)
+        approx = bq_c.approx_Z_var(
+            np.array(xo[None], order='F'),
+            np.array(self.l_mean(xo), order='F'),
+            np.array(self.gp_log_l.cov(xo), order='F'),
+            self.options['x_mean'],
+            self.options['x_cov'])
         return approx
 
     def _exact_Z_var(self):
@@ -314,8 +315,8 @@ class BQ(object):
         """
 
         # values for the GPs over l(x) and log(l(x))
-        x_s = np.array(self.x_s[:, None])
-        x_sc = np.array(self.x_sc[:, None])
+        x_s = np.array(self.x_s[None], order='F')
+        x_sc = np.array(self.x_sc[None], order='F')
 
         alpha_l = self.gp_l.inv_Kxx_y
         L_tl = self.gp_log_l.Lxx
