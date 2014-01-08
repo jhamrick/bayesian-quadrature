@@ -15,6 +15,7 @@ before_install:
 - chmod +x miniconda.sh
 - ./miniconda.sh -b
 - export PATH=/home/travis/anaconda/bin:$PATH
+- apt-get install libblas-dev liblapack-dev
 # Install packages
 install:
 - conda install --yes pip python=$TRAVIS_PYTHON_VERSION numpy scipy sympy matplotlib cython
