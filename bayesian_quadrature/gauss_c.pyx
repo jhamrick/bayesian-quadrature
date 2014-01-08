@@ -124,7 +124,7 @@ cpdef int approx_int_K(float64_t[::1] out, float64_t[::1, :] xo, float64_t[::1, 
     if mu.shape[0] != d:
         la.value_error("mu has invalid shape")
     if cov.shape[0] != d or cov.shape[1] != d:
-        la.value_error("mu has invalid shape")
+        la.value_error("cov has invalid shape")
 
     la.cho_factor(cov, L)
     logdet = la.logdet(L)
@@ -244,7 +244,7 @@ cpdef int approx_int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] xo, float64_
     if mu.shape[0] != d:
         la.value_error("mu has invalid shape")
     if cov.shape[0] != d or cov.shape[1] != d:
-        la.value_error("mu has invalid shape")
+        la.value_error("cov has invalid shape")
 
     la.cho_factor(cov, L)
     logdet = la.logdet(L)
@@ -378,7 +378,7 @@ cpdef int approx_int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] xo, f
     if mu.shape[0] != d:
         la.value_error("mu has invalid shape")
     if cov.shape[0] != d or cov.shape[1] != d:
-        la.value_error("mu has invalid shape")
+        la.value_error("cov has invalid shape")
 
     la.cho_factor(cov, L)
     logdet = la.logdet(L)
@@ -502,7 +502,7 @@ cpdef int approx_int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] xo, float64
     if mu.shape[0] != d:
         la.value_error("mu has invalid shape")
     if cov.shape[0] != d or cov.shape[1] != d:
-        la.value_error("mu has invalid shape")
+        la.value_error("cov has invalid shape")
 
     la.cho_factor(cov, L)
     logdet = la.logdet(L)
@@ -585,7 +585,7 @@ cpdef float64_t approx_int_int_K(float64_t[::1, :] xo, float64_t[::1, :] Kxoxo, 
     if mu.shape[0] != d:
         la.value_error("mu has invalid shape")
     if cov.shape[0] != d or cov.shape[1] != d:
-        la.value_error("mu has invalid shape")
+        la.value_error("cov has invalid shape")
 
     la.cho_factor(cov, L)
     logdet = la.logdet(L)
