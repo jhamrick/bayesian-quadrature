@@ -17,12 +17,31 @@ cimport linalg_c as la
 ######################################################################
 
 cpdef float64_t mvn_logpdf(float64_t[::1] x, float64_t[::1] m, float64_t[::1, :] L, float64_t logdet) except? -1:
-    """Computes the logpdf for a multivariate normal distribution:
+    r""" 
+    Computes the log-PDF for a multivariate normal distribution for a
+    single point :math:`x`.
 
-    out = N(x | m, C)
-        = -0.5 * (log(2*pi)*d + log(|C|) + (x-m)*C^-1*(x-m))
+    .. math ::
+
+        \mathcal{N}(x \big\vert{} m, C) = -\frac{1}{2} \left(d\log(2\pi) + \log \big\vert{}C\big\vert{} + (x-m)C^{-1}(x-m)^T\right)
+
+    Parameters
+    ----------
+    x : float64_t[::1]
+        :math:`d` input location
+    m : float64_t[::1]
+        :math:`d` mean parameter
+    L : float64_t[::1, :]
+        :math:`d\times d` lower-triangular Cholesky factor of the covariance :math:`C`
+    logdet : float64_t
+        log determinant of the covariance :math:`C`
+
+    Returns
+    -------
+    out : log PDF evaluated at :math:`x`
 
     """
+
     cdef int d = x.shape[0]
     cdef float64_t[::1] diff = empty(d, dtype=float64)
     cdef float64_t[::1] buf = empty(d, dtype=float64)
@@ -43,25 +62,66 @@ cpdef float64_t mvn_logpdf(float64_t[::1] x, float64_t[::1] m, float64_t[::1, :]
 
 
 cpdef float64_t int_exp_norm(float64_t c, float64_t m, float64_t S):
-    """Computes integrals of the form:
+    r"""
+    Computes integrals of the form:
 
-    int exp(cx) N(x | m, S) = exp(cm + (1/2) c^2 S)
+    .. math ::
 
+        \int \exp(cx) \mathcal{N}(x \big\vert m, S)\ \mathrm{d}x = \exp\left(cm + \frac{1}{2} c^2 S\right)
+
+    Parameters
+    ----------
+    c : float64_t
+        constant :math:`c`
+    m : float64_t
+        mean parameter
+    S : float64_t
+        variance parameter
+
+    Returns
+    -------
+    out : value of the integral
+    
     """
     cdef float64_t out = exp((c * m) + (0.5 * c ** 2 * S))
     return out
 
 
 cpdef int int_K(float64_t[::1] out, float64_t[::1, :] x, float64_t h, float64_t[::1] w, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
-    """Computes integrals of the form:
+    r"""
+    Computes integrals of the form:
 
-    int K(x', x) N(x' | mu, cov) dx'
+    .. math ::
 
-    where K is a Gaussian kernel matrix parameterized by `h` and `w`.
+        \int K(x^\prime, x) \mathcal{N}(x^\prime \big\vert \mu, \Sigma)\ \mathrm{d}x^\prime
+
+    where :math:`K` is a Gaussian kernel matrix parameterized by
+    :math:`h` and :math:`w`.
 
     The result is:
+    
+    .. math ::
 
-    out[i] = h^2 N(x_i | mu, W + cov)
+        \mathrm{out}_i = h^2 \mathcal{N}(x_i \big\vert \mu, Iw + \Sigma)
+
+    Parameters
+    ----------
+    out : float64_t[::1]
+        :math:`n` output vector
+    x : float64_t[::1, :]
+        :math:`d\times n` input vector
+    h : float64_t
+        output scale kernel parameter
+    w : float64_t[::1]
+        :math:`d` vector of lengthscales
+    mu : float64_t[::1]
+        :math:`d` mean
+    cov : float64_t[::1, :]
+        :math:`d\times d` covariance
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
 
     """
 
@@ -100,12 +160,32 @@ cpdef int int_K(float64_t[::1] out, float64_t[::1, :] x, float64_t h, float64_t[
 
 
 cpdef int approx_int_K(float64_t[::1] out, float64_t[::1, :] xo, float64_t[::1, :] Kxxo, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
-    """
-    out is (m,)
-    xo is (d, n)
-    Kxxo is (m, n)
-    mu is (d,)
-    cov is (d, d)
+    r"""
+    Approximates integrals of the form:
+
+    .. math ::
+
+        \int K(x^\prime, x) \mathcal{N}(x^\prime \big\vert \mu, \Sigma)\ \mathrm{d}x^\prime
+
+    where :math:`K` is a kernel.
+
+    Parameters
+    ----------
+    out : float64_t[::1]
+        :math:`m` output vector
+    xo : float64_t[::1, :]
+        :math:`d\times n` vector of approximation locations
+    Kxxo : float64_t[::1, :]
+        :math:`n\times m` kernel matrix
+    mu : float64_t[::1]
+        :math:`d` mean
+    cov : float64_t[::1, :]
+        :math:`d\times d` covariance
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
+
     """
 
     cdef int m = Kxxo.shape[0]
@@ -148,17 +228,47 @@ cpdef int approx_int_K(float64_t[::1] out, float64_t[::1, :] xo, float64_t[::1, 
 
 
 cpdef int int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] x1, float64_t[::1, :] x2, float64_t h1, float64_t[::1] w1, float64_t h2, float64_t[::1] w2, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
-    """Computes integrals of the form:
+    r"""
+    Computes integrals of the form:
 
-    int K_1(x1, x') K_2(x', x2) N(x' | mu, cov) dx'
+    .. math ::
 
-    where K_1 is a Gaussian kernel matrix parameterized by `h1` and
-    `w1`, and K_2 is a Gaussian kernel matrix parameterized by `h2`
-    and `w2`.
+        \int K_1(x_1, x^\prime) K_2(x^\prime, x_2) \mathcal{N}(x^\prime \big\vert \mu, \Sigma)\ \mathrm{d}x^\prime
+
+    where :math:`K_1` is a Gaussian kernel matrix parameterized by
+    :math:`h_1` and :math:`w_1`, and :math:`K_2` is a Gaussian kernel
+    matrix parameterized by :math:`h_2` and :math:`w_2`.
 
     The result is:
+    
+    .. math ::
 
-    out[i, j] = h1^2 h2^2 N([x1_i, x2_j] | [mu, mu], [W1 + cov, cov; cov, W2 + cov])
+        \mathrm{out}_{i,j} = h_1^2 h_2^2 \mathcal{N}([x_{1,i}, x_{2,j}] \big\vert [\mu, \mu], [Iw_1 + \Sigma, \Sigma; \Sigma, Iw_2 + \Sigma])
+
+    Parameters
+    ----------
+    out : float64_t[::1, :]
+        :math:`n_1\times n_2` output matrix
+    x1 : float64_t[::1, :]
+        :math:`d\times n_1` input vector
+    x2 : float64_t[::1, :]
+        :math:`d\times n_2` input vector
+    h1 : float64_t
+        output scale kernel parameter for :math:`K_1`
+    w1 : float64_t[::1]
+        :math:`d` vector of lengthscales for :math:`K_1`
+    h2 : float64_t
+        output scale kernel parameter for :math:`K_2`
+    w2 : float64_t[::1]
+        :math:`d` vector of lengthscales for :math:`K_2`
+    mu : float64_t[::1]
+        :math:`d` mean
+    cov : float64_t[::1, :]
+        :math:`d\times d` covariance
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
 
     """
     
@@ -225,6 +335,36 @@ cpdef int int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] x1, float64_t[::1, 
 
 
 cpdef int approx_int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] xo, float64_t[::1, :] K1xxo, float64_t[::1, :] K2xxo, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
+    r"""
+    Approximates integrals of the form:
+
+    .. math ::
+
+        \int K_1(x_1, x^\prime) K_2(x^\prime, x_2) \mathcal{N}(x^\prime \big\vert \mu, \Sigma)\ \mathrm{d}x^\prime
+
+    where :math:`K_1` and :math:`K_2` are kernels.
+
+    Parameters
+    ----------
+    out : float64_t[::1, :]
+        :math:`m_1\times m_2` output matrix
+    xo : float64_t[::1, :]
+        :math:`d\times n` vector of approximation locations
+    K1xxo : float64_t[::1, :]
+        :math:`m_1\times n` matrix produced by :math:`K_1`
+    K2xxo : float64_t[::1, :]
+        :math:`m_2\times n` matrix produced by :math:`K_2`
+    mu : float64_t[::1]
+        :math:`d` mean
+    cov : float64_t[::1, :]
+        :math:`d\times d` covariance
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
+
+    """
+
     cdef int m1 = K1xxo.shape[0]
     cdef int m2 = K2xxo.shape[0]
     cdef int d = xo.shape[0]
@@ -269,19 +409,47 @@ cpdef int approx_int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] xo, float64_
 
 
 cpdef int int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] x, float64_t h1, float64_t[::1] w1, float64_t h2, float64_t[::1] w2, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
-    """Computes integrals of the form:
+    r"""
+    Computes integrals of the form:
 
-    int int K_1(x, x1') K_2(x1', x2') K_1(x2', x) N(x1' | mu, cov) N(x2' | mu, cov) dx1' dx2'
+    .. math ::
 
-    where K_1 is a Gaussian kernel matrix parameterized by `h1` and
-    `w1`, and K_2 is a Gaussian kernel matrix parameterized by `h2`
-    and `w2`.
+        \int \int K_1(x, x_1^\prime) K_2(x_1^\prime, x_2^\prime) K_1(x_2^\prime, x) N(x_1^\prime | \mu, \Sigma) N(x_2^\prime | \mu, \Sigma) \ \mathrm{d}x_1^\prime \ \mathrm{d}x_2^\prime
+
+    where :math:`K_1` is a Gaussian kernel matrix parameterized by
+    :math:`h_1` and :math:`w_1`, and :math:`K_2` is a Gaussian kernel
+    matrix parameterized by :math:`h_2` and :math:`w_2`.
 
     The result is:
+    
+    .. math ::
 
-    out[i, j] = h1^4 h2^2 |G|^-1 N(x_i | mu, W1 + cov) N(x_j | mu, W1 + cov) N(x_i | x_j, G^-1 (W2 + 2*cov - 2*G*cov) G^-1)
+        \mathrm{out}_{i,j} = h_1^4 h_2^2 \big\vert{}\Gamma\big\vert{}^{-1} \mathcal{N}(x_i \big\vert{} \mu, Iw_1 + \Sigma) \mathcal{N}(x_j \big\vert{} \mu, Iw_1 + \Sigma) \mathcal{N}(\Gamma x_i \big\vert{} \Gamma x_j, Iw_2 + 2\Sigma - 2\Gamma\Sigma)
 
-    where G = cov(W1 + cov)^-1
+    where :math:`\Gamma = \Sigma(Iw_1 + \Sigma)^{-1}`.
+
+    Parameters
+    ----------
+    out : float64_t[::1, :]
+        :math:`n\times n` output matrix
+    x : float64_t[::1, :]
+        :math:`d\times n` input vector
+    h1 : float64_t
+        output scale kernel parameter for :math:`K_1`
+    w1 : float64_t[::1]
+        :math:`d` vector of lengthscales for :math:`K_1`
+    h2 : float64_t
+        output scale kernel parameter for :math:`K_2`
+    w2 : float64_t[::1]
+        :math:`d` vector of lengthscales for :math:`K_2`
+    mu : float64_t[::1]
+        :math:`d` mean
+    cov : float64_t[::1, :]
+        :math:`d\times d` covariance
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
 
     """
 
@@ -359,6 +527,36 @@ cpdef int int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] x, float64_t
 
 
 cpdef int approx_int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] xo, float64_t[::1, :] K1xxo, float64_t[::1, :] K2xoxo, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
+    r"""
+    Computes integrals of the form:
+
+    .. math ::
+
+        \int \int K_1(x, x_1^\prime) K_2(x_1^\prime, x_2^\prime) K_1(x_2^\prime, x) N(x_1^\prime | \mu, \Sigma) N(x_2^\prime | \mu, \Sigma) \ \mathrm{d}x_1^\prime \ \mathrm{d}x_2^\prime
+
+    where :math:`K_1` and :math:`K_2` are kernels.
+
+    Parameters
+    ----------
+    out : float64_t[::1, :]
+        :math:`m\times m` output matrix
+    xo : float64_t[::1, :]
+        :math:`d\times n` vector of approximation locations
+    K1xxo : float64_t[::1, 1]
+        :math:`m\times n` matrix produced by :math:`K1`
+    K2xoxo : float64_t[::1, 1]
+        :math:`n\times n` matrix produced by :math:`K2`
+    mu : float64_t[::1]
+        :math:`d` mean
+    cov : float64_t[::1, :]
+        :math:`d\times d` covariance
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
+
+    """
+
     cdef int m = K1xxo.shape[0]
     cdef int d = xo.shape[0]
     cdef int n = xo.shape[1]
@@ -412,17 +610,45 @@ cpdef int approx_int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] xo, f
 
 
 cpdef int int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] x, float64_t h1, float64_t[::1] w1, float64_t h2, float64_t[::1] w2, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
-    """Computes integrals of the form:
+    r"""
+    Computes integrals of the form:
 
-    int int K_1(x2', x1') K_2(x1', x) N(x1' | mu, cov) N(x2' | mu, cov) dx1' dx2'
+    .. math ::
 
-    where K_1 is a Gaussian kernel matrix parameterized by `h1` and
-    `w1`, and K_2 is a Gaussian kernel matrix parameterized by `h2`
-    and `w2`.
+        \int \int K_1(x_2^\prime, x_1^\prime) K_2(x_1^\prime, x) \mathcal{N}(x_1^\prime \big\vert \mu, \Sigma) N(x_2^\prime \big\vert \mu, \Sigma)\ \mathrm{d}x_1^\prime \ \mathrm{d}x_2^\prime
+
+    where :math:`K_1` is a Gaussian kernel matrix parameterized by
+    :math:`h_1` and :math:`w_1`, and :math:`K_2` is a Gaussian kernel
+    matrix parameterized by :math:`h_2` and :math:`w_2`.
 
     The result is:
+    
+    .. math ::
 
-    out[i] = h1^2 h2^2 N(0 | 0, W1 + 2*cov) N(x_i | mu, W2 + cov - cov*(W1 + 2*cov)^-1*cov)
+        \mathrm{out}_i = h_1^2 h_2^2 \mathcal{N}(0 \big\vert 0, Iw_1 + 2\Sigma) \mathcal{N}(x_i \big\vert \mu, Iw_2 + \Sigma - \Sigma(Iw_1 + 2\Sigma)^{-1}\Sigma)
+
+    Parameters
+    ----------
+    out : float64_t[::1]
+        :math:`n` output vector
+    x : float64_t[::1, :]
+        :math:`d\times n` input vector
+    h1 : float64_t
+        output scale kernel parameter for :math:`K_1`
+    w1 : float64_t[::1]
+        :math:`d` vector of lengthscales for :math:`K_1`
+    h2 : float64_t
+        output scale kernel parameter for :math:`K_2`
+    w2 : float64_t[::1]
+        :math:`d` vector of lengthscales for :math:`K_2`
+    mu : float64_t[::1]
+        :math:`d` mean
+    cov : float64_t[::1, :]
+        :math:`d\times d` covariance
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
 
     """
 
@@ -483,6 +709,36 @@ cpdef int int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] x, float64_t h1, f
 
 
 cpdef int approx_int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] xo, float64_t[::1, :] K1xoxo, float64_t[::1, :] K2xxo, float64_t[::1] mu, float64_t[::1, :] cov) except -1:
+    r"""
+    Approximates integrals of the form:
+
+    .. math ::
+
+        \int \int K_1(x_2^\prime, x_1^\prime) K_2(x_1^\prime, x) \mathcal{N}(x_1^\prime \big\vert \mu, \Sigma) N(x_2^\prime \big\vert \mu, \Sigma)\ \mathrm{d}x_1^\prime \ \mathrm{d}x_2^\prime
+
+    where :math:`K_1` and :math:`K_2` are kernels.
+
+    Parameters
+    ----------
+    out : float64_t[::1]
+        :math:`m` output vector
+    xo : float64_t[::1, :]
+        :math:`d\times n` vector of approximation locatinos
+    K1xoxo : float64_t[::1, :]
+        :math:`n\times n` matrix produced by :math:`K_1`
+    K2xxo : float64_t[::1, :]
+        :math:`m\times n` matrix produced by :math:`K_2`
+    mu : float64_t[::1]
+        :math:`d` mean
+    cov : float64_t[::1, :]
+        :math:`d\times d` covariance
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
+
+    """
+
     cdef int m = K2xxo.shape[0]
     cdef int d = xo.shape[0]
     cdef int n = xo.shape[1]
@@ -533,15 +789,39 @@ cpdef int approx_int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] xo, float64
 
 
 cpdef float64_t int_int_K(int32_t d, float64_t h, float64_t[::1] w, float64_t[::1] mu, float64_t[::1, :] cov) except? -1:
-    """Computes integrals of the form:
+    r"""
+    Computes integrals of the form:
 
-    int int K(x1', x2') N(x1' | mu, cov) N(x2' | mu, cov) dx1' dx2'
+    .. math ::
 
-    where K is a Gaussian kernel parameterized by `h` and `w`.
+        \int \int K(x_1^\prime, x_2^\prime) \mathcal{N}(x_1^\prime \big\vert \mu, \Sigma) \mathcal{N}(x_2^\prime \big\vert \mu, \Sigma)\ \mathrm{d}x_1^\prime \ \mathrm{d}x_2^\prime
+
+    where :math:`K_1` is a Gaussian kernel matrix parameterized by
+    :math:`h_1` and :math:`w_1`, and :math:`K_2` is a Gaussian kernel
+    matrix parameterized by :math:`h_2` and :math:`w_2`.
 
     The result is:
+    
+    .. math ::
 
-    out = h^2 N(0 | 0, W + 2*cov)
+        \mathrm{out} = h^2 \mathcal{N}(0 \big\vert 0, Iw + 2\Sigma)
+
+    Parameters
+    ----------
+    d : int32_t
+        dimensionality of the Gaussians
+    h : float64_t
+        output scale kernel parameter
+    w : float64_t[::1]
+        :math:`d` vector of lengthscales
+    mu : float64_t[::1]
+        :math:`d` mean
+    cov : float64_t[::1, :]
+        :math:`d\times d` covariance
+
+    Returns
+    -------
+    out : value of the integral
 
     """
 
@@ -571,6 +851,32 @@ cpdef float64_t int_int_K(int32_t d, float64_t h, float64_t[::1] w, float64_t[::
 
 
 cpdef float64_t approx_int_int_K(float64_t[::1, :] xo, float64_t[::1, :] Kxoxo, float64_t[::1] mu, float64_t[::1, :] cov) except? -1:
+    r"""
+    Approximates integrals of the form:
+
+    .. math ::
+
+        \int \int K(x_1^\prime, x_2^\prime) \mathcal{N}(x_1^\prime \big\vert \mu, \Sigma) \mathcal{N}(x_2^\prime \big\vert \mu, \Sigma)\ \mathrm{d}x_1^\prime \ \mathrm{d}x_2^\prime
+
+    where :math:`K_1` and :math:`K_2` are kernels.
+
+    Parameters
+    ----------
+    xo : float64_t[::1, :]
+        :math:`d\times n` vector of approximation locations
+    Kxoxo : float64_t[::1, :]
+        :math:`n\times n` kernel matrix
+    mu : float64_t[::1]
+        :math:`d` mean
+    cov : float64_t[::1, :]
+        :math:`d\times d` covariance
+
+    Returns
+    -------
+    out : value of the integral
+
+    """
+
     cdef int d = xo.shape[0]
     cdef int n = xo.shape[1]
 
