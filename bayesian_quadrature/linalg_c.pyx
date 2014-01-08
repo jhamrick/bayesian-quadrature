@@ -32,6 +32,24 @@ cdef void linalg_error(str msg) except *:
     raise LinAlgError(msg)
 
 cpdef int cho_factor(float64_t[::1, :] C, float64_t[::1, :] L) except -1:
+    r"""
+    Compute the Cholesky factorization of matrix :math:`C` and store
+    the result in :math:`L`. The lower part will contain the
+    factorization; upper values could be anything.
+
+    Parameters
+    ----------
+    C : float64_t[::1, :]
+        :math:`n\times n` input matrix
+    L : float64_t[::1, :]
+        :math:`n\times n` output matrix
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
+
+    """
+
     cdef int32_t n = C.shape[0]
     cdef int32_t info
     cdef int i, j
@@ -55,6 +73,25 @@ cpdef int cho_factor(float64_t[::1, :] C, float64_t[::1, :] L) except -1:
 
 
 cpdef int cho_solve_vec(float64_t[::1, :] L, float64_t[::1] b, float64_t[::1] x) except -1:
+    r"""
+    Solve the equation :math:`Ax=b`, where :math:`A` is a matrix and
+    :math:`x` and :math:`b` are vectors.
+
+    Parameters
+    ----------
+    L : float64_t[::1, :]
+        :math:`n\times n` lower-triangular Cholesky factor of :math:`A`
+    b : float64_t[::1]
+        :math:`n` input vector
+    x : float64_t[::1]
+        :math:`n` output vector
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
+
+    """
+
     cdef int32_t n = L.shape[0]
     cdef int32_t nrhs = 1
     cdef int32_t info
@@ -79,6 +116,25 @@ cpdef int cho_solve_vec(float64_t[::1, :] L, float64_t[::1] b, float64_t[::1] x)
 
 
 cpdef int cho_solve_mat(float64_t[::1, :] L, float64_t[::1, :] B, float64_t[::1, :] X) except -1:
+    r"""
+    Solve the equation :math:`AX=B`, where :math:`A`, :math:`X`, and
+    :math:`B` are matrices.
+
+    Parameters
+    ----------
+    L : float64_t[::1, :]
+        :math:`n\times n` lower-triangular Cholesky factor of :math:`A`
+    B : float64_t[::1, :]
+        :math:`n\times n` input matrix
+    X : float64_t[::1, :]
+        :math:`n\times n` output matrix
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
+
+    """
+
     cdef int32_t n = L.shape[0]
     cdef int32_t nrhs = B.shape[1]
     cdef int32_t info
@@ -103,6 +159,21 @@ cpdef int cho_solve_mat(float64_t[::1, :] L, float64_t[::1, :] B, float64_t[::1,
 
 
 cpdef float64_t logdet(float64_t[::1, :] L) except? -1:
+    r"""
+    Compute the log determinant of a matrix :math:`A` from its
+    lower-triangular Cholesky factor :math:`L`.
+
+    Parameters
+    ----------
+    L : float64_t[::1, :]
+        :math:`n\times n` lower-triangular Cholesky factor of :math:`A`
+
+    Returns
+    -------
+    out : log-determinant
+
+    """
+
     cdef int32_t n = L.shape[0]
     cdef float64_t logdet
     cdef int i
@@ -119,6 +190,22 @@ cpdef float64_t logdet(float64_t[::1, :] L) except? -1:
 
 
 cpdef float64_t dot11(float64_t[::1] x, float64_t[::1] y) except? -1:
+    r"""
+    Compute the dot product between vectors :math:`x` and :math:`y`.
+
+    Parameters
+    ----------
+    x : float64_t[::1]
+        :math:`n` left-side vector
+    y : float64_t[::1]
+        :math:`n` right-side vector
+
+    Returns
+    -------
+    out : dot product
+
+    """
+
     cdef float64_t out
     cdef int32_t n = x.shape[0]
 
@@ -138,6 +225,24 @@ cpdef float64_t dot11(float64_t[::1] x, float64_t[::1] y) except? -1:
 
 
 cpdef int dot12(float64_t[::1] x, float64_t[::1, :] Y, float64_t[::1] xY) except -1:
+    r"""
+    Compute the dot product between a vector :math:`x` and a matrix :math:`Y`.
+
+    Parameters
+    ----------
+    x : float64_t[::1]
+        :math:`n` left-side vector
+    Y : float64_t[::1, :]
+        :math:`n\times p` right-side matrix
+    xY : float64_t[::1]
+        :math:`p` output vector
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
+
+    """
+
     cdef int32_t n = x.shape[0]
     cdef int32_t p = Y.shape[1]
     cdef int j
@@ -161,6 +266,24 @@ cpdef int dot12(float64_t[::1] x, float64_t[::1, :] Y, float64_t[::1] xY) except
 
 
 cpdef int dot21(float64_t[::1, :] X, float64_t[::1] y, float64_t[::1] Xy) except -1:
+    r"""
+    Compute the dot product between a matrix :math:`X` and a vector :math:`y`.
+
+    Parameters
+    ----------
+    X : float64_t[::1, :]
+        :math:`m\times n` left-side matrix
+    y : float64_t[::1]
+        :math:`n` right-side vector
+    xY : float64_t[::1]
+        :math:`m` output vector
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
+
+    """
+
     cdef int32_t m = X.shape[0]
     cdef int32_t n = X.shape[1]
     cdef int i
@@ -184,6 +307,24 @@ cpdef int dot21(float64_t[::1, :] X, float64_t[::1] y, float64_t[::1] Xy) except
 
 
 cpdef int dot22(float64_t[::1, :] X, float64_t[::1, :] Y, float64_t[::1, :] XY) except -1:
+    r"""
+    Compute the dot product between a matrix :math:`X` and a vector :math:`y`.
+
+    Parameters
+    ----------
+    X : float64_t[::1, :]
+        :math:`m\times n` left-side matrix
+    Y : float64_t[::1, :]
+        :math:`n\times p` right-side matrix
+    XY : float64_t[::1, :]
+        :math:`m\times p` output matrix
+
+    Returns
+    -------
+    out : 0 on success, -1 on failure
+
+    """
+
     cdef int32_t m = X.shape[0]
     cdef int32_t n = X.shape[1]
     cdef int32_t p = Y.shape[1]
@@ -209,6 +350,22 @@ cpdef int dot22(float64_t[::1, :] X, float64_t[::1, :] Y, float64_t[::1, :] XY) 
 
 
 cpdef float64_t vecdiff(float64_t[::1] x, float64_t[::1] y) except? -1:
+    r"""
+    Compute the Euclidean distance between two vectors :math:`x` and :math:`y`.
+
+    Parameters
+    ----------
+    x : float64_t[::1]
+        :math:`n` left-side vector
+    y : float64_t[::1]
+        :math:`n` right-side vector
+
+    Returns
+    -------
+    out : Euclidean distance, :math:`\sqrt{\sum_i x_i^2 + y_i^2}`
+
+    """
+
     cdef int n = x.shape[0]
     cdef float64_t diff = 0
     cdef int i
