@@ -132,7 +132,7 @@ def test_approx_int_K_same():
 
     Kxxo = np.array(bq.gp_l.Kxxo(xo), order='F')
 
-    vals = np.zeros((bq.gp_l.x.shape[0], 100), order='F')
+    vals = np.empty((bq.gp_l.x.shape[0], 100), order='F')
     xo = np.array(xo[None], order='F')
     for i in xrange(100):
         gauss_c.approx_int_K(
@@ -151,15 +151,20 @@ def test_int_K1_K2():
     x_mean = bq.options['x_mean']
     x_cov = bq.options['x_cov']
 
-    approx_int = gauss_c.approx_int_K1_K2(
-        xo, bq.gp_l, bq.gp_log_l, x_mean, x_cov)
+    K1xxo = np.array(bq.gp_l.Kxxo(xo), order='F')
+    K2xxo = np.array(bq.gp_log_l.Kxxo(xo), order='F')
+    approx_int = np.empty((bq.gp_l.x.shape[0], bq.gp_log_l.x.shape[0]), order='F')
+    gauss_c.approx_int_K1_K2(
+        approx_int, np.array(xo[None], order='F'), 
+        K1xxo, K2xxo, x_mean, x_cov)
 
-    calc_int = np.empty((bq.gp_l.x.shape[0], bq.gp_log_l.x.shape[0]))
+    calc_int = np.empty((bq.gp_l.x.shape[0], bq.gp_log_l.x.shape[0]), order='F')
     gauss_c.int_K1_K2(
-        calc_int, np.array(bq.gp_l.x[:, None]), 
-        np.array(bq.gp_log_l.x[:, None]),
-        bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-        bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
+        calc_int, 
+        np.array(bq.gp_l.x[None], order='F'),
+        np.array(bq.gp_log_l.x[None], order='F'),
+        bq.gp_l.K.h, np.array([bq.gp_l.K.w], order='F'),
+        bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w], order='F'),
         x_mean, x_cov)
 
     assert np.allclose(calc_int, approx_int, atol=1e-3)
@@ -172,16 +177,36 @@ def test_int_K1_K2_same():
     x_mean = bq.options['x_mean']
     x_cov = bq.options['x_cov']
 
-    vals = np.empty((100, bq.gp_l.x.shape[0], bq.gp_log_l.x.shape[0]))
-    for i in xrange(vals.shape[0]):
+    vals = np.empty((bq.gp_l.x.shape[0], bq.gp_log_l.x.shape[0], 100), order='F')
+    for i in xrange(vals.shape[-1]):
         gauss_c.int_K1_K2(
-            vals[i], np.array(bq.gp_l.x[:, None]), 
-            np.array(bq.gp_log_l.x[:, None]),
-            bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-            bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
+            vals[:, :, i], 
+            np.array(bq.gp_l.x[None], order='F'),
+            np.array(bq.gp_log_l.x[None], order='F'),
+            bq.gp_l.K.h, np.array([bq.gp_l.K.w], order='F'),
+            bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w], order='F'),
             x_mean, x_cov)
 
-    assert (vals[0] == vals).all()
+    assert (vals[:, :, [0]] == vals).all()
+
+
+def test_approx_int_K1_K2_same():
+    util.npseed()
+    bq = util.make_bq()
+    xo = util.make_xo()
+
+    x_mean = bq.options['x_mean']
+    x_cov = bq.options['x_cov']
+
+    K1xxo = np.array(bq.gp_l.Kxxo(xo), order='F')
+    K2xxo = np.array(bq.gp_log_l.Kxxo(xo), order='F')
+    vals = np.empty((bq.gp_l.x.shape[0], bq.gp_log_l.x.shape[0], 100), order='F')
+    for i in xrange(vals.shape[-1]):
+        gauss_c.approx_int_K1_K2(
+            vals[:, :, i], np.array(xo[None], order='F'), 
+            K1xxo, K2xxo, x_mean, x_cov)
+
+    assert (vals[:, :, [0]] == vals).all()
 
 
 def test_int_int_K1_K2_K1():
