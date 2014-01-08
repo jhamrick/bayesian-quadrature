@@ -10,7 +10,7 @@ import scipy.stats
 ######################################################################
 
 from numpy cimport ndarray, float64_t, int32_t
-from libc.math cimport sqrt, exp, log, fmax, copysign, fabs, M_PI
+from libc.math cimport exp, log, M_PI
 cimport linalg_c as la
 
 ######################################################################
@@ -141,7 +141,7 @@ cpdef int approx_int_K(float64_t[::1] out, float64_t[::1, :] xo, float64_t[::1, 
         for j in xrange(n-1):
             Kp1 = Kxxo[i, j] * p_xo[j]
             Kp2 = Kxxo[i, j+1] * p_xo[j+1]
-            out[i] += diff[j] * (Kp1 + Kp2) / 2.
+            out[i] += diff[j] * (Kp1 + Kp2) / 2.0
 
     return 0
 
@@ -262,7 +262,7 @@ cpdef int approx_int_K1_K2(float64_t[::1, :] out, float64_t[::1, :] xo, float64_
             for j in xrange(n-1):
                 Kp1 = K1xxo[i1, j] * K2xxo[i2, j] * p_xo[j]
                 Kp2 = K1xxo[i1, j+1] * K2xxo[i2, j] * p_xo[j+1]
-                out[i1, i2] += diff[j] * (Kp1 + Kp2) / 2.
+                out[i1, i2] += diff[j] * (Kp1 + Kp2) / 2.0
 
     return 0
 
@@ -396,7 +396,7 @@ cpdef int approx_int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] xo, f
             for j2 in xrange(n-1):
                 Kp1 = K2xoxo[j1, j2] * K1xxo[i2, j2] * p_xo[j2]
                 Kp2 = K2xoxo[j1, j2+1] * K1xxo[i2, j2+1] * p_xo[j2+1]
-                buf[i2, j1] += diff[j2] * (Kp1 + Kp2) / 2.
+                buf[i2, j1] += diff[j2] * (Kp1 + Kp2) / 2.0
 
     # outer integral
     for i1 in xrange(m):
@@ -405,7 +405,7 @@ cpdef int approx_int_int_K1_K2_K1(float64_t[::1, :] out, float64_t[::1, :] xo, f
             for j1 in xrange(n-1):
                 Kp1 = buf[i2, j1] * K1xxo[i1, j1] * p_xo[j1]
                 Kp2 = buf[i2, j1+1] * K1xxo[i1, j1+1] * p_xo[j1+1]
-                out[i1, i2] += diff[j1] * (Kp1 + Kp2) / 2.
+                out[i1, i2] += diff[j1] * (Kp1 + Kp2) / 2.0
 
     return 0
 
@@ -520,13 +520,13 @@ cpdef int approx_int_int_K1_K2(float64_t[::1] out, float64_t[::1, :] xo, float64
             for j2 in xrange(n-1):
                 Kp1 = K1xoxo[j1, j2] * K2xxo[i, j2] * p_xo[j2]
                 Kp2 = K1xoxo[j1, j2+1] * K2xxo[i, j2+1] * p_xo[j2+1]
-                buf[j1] += diff[j2] * (Kp1 + Kp2) / 2.
+                buf[j1] += diff[j2] * (Kp1 + Kp2) / 2.0
 
         out[i] = 0
         for j1 in xrange(n-1):
             Kp1 = buf[j1] * p_xo[j1]
             Kp2 = buf[j1+1] * p_xo[j1+1]
-            out[i] += diff[j1] * (Kp1 + Kp2) / 2.
+            out[i] += diff[j1] * (Kp1 + Kp2) / 2.0
 
     return 0
 
@@ -602,12 +602,12 @@ cpdef float64_t approx_int_int_K(float64_t[::1, :] xo, float64_t[::1, :] Kxoxo, 
         for j in xrange(n-1):
             Kp1 = Kxoxo[i, j] * p_xo[j]
             Kp2 = Kxoxo[i, j+1] * p_xo[j+1]
-            buf[i] += diff[j] * (Kp1 + Kp2) / 2.
+            buf[i] += diff[j] * (Kp1 + Kp2) / 2.0
 
     out = 0
     for i in xrange(n-1):
         Kp1 = buf[i] * p_xo[i]
         Kp2 = buf[i+1] * p_xo[i+1]
-        out += diff[i] * (Kp1 + Kp2) / 2.
+        out += diff[i] * (Kp1 + Kp2) / 2.0
 
     return out
