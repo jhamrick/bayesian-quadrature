@@ -206,8 +206,9 @@ cpdef dot22(float64_t[::1, :] X, float64_t[::1, :] Y, float64_t[::1, :] XY):
 
 
 cpdef float64_t vecdiff(float64_t[::1] x, float64_t[::1] y):
-    cdef n = x.shape[0]
+    cdef int n = x.shape[0]
     cdef float64_t diff = 0
+    cdef int i
 
     if y.shape[1] != n:
         value_error("shape mismatch")
