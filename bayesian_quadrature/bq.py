@@ -86,6 +86,7 @@ class BQ(object):
         self.nsc = None  #: Number of observations plus candidates
 
         self._approx_x = None
+        self._approx_px = None
 
     def load_options(self, kernel, n_candidate, candidate_thresh, x_mean, x_var):
         r"""
@@ -112,8 +113,8 @@ class BQ(object):
             'kernel': kernel,
             'n_candidate': int(n_candidate),
             'candidate_thresh': float(candidate_thresh),
-            'x_mean': np.array([x_mean], dtype=DTYPE),
-            'x_cov': np.array([[x_var]], dtype=DTYPE),
+            'x_mean': np.array([x_mean], dtype=DTYPE, order='F'),
+            'x_cov': np.array([[x_var]], dtype=DTYPE, order='F'),
             'use_approx': not (kernel is GaussianKernel)
         }
 
@@ -158,6 +159,7 @@ class BQ(object):
         # make the vector of locations for approximations
         if self.options['use_approx']:
             self._approx_x = self._make_approx_x()
+            self._approx_px = self._make_approx_px()
 
         self.initialized = True
 
@@ -241,10 +243,16 @@ class BQ(object):
         else:
             return self._exact_Z_mean()
 
-    def _approx_Z_mean(self, xo):
-        l = self.l_mean(xo)
-        p_xo = self._make_approx_px(xo)
-        approx = np.trapz(l * p_xo, xo)
+    def _approx_Z_mean(self, xo=None):
+        if xo is None:
+            xo = self._approx_x
+            p_xo = self._approx_px
+        else:
+            p_xo = self._make_approx_px(xo)
+
+        approx = bq_c.approx_Z_mean(
+            np.array(xo[None], order='F'), p_xo, self.l_mean(xo))
+
         return approx
 
     def _exact_Z_mean(self):
@@ -260,10 +268,10 @@ class BQ(object):
 
         """
 
-        x_sc = np.array(self.x_sc[:, None])
+        x_sc = np.array(self.x_sc[None], order='F')
         alpha_l = self.gp_l.inv_Kxx_y
         h_s, w_s = self.gp_l.K.params
-        w_s = np.array([w_s])
+        w_s = np.array([w_s], order='F')
 
         m_Z = bq_c.Z_mean(
             x_sc, alpha_l, h_s, w_s,
@@ -292,12 +300,18 @@ class BQ(object):
         else:
             return self._exact_Z_var()
 
-    def _approx_Z_var(self, xo):
-        m_l = self.l_mean(xo)
-        C_tl = self.gp_log_l.cov(xo)
-        p_xo = self._make_approx_px(xo)
-        approx = np.trapz(
-            np.trapz(C_tl * m_l * p_xo, xo) * m_l * p_xo, xo)
+    def _approx_Z_var(self, xo=None):
+        if xo is None:
+            xo = self._approx_x
+            p_xo = self._approx_px
+        else:
+            p_xo = self._make_approx_px(xo)
+
+        approx = bq_c.approx_Z_var(
+            np.array(xo[None], order='F'), p_xo,
+            np.array(self.l_mean(xo), order='F'),
+            np.array(self.gp_log_l.cov(xo), order='F'))
+
         return approx
 
     def _exact_Z_var(self):
@@ -311,8 +325,8 @@ class BQ(object):
         """
 
         # values for the GPs over l(x) and log(l(x))
-        x_s = np.array(self.x_s[:, None])
-        x_sc = np.array(self.x_sc[:, None])
+        x_s = np.array(self.x_s[None], order='F')
+        x_sc = np.array(self.x_sc[None], order='F')
 
         alpha_l = self.gp_l.inv_Kxx_y
         L_tl = self.gp_log_l.Lxx
@@ -372,19 +386,20 @@ class BQ(object):
 
         if self.options['use_approx']:
             xo = self._approx_x
-            p_xo = self._make_approx_px(xo)
-            int_K_l = np.trapz(self.gp_l.K(x_sca, xo) * p_xo, xo)
+            p_xo = self._approx_px
+            Kxxo = np.array(self.gp_l.K(x_sca, xo), order='F')
+            esm = bq_c.approx_expected_squared_mean(
+                self.l_sc, np.array(K_l, order='F'), tm_a, tC_a,
+                np.array(xo[None], order='F'), p_xo, Kxxo)
 
         else:
-            # int K_l(x, x_s) p(x) dx inv(K_l(x_s, x_s))
-            int_K_l = np.empty(x_sca.shape[0], dtype=DTYPE)
-            bq_c.int_K(
-                int_K_l, np.array(x_sca[:, None]), 
+            esm = bq_c.expected_squared_mean(
+                self.l_sc, np.array(K_l, order='F'), tm_a, tC_a,
+                np.array(x_sca[None], order='F'),
                 self.gp_l.K.h, np.array([self.gp_l.K.w]),
-                self.options['x_mean'], 
+                self.options['x_mean'],
                 self.options['x_cov'])
 
-        esm = bq_c.expected_squared_mean(int_K_l, self.l_sc, K_l, tm_a, tC_a)
         if np.isnan(esm) or esm < 0:
             raise RuntimeError(
                 "invalid expected squared mean for x_a=%s: %s" % (
@@ -610,6 +625,11 @@ class BQ(object):
 
     def __getstate__(self):
         state = {}
+
+        state['x_s'] = self.x_s
+        state['l_s'] = self.l_s
+        state['tl_s'] = self.tl_s
+
         state['options'] = self.options
         state['initialized'] = self.initialized
 
@@ -739,7 +759,7 @@ class BQ(object):
         self.l_sc = np.concatenate([self.l_s, self.l_c], axis=0)
         self.nsc = self.ns + self.nc
 
-    def _make_approx_x(self, xmin=None, xmax=None, n=300):
+    def _make_approx_x(self, xmin=None, xmax=None, n=1000):
         if xmin is None:
             if self.options['kernel'] is PeriodicKernel:
                 xmin = -np.pi * self.gp_log_l.K.p
@@ -754,16 +774,22 @@ class BQ(object):
 
         return np.linspace(xmin, xmax, n)
 
-    def _make_approx_px(self, x):
-        mu = float(self.options['x_mean'])
-        sigma2 = float(self.options['x_cov'])
+    def _make_approx_px(self, x=None):
+        if x is None:
+            x = self._approx_x
 
-        if self.options['kernel'] is PeriodicKernel:
-            kappa = 1. / sigma2
-            C = -np.log(2 * np.pi * scipy.special.iv(0, kappa))
-            p = np.exp(C + (kappa * np.cos(x - mu)))
+        p = np.empty(x.size, order='F')
 
-        else:
-            p = scipy.stats.norm.pdf(x, mu, np.sqrt(sigma2))
+        if self.options['kernel'] is GaussianKernel:
+            bq_c.p_x_gaussian(
+                p, np.array(x[None], order='F'),
+                self.options['x_mean'],
+                self.options['x_cov'])
+
+        elif self.options['kernel'] is PeriodicKernel:
+            bq_c.p_x_vonmises(
+                p, x,
+                float(self.options['x_mean']),
+                1. / float(self.options['x_cov']))
 
         return p

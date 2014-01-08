@@ -137,6 +137,6 @@ def improve_tail_covariance(gp):
     Kxx = gp.Kxx
     gp._memoized = {'Kxx': Kxx}
     max_jitter = np.diag(Kxx).max() * 1e-2
-    jitter = np.clip(-gp.x * 1e-4, 0, max_jitter)
-    Kxx += np.eye(gp.x.size) * jitter
-    gp.jitter = jitter
+    new_jitter = np.clip(-gp.x * 1e-4, 0, max_jitter)
+    Kxx += np.eye(gp.x.size) * new_jitter
+    gp.jitter += new_jitter

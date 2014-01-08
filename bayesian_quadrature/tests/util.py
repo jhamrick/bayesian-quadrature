@@ -54,7 +54,7 @@ def make_bq(n=9, x=None, nc=None):
 
 
 def make_xo():
-    return np.linspace(-10, 10, 1000)
+    return np.linspace(-10, 10, 500)
 
 
 def vmpdf(x, mu, kappa):
