@@ -112,8 +112,8 @@ class BQ(object):
             'kernel': kernel,
             'n_candidate': int(n_candidate),
             'candidate_thresh': float(candidate_thresh),
-            'x_mean': np.array([x_mean], dtype=DTYPE),
-            'x_cov': np.array([[x_var]], dtype=DTYPE),
+            'x_mean': np.array([x_mean], dtype=DTYPE, order='F'),
+            'x_cov': np.array([[x_var]], dtype=DTYPE, order='F'),
             'use_approx': not (kernel is GaussianKernel)
         }
 
@@ -242,9 +242,12 @@ class BQ(object):
             return self._exact_Z_mean()
 
     def _approx_Z_mean(self, xo):
-        l = self.l_mean(xo)
-        p_xo = self._make_approx_px(xo)
-        approx = np.trapz(l * p_xo, xo)
+        approx = bq_c.approx_Z_mean(
+            np.array(xo[None], order='F'),
+            self.l_mean(xo),
+            self.options['x_mean'],
+            self.options['x_cov'])
+
         return approx
 
     def _exact_Z_mean(self):
@@ -260,10 +263,10 @@ class BQ(object):
 
         """
 
-        x_sc = np.array(self.x_sc[:, None])
+        x_sc = np.array(self.x_sc[None], order='F')
         alpha_l = self.gp_l.inv_Kxx_y
         h_s, w_s = self.gp_l.K.params
-        w_s = np.array([w_s])
+        w_s = np.array([w_s], order='F')
 
         m_Z = bq_c.Z_mean(
             x_sc, alpha_l, h_s, w_s,
