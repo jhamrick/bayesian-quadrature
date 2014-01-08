@@ -1,67 +1,55 @@
 # cython: profile=True
 
-from __future__ import division
-
 import numpy as np
-cimport numpy as np
+import scipy.stats
+import scipy.linalg
+from numpy.linalg import LinAlgError
+from warnings import warn
+from numpy import float64, int32
+from numpy import empty
+
+######################################################################
+
+from libc.math cimport exp, log, fmax, fabs
+from numpy cimport float64_t, int32_t
+
 cimport cython
 cimport linalg_c as la
 cimport gauss_c as ga
 
-import scipy.stats
-import scipy.linalg
+######################################################################
 
-from numpy.linalg import LinAlgError
-from libc.math cimport exp, log, fmax, copysign, fabs, M_PI
-from cpython cimport bool
-from warnings import warn
+cdef float64_t MIN = log(np.exp2(float64(np.finfo(float64).minexp + 4)))
+cdef float64_t EPS = np.finfo(float64).eps
+cdef float64_t NAN = np.nan
 
-DTYPE = np.float64
-ctypedef np.float64_t DTYPE_t
-ctypedef np.int32_t integer
+######################################################################
 
-cdef DTYPE_t MIN = log(np.exp2(DTYPE(np.finfo(DTYPE).minexp + 4)))
-cdef DTYPE_t EPS = np.finfo(DTYPE).eps
-cdef DTYPE_t NAN = np.nan
-
-
-def improve_covariance_conditioning(np.ndarray[DTYPE_t, mode='c', ndim=2] M, np.ndarray[DTYPE_t, mode='c', ndim=1] jitters, np.ndarray[long, mode='c', ndim=1] idx):
-    cdef DTYPE_t sqd_jitter = fmax(EPS, np.max(M)) * 1e-4
+def improve_covariance_conditioning(float64_t[:, ::1] M, float64_t[::1] jitters, int32_t[::1] idx):
+    cdef float64_t sqd_jitter = fmax(EPS, np.max(M)) * 1e-4
     cdef int i
-
     for i in xrange(len(idx)):
         jitters[idx[i]] += sqd_jitter
         M[idx[i], idx[i]] += sqd_jitter
 
 
-def remove_jitter(np.ndarray[DTYPE_t, mode='c', ndim=2] M, np.ndarray[DTYPE_t, mode='c', ndim=1] jitters, np.ndarray[long, mode='c', ndim=1] idx):
+def remove_jitter(float64_t[:, ::1] M, float64_t[::1] jitters, int32_t[::1] idx):
     cdef int i
     for i in xrange(len(idx)):
         M[idx[i], idx[i]] -= jitters[idx[i]]
         jitters[idx[i]] = 0
 
 
+def Z_mean(float64_t[::1, :] x_sc, float64_t[::1] alpha_l, float64_t h_l, float64_t[::1] w_l, float64_t[::1] mu, float64_t[::1, :] cov):
 
-def Z_mean(np.ndarray[DTYPE_t, mode='c', ndim=2] x_sc, np.ndarray[DTYPE_t, mode='c', ndim=1] alpha_l, DTYPE_t h_l, np.ndarray[DTYPE_t, mode='c', ndim=1] w_l, np.ndarray[DTYPE_t, mode='c', ndim=1] mu, np.ndarray[DTYPE_t, mode='c', ndim=2] cov):
+    cdef int nc = x_sc.shape[1]
+    cdef int d = x_sc.shape[0]
 
-    cdef int nc = x_sc.shape[0]
-    cdef int d = x_sc.shape[1]
-
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] fx_sc = np.empty((nc, d), dtype=DTYPE, order='F')
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] fcov = np.empty((d, d), dtype=DTYPE, order='F')
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=1] int_K_l = np.empty(nc, dtype=DTYPE, order='F')
-    cdef DTYPE_t m_Z
-
-    for i in xrange(nc):
-        for j in xrange(d):
-            fx_sc[i, j] = x_sc[i, j]
-
-    for i in xrange(d):
-        for j in xrange(d):
-            fcov[i, j] = cov[i, j]
+    cdef float64_t[::1] int_K_l = empty(nc, dtype=float64, order='F')
+    cdef float64_t m_Z
 
     # E[m_l | x_s] = (int K_l(x, x_s) p(x) dx) alpha_l(x_s)
-    ga.int_K(int_K_l, fx_sc, h_l, w_l, mu, fcov)
+    ga.int_K(int_K_l, x_sc, h_l, w_l, mu, cov)
     m_Z = la.dot11(int_K_l, alpha_l)
     if m_Z <= 0:
         warn("m_Z = %s" % m_Z)
@@ -69,23 +57,59 @@ def Z_mean(np.ndarray[DTYPE_t, mode='c', ndim=2] x_sc, np.ndarray[DTYPE_t, mode=
     return m_Z
 
 
-def Z_var(np.ndarray[DTYPE_t, mode='c', ndim=2] x_s, np.ndarray[DTYPE_t, mode='c', ndim=2] x_sc, np.ndarray[DTYPE_t, mode='c', ndim=1] alpha_l, np.ndarray[DTYPE_t, mode='fortran', ndim=2] L_tl, DTYPE_t h_l, np.ndarray[DTYPE_t, mode='c', ndim=1] w_l, DTYPE_t h_tl, np.ndarray[DTYPE_t, mode='c', ndim=1] w_tl, np.ndarray[DTYPE_t, mode='c', ndim=1] mu, np.ndarray[DTYPE_t, mode='c', ndim=2] cov):
+def approx_Z_mean(float64_t[::1, :] xo, float64_t[::1] l, float64_t[::1] mu, float64_t[::1, :] cov):
+    cdef int d = xo.shape[0]
+    cdef int n = xo.shape[1]
+
+    cdef float64_t[::1, :] L = empty((d, d), dtype=float64, order='F')
+    cdef float64_t[::1] p_xo = empty(n, dtype=float64)
+    cdef float64_t[::1] diff = empty(n-1, dtype=float64)
+    cdef float64_t logdet, Kp1, Kp2
+    cdef int i
+
+    if l.shape[0] != n:
+        la.value_error("l has invalid shape")
+    if mu.shape[0] != d:
+        la.value_error("mu has invalid shape")
+    if cov.shape[0] != d or cov.shape[1] != d:
+        la.value_error("cov has invalid shape")
+
+    la.cho_factor(cov, L)
+    logdet = la.logdet(L)
+
+    for i in xrange(n):
+        p_xo[i] = exp(ga.mvn_logpdf(xo[:, i], mu, L, logdet))
+
+    for i in xrange(n-1):
+        diff[i] = la.vecdiff(xo[:, i+1], xo[:, i])
+
+    # compute approximate integral with trapezoidal rule
+    out = 0
+    for i in xrange(n-1):
+        Kp1 = l[i] * p_xo[i]
+        Kp2 = l[i+1] * p_xo[i+1]
+        out += diff[i] * (Kp1 + Kp2) / 2.0
+    
+    return out
+
+
+def Z_var(float64_t[:, ::1] x_s, float64_t[:, ::1] x_sc, float64_t[::1] alpha_l, float64_t[::1, :] L_tl, float64_t h_l, float64_t[::1] w_l, float64_t h_tl, float64_t[::1] w_tl, float64_t[::1] mu, float64_t[:, ::1] cov):
 
     cdef int ns = x_s.shape[0]
     cdef int nc = x_sc.shape[0]
     cdef int d = x_sc.shape[1]
 
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] fx_s = np.empty((ns, d), dtype=DTYPE, order='F')
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] fx_sc = np.empty((nc, d), dtype=DTYPE, order='F')
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] fcov = np.empty((d, d), dtype=DTYPE, order='F')
+    cdef float64_t[::1, :] fx_s = empty((ns, d), dtype=float64, order='F')
+    cdef float64_t[::1, :] fx_sc = empty((nc, d), dtype=float64, order='F')
+    cdef float64_t[::1, :] fcov = empty((d, d), dtype=float64, order='F')
 
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] int_K_l_K_tl_K_l = np.empty((nc, nc), dtype=DTYPE, order='F')
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] int_K_tl_K_l_mat = np.empty((ns, nc), dtype=DTYPE, order='F')
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=1] beta = np.empty(ns, dtype=DTYPE, order='F')
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=1] L_tl_beta = np.empty(ns, dtype=DTYPE, order='F')
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=1] alpha_int = np.empty(nc, dtype=DTYPE, order='F')
+    cdef float64_t[::1, :] int_K_l_K_tl_K_l = empty((nc, nc), dtype=float64, order='F')
+    cdef float64_t[::1, :] int_K_tl_K_l_mat = empty((ns, nc), dtype=float64, order='F')
+    cdef float64_t[::1] beta = empty(ns, dtype=float64, order='F')
+    cdef float64_t[::1] L_tl_beta = empty(ns, dtype=float64, order='F')
+    cdef float64_t[::1] alpha_int = empty(nc, dtype=float64, order='F')
 
-    cdef DTYPE_t beta2, alpha_int_alpha, V_Z
+    cdef float64_t beta2, alpha_int_alpha, V_Z
     cdef int i, j
 
     for i in xrange(ns):
@@ -123,14 +147,14 @@ def Z_var(np.ndarray[DTYPE_t, mode='c', ndim=2] x_s, np.ndarray[DTYPE_t, mode='c
     return V_Z
 
 
-def expected_squared_mean(np.ndarray[DTYPE_t, mode='fortran', ndim=1] int_K_l, np.ndarray[DTYPE_t, mode='c', ndim=1] l_sc, np.ndarray[DTYPE_t, mode='c', ndim=2] K_l, DTYPE_t tm_a, DTYPE_t tC_a):
+def expected_squared_mean(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[:, ::1] K_l, float64_t tm_a, float64_t tC_a):
     cdef int n = K_l.shape[0]
 
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] fK_l = np.empty((n, n), dtype=DTYPE, order='F')
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=2] L = np.empty((n, n), dtype=DTYPE, order='F')
-    cdef np.ndarray[DTYPE_t, mode='fortran', ndim=1] A_sca = np.empty(n, dtype=DTYPE, order='F')
+    cdef float64_t[::1, :] fK_l = empty((n, n), dtype=float64, order='F')
+    cdef float64_t[::1, :] L = empty((n, n), dtype=float64, order='F')
+    cdef float64_t[::1] A_sca = empty(n, dtype=float64, order='F')
 
-    cdef DTYPE_t A_a, A_sc_l, e1, e2, E_m2
+    cdef float64_t A_a, A_sc_l, e1, e2, E_m2
     cdef int i, j
 
     for i in xrange(n):
@@ -151,15 +175,15 @@ def expected_squared_mean(np.ndarray[DTYPE_t, mode='fortran', ndim=1] int_K_l, n
     return E_m2
 
 
-def filter_candidates(np.ndarray[DTYPE_t, mode='c', ndim=1] x_c, np.ndarray[DTYPE_t, mode='c', ndim=1] x_s, DTYPE_t thresh):
+def filter_candidates(float64_t[::1] x_c, float64_t[::1] x_s, float64_t thresh):
     cdef int nc = x_c.shape[0]
     cdef int ns = x_s.shape[0]
     cdef int i, j
-    cdef bool done = False
-    cdef DTYPE_t diff
+    cdef int done = 0
+    cdef float64_t diff
 
     while not done:
-        done = True
+        done = 1
         for i in xrange(nc):
             for j in xrange(i+1, nc):
                 if np.isnan(x_c[i]) or np.isnan(x_c[j]):
@@ -169,7 +193,7 @@ def filter_candidates(np.ndarray[DTYPE_t, mode='c', ndim=1] x_c, np.ndarray[DTYP
                 if diff < thresh:
                     x_c[i] = (x_c[i] + x_c[j]) / 2.0
                     x_c[j] = NAN
-                    done = False
+                    done = 1
 
         for i in xrange(nc):
             for j in xrange(ns):
