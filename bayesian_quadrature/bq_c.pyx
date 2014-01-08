@@ -1,4 +1,6 @@
-# cython: profile=True
+# cython: boundscheck=False
+# cython: wraparound=False
+# cython: embedsignature=True
 
 import numpy as np
 import scipy.stats
@@ -66,6 +68,8 @@ def p_x_vonmises(float64_t[::1] p_x, float64_t[::1] x, float64_t mu, float64_t k
         p_x[i] = exp(vonmises_logpdf(x[i], mu, kappa))
 
 
+@cython.boundscheck(True)
+@cython.wraparound(True)
 def improve_covariance_conditioning(float64_t[:, ::1] M, float64_t[::1] jitters, long[::1] idx):
     cdef float64_t sqd_jitter = fmax(EPS, np.max(M)) * 1e-4
     cdef int i
@@ -74,6 +78,8 @@ def improve_covariance_conditioning(float64_t[:, ::1] M, float64_t[::1] jitters,
         M[idx[i], idx[i]] += sqd_jitter
 
 
+@cython.boundscheck(True)
+@cython.wraparound(True)
 def remove_jitter(float64_t[:, ::1] M, float64_t[::1] jitters, long[::1] idx):
     cdef int i
     for i in xrange(len(idx)):
@@ -243,8 +249,8 @@ cdef float64_t _esm(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[::1, 
     la.cho_factor(K_l, L)
     la.cho_solve_vec(L, int_K_l, A_sca)
 
-    A_a = A_sca[-1]
-    A_sc_l = la.dot11(A_sca[:-1], l_sc)
+    A_a = A_sca[nca-1]
+    A_sc_l = la.dot11(A_sca[:nca-1], l_sc)
 
     e1 = ga.int_exp_norm(1, tm_a, tC_a)
     e2 = ga.int_exp_norm(2, tm_a, tC_a)

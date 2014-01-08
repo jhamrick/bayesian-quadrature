@@ -1,5 +1,6 @@
 # cython: boundscheck=False
 # cython: wraparound=False
+# cython: embedsignature=True
 
 from numpy.linalg import LinAlgError
 from numpy import array, empty, zeros
