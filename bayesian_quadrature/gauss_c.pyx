@@ -10,8 +10,11 @@ import scipy.stats
 ######################################################################
 
 from numpy cimport ndarray, float64_t, int32_t
-from libc.math cimport exp, log, M_PI
+from libc.math cimport exp, log, M_PI, cos
 cimport linalg_c as la
+
+cdef extern from "math.h":
+    double j0(double x)
 
 ######################################################################
 
@@ -39,6 +42,12 @@ cpdef float64_t mvn_logpdf(float64_t[::1] x, float64_t[::1] m, float64_t[::1, :]
     la.cho_solve_vec(L, diff, buf)
     out = -0.5 * (c + la.dot11(diff, buf))
     return out
+
+
+cpdef float64_t vonmises_logpdf(float64_t x, float64_t mu, float64_t kappa):
+    C = -log(2 * M_PI * j0(kappa))
+    p = C + (kappa * cos(x - mu))
+    return p
 
 
 cpdef float64_t int_exp_norm(float64_t c, float64_t m, float64_t S):
