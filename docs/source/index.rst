@@ -9,6 +9,8 @@ API Documentation
    bayesian_quadrature.bq
    bayesian_quadrature.util
    bayesian_quadrature.bq_c
+   bayesian_quadrature.gauss_c
+   bayesian_quadrature.linalg_c
    bayesian_quadrature.util_c
 
 Tests
