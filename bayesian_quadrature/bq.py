@@ -230,12 +230,15 @@ class BQ(object):
 
     def Z_mean(self):
         r"""
-        Approximate mean of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x`.
+        Computes the mean of :math:`Z`, which is defined as:
+
+        .. math ::
+
+            \mathbb{E}[Z]=\int \bar{\ell}(x)p(x)\ \mathrm{d}x
 
         Returns
         -------
         mean : float
-            approximate mean
 
         """
 
@@ -287,15 +290,17 @@ class BQ(object):
 
     def Z_var(self):
         r"""
-        Approximate variance of :math:`Z=\int \ell(x)\mathcal{N}(x\ |\ \mu, \sigma^2)\ \mathrm{d}x`.
+        Computes the variance of :math:`Z`, which is defined as:
+
+        .. math::
+
+            \mathbb{V}(Z)\approx \int\int \mathrm{Cov}_{\log\ell}(x, x^\prime)\bar{\ell}(x)\bar{\ell}(x^\prime)p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime
 
         Returns
         -------
         var : float
-            approximate variance
 
         """
-
         if self.options['use_approx']:
             return self._approx_Z_var()
         else:
@@ -316,15 +321,6 @@ class BQ(object):
         return approx
 
     def _exact_Z_var(self):
-        r"""
-        Equivalent to:
-
-        .. math::
-
-            \mathbb{V}(Z)\approx \int\int \mathrm{Cov}_{\log\ell}(x, x^\prime)\bar{\ell}(x)\bar{\ell}(x^\prime)\mathcal{N}(x\ |\ \mu, \sigma^2)\mathcal{N}(x^\prime\ |\ \mu, \sigma^2)\ \mathrm{d}x\ \mathrm{d}x^\prime
-
-        """
-
         # values for the GPs over l(x) and log(l(x))
         x_s = np.array(self.x_s[None], order='F')
         x_sc = np.array(self.x_sc[None], order='F')
@@ -350,23 +346,66 @@ class BQ(object):
     ##################################################################
 
     def expected_Z_var(self, x_a):
+        r"""
+        Computes the expected variance of :math:`Z` given a new
+        observation :math:`x_a`. This is defined as:
+
+        .. math ::
+
+            \mathbb{E}[V(Z)\ |\ \ell_s, \ell_a] = \mathbb{E}[Z\ |\ \ell_s]^2 + V(Z\ |\ \ell_s) - \int \mathbb{E}[Z\ |\ \ell_s, \ell_a]^2 \mathcal{N}(\ell_a\ |\ \hat{m}_a, \hat{C}_a)\ \mathrm{d}\ell_a
+
+        Parameters
+        ----------
+        x_a : numpy.ndarray
+            vector of points for which to (independently) compute the
+            expected variance
+
+        Returns
+        -------
+        out : expected variance for each point in `x_a`
+
+        """
         mean_second_moment = self.Z_mean() ** 2 + self.Z_var()
         expected_squared_mean = self.expected_squared_mean(x_a)
         expected_var = mean_second_moment - expected_squared_mean
         return expected_var
 
     def expected_squared_mean(self, x_a):
+        r"""
+        Computes the expected variance of :math:`Z` given a new
+        observation :math:`x_a`. This is defined as:
+
+        .. math ::
+
+            \mathbb{E}[\mathbb{E}[Z]^2 |\ \ell_s] = \int \mathbb{E}[Z\ |\ \ell_s, \ell_a]^2 \mathcal{N}(\ell_a\ |\ \hat{m}_a, \hat{C}_a)\ \mathrm{d}\ell_a
+
+        Parameters
+        ----------
+        x_a : numpy.ndarray
+            vector of points for which to (independently) compute the
+            expected squared mean
+
+        Returns
+        -------
+        out : expected squared mean for each point in `x_a`
+
+        """
         esm = np.empty(x_a.shape[0])
         for i in xrange(x_a.shape[0]):
             esm[i] = self._esm(x_a[[i]])
         return esm
 
     def _esm(self, x_a):
-        if np.isclose(x_a, self.x_s, atol=1e-2).any():
-            return self.Z_mean() ** 2
+        """Computes the expected square mean for a single point `x_a`."""
 
+        # check for invalid inputs
         if x_a is None or np.isnan(x_a) or np.isinf(x_a):
             raise ValueError("invalid value for x_a: %s", x_a)
+
+        # don't do the heavy computation if the point is close to one
+        # we already have
+        if np.isclose(x_a, self.x_s, atol=1e-2).any():
+            return self.Z_mean() ** 2
 
         # include new x_a
         x_sca = np.concatenate([self.x_sc, x_a])
@@ -429,7 +468,23 @@ class BQ(object):
     ##################################################################
 
     def sample_hypers(self, params, nburn=10):
-        window = np.ones(len(params)) * 0.01
+        r"""
+        Use slice sampling to samples new hyperparameters for the two
+        GPs. Note that this will probably cause
+        :math:`\bar{ell}(x_{sc})` to change.
+
+        Parameters
+        ----------
+        params : list of strings
+            Dictionary of parameter names to be sampled
+        nburn : int
+            Number of burn-in samples
+
+        """
+        # TODO: should the window be a parameter that is set by the
+        # user? is there a way to choose a sane window size
+        # automatically?
+        window = np.ones(len(params)) * 0.1
 
         # sample hyperparameters for log(l)
         logger.debug("Sampling log(l) hypers (%s)..." % str(params))
@@ -439,18 +494,19 @@ class BQ(object):
             logpdf, nburn+1, window, p0, nburn=nburn, freq=1)
         self._set_gp_log_l_params(dict(zip(params, hypers[-1])))
 
-        # sample hyperparameters for exp(log(l))
-        logger.debug("Sampling exp(log(l)) hypers (%s)..." % str(params))
-        logpdf = util.make_gp_loglh(self.gp_l, params)
-
         # Uh oh, by changing the first GP, we screwed up the
-        # second. Let's try giving it some parameters that seem
-        # reasonable?
+        # second. Let's try to find some parameters with nonzero
+        # probability...
+        logpdf = util.make_gp_loglh(self.gp_l, params)
         llh = self.gp_l.log_lh
         if llh < MIN:
             logger.debug(
                 "Uh oh, log lh of GP over exp(log(l)) is close to zero")
 
+            # try a few different possible sets of starting parameters
+            # to see which is best -- either the current ones, or ones
+            # based off the largest datapoint, or ones from the GP
+            # over log(l)
             p0 = [self.gp_l.get_param(p) for p in params]
             p1 = hypers[-1]
             p2 = dict(zip(params, hypers[-1]))
