@@ -116,7 +116,8 @@ class BQ(object):
             'candidate_thresh': float(candidate_thresh),
             'x_mean': np.array([x_mean], dtype=DTYPE, order='F'),
             'x_cov': np.array([[x_var]], dtype=DTYPE, order='F'),
-            'use_approx': not (kernel is GaussianKernel)
+            'use_approx': not (kernel is GaussianKernel),
+            'wrapped': kernel is PeriodicKernel
         }
 
         if self.options['use_approx']:
@@ -824,7 +825,7 @@ class BQ(object):
     def _choose_candidates(self):
         logger.debug("Choosing candidate points")
 
-        if self.options['kernel'] is PeriodicKernel:
+        if self.options['wrapped']:
             xmin = -np.pi * self.gp_log_l.K.p
             xmax = np.pi * self.gp_log_l.K.p
         else:
@@ -849,13 +850,13 @@ class BQ(object):
 
     def _make_approx_x(self, xmin=None, xmax=None, n=1000):
         if xmin is None:
-            if self.options['kernel'] is PeriodicKernel:
+            if self.options['wrapped']:
                 xmin = -np.pi * self.gp_log_l.K.p
             else:
                 xmin = self.x_sc.min() - self.gp_log_l.K.w
 
         if xmax is None:
-            if self.options['kernel'] is PeriodicKernel:
+            if self.options['wrapped']:
                 xmax = np.pi * self.gp_log_l.K.p
             else:
                 xmax = self.x_sc.max() + self.gp_log_l.K.w
@@ -868,16 +869,16 @@ class BQ(object):
 
         p = np.empty(x.size, order='F')
 
-        if self.options['kernel'] is GaussianKernel:
-            bq_c.p_x_gaussian(
-                p, np.array(x[None], order='F'),
-                self.options['x_mean'],
-                self.options['x_cov'])
-
-        elif self.options['kernel'] is PeriodicKernel:
+        if self.options['wrapped']:
             bq_c.p_x_vonmises(
                 p, x,
                 float(self.options['x_mean']),
                 1. / float(self.options['x_cov']))
+
+        else:
+            bq_c.p_x_gaussian(
+                p, np.array(x[None], order='F'),
+                self.options['x_mean'],
+                self.options['x_cov'])
 
         return p
