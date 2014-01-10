@@ -12,6 +12,7 @@ from . import util
 logger = logging.getLogger("bayesian_quadrature")
 DTYPE = np.dtype('float64')
 MIN = np.log(np.exp2(np.float64(np.finfo(np.float64).minexp + 4)))
+MAX = np.log(np.exp2(np.float64(np.finfo(np.float64).maxexp - 4)))
 
 
 class BQ(object):
@@ -482,7 +483,11 @@ class BQ(object):
             except (ValueError, np.linalg.LinAlgError):
                 return -np.inf
 
-            llh = self.gp_log_l.log_lh + self.gp_l.log_lh
+            try:
+                llh = self.gp_log_l.log_lh + self.gp_l.log_lh
+            except (ValueError, np.linalg.LinAlgError):
+                return -np.inf
+
             return llh
 
         return f
@@ -579,7 +584,12 @@ class BQ(object):
             self._set_gp_l_params(params_l)
             
             for j, fun in enumerate(funs):
-                values[j][i] = fun()
+                try:
+                    values[j][i] = fun()
+                except:
+                    logger.error(
+                        "error with parameters %s and %s", params_tl, params_l)
+                    raise
 
         # restore state
         self.__setstate__(state)
@@ -861,7 +871,13 @@ class BQ(object):
         self.gp_log_l.jitter.fill(0)
 
         # update values of candidate points
-        self.l_c = np.exp(self.gp_log_l.mean(self.x_c))
+        m = self.gp_log_l.mean(self.x_c)
+        V = np.diag(self.gp_log_l.cov(self.x_c))
+        tl_c = m + 2 * np.sqrt(V)
+        if (tl_c > MAX).any():
+            raise np.linalg.LinAlgError("GP mean is too large")
+
+        self.l_c = np.exp(m)
         self.l_sc = np.concatenate([self.l_s, self.l_c], axis=0)
 
         # update the locations and values for exp(log(l))
