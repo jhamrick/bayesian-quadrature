@@ -74,12 +74,14 @@ def test_bad_init():
 
 def test_choose_candidates():
     util.npseed()
-    bq = util.make_bq()
+
+    bq = util.make_bq(nc=1000)
     assert bq.x_c.ndim == 1
     assert bq.x_sc.size >= bq.x_s.size
 
     diff = np.abs(bq.x_sc[:, None] - bq.x_c[None])
-    assert ((diff > 1e-1) | (diff == 0)).all()
+    thresh = bq.options['candidate_thresh']
+    assert ((diff > thresh) | (diff == 0)).all()
 
 
 def test_l_mean():

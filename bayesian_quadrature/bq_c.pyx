@@ -620,20 +620,24 @@ def filter_candidates(float64_t[::1] x_c, float64_t[::1] x_s, float64_t thresh):
         # find candidates that are close to each other, and replace
         # them with their average location
         for i in xrange(nc):
+            if np.isnan(x_c[i]):
+                continue
             for j in xrange(i+1, nc):
-                if np.isnan(x_c[i]) or np.isnan(x_c[j]):
+                if np.isnan(x_c[j]):
                     continue
 
                 diff = fabs(x_c[i] - x_c[j])
                 if diff < thresh:
                     x_c[i] = (x_c[i] + x_c[j]) / 2.0
                     x_c[j] = NAN
-                    done = 1
+                    done = 0
 
-        # remove candidates that are too close to an observation
-        for i in xrange(nc):
-            for j in xrange(ns):
-                diff = fabs(x_c[i] - x_s[j])
-                if diff < thresh:
-                    x_c[i] = NAN
+    # remove candidates that are too close to an observation
+    for i in xrange(nc):
+        if np.isnan(x_c[i]):
+            continue
+        for j in xrange(ns):
+            diff = fabs(x_c[i] - x_s[j])
+            if diff < thresh:
+                x_c[i] = NAN
 
