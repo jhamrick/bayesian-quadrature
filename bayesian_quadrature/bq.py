@@ -479,7 +479,7 @@ class BQ(object):
             try:
                 self._set_gp_log_l_params(dict(zip(params, x[:nparam])))
                 self._set_gp_l_params(dict(zip(params, x[nparam:])))
-            except ValueError:
+            except (ValueError, np.linalg.LinAlgError):
                 return -np.inf
 
             llh = self.gp_log_l.log_lh + self.gp_l.log_lh
