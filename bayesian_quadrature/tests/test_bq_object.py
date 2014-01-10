@@ -539,3 +539,32 @@ def test_deepcopy():
 
         if not isinstance(state1[key], bool):
             assert state1[key] is not state2[key]
+
+
+def test_set_params():
+    bq = util.make_bq()
+    params_tl = bq.gp_log_l.params
+    params_l = bq.gp_l.params
+    x_sc = bq.x_sc.copy()
+    l_sc = bq.l_sc.copy()
+
+    bq._set_gp_log_l_params(dict(h=10, w=3.0, s=0.01))
+    assert (bq.gp_log_l.params != params_tl).all()
+    assert (bq.gp_l.params == params_l).all()
+    assert (bq.gp_log_l.jitter == 0).all()
+    assert (bq.gp_l.jitter == 0).all()
+
+    if len(bq.x_sc) == len(x_sc):
+        assert not (bq.x_sc == x_sc).all()
+        assert not (bq.l_sc == l_sc).all()
+    else:
+        assert bq.x_sc != x_sc
+        assert bq.l_sc != l_sc
+
+    params_tl = bq.gp_log_l.params
+
+    bq._set_gp_l_params(dict(h=0.3, w=1.4, s=0.01))
+    assert (bq.gp_log_l.params == params_tl).all()
+    assert (bq.gp_l.params != params_l).all()
+    assert (bq.gp_log_l.jitter == 0).all()
+    assert (bq.gp_l.jitter == 0).all()
