@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import matplotlib.pyplot as plt
+from gp import GP
 
 from .. import BQ
 from . import util
@@ -19,6 +20,45 @@ def test_init():
     bq = BQ(x, y, **options)
     assert (x == bq.x_s).all()
     assert (y == bq.l_s).all()
+    assert (np.log(y) == bq.tl_s).all()
+    assert (x.shape[0] == bq.ns)
+
+    assert not bq.initialized
+    assert bq.gp_log_l is None
+    assert bq.gp_l is None
+    assert bq.x_c is None
+    assert bq.l_c is None
+    assert bq.nc is None
+    assert bq.x_sc is None
+    assert bq.l_sc is None
+    assert bq.nsc is None
+    assert bq._approx_x is None
+    assert bq._approx_px is None
+
+    util.init_bq(bq)
+    assert (x == bq.x_s).all()
+    assert (y == bq.l_s).all()
+    assert (np.log(y) == bq.tl_s).all()
+    assert (x.shape[0] == bq.ns)
+
+    assert bq.initialized
+    assert bq.gp_log_l is not None
+    assert hasattr(bq.gp_log_l, 'jitter')
+    assert bq.gp_l is not None
+    assert hasattr(bq.gp_l, 'jitter')
+    assert bq.x_c is not None
+    assert bq.l_c is not None
+    assert bq.nc is not None
+    assert bq.x_sc is not None
+    assert bq.l_sc is not None
+    assert bq.nsc is not None
+    assert bq._approx_x is not None
+    assert bq._approx_px is not None
+
+    
+def test_bad_init():
+    util.npseed()
+    x, y = util.make_xy()
 
     with pytest.raises(ValueError):
         BQ(x[:, None], y, **options)
@@ -116,6 +156,17 @@ def test_expected_squared_mean_valid():
     assert (esm >= 0).all()
 
 
+def test_expected_squared_mean_params():
+    util.npseed()
+    bq = util.make_bq()
+    with pytest.raises(ValueError):
+        bq.expected_squared_mean(np.array([np.nan]))
+    with pytest.raises(ValueError):
+        bq.expected_squared_mean(np.array([np.inf]))
+    with pytest.raises(ValueError):
+        bq.expected_squared_mean(np.array([-np.inf]))
+
+
 def test_expected_squared_mean():
     util.npseed()
     bq = util.make_bq()
@@ -124,8 +175,6 @@ def test_expected_squared_mean():
     esm = bq.expected_squared_mean(x_a)
     
     bq.options['use_approx'] = True
-    bq._approx_x = bq._make_approx_x()
-    bq._approx_px = bq._make_approx_px()
     approx = bq.expected_squared_mean(x_a)
 
     assert np.allclose(approx, esm, rtol=1)
@@ -345,3 +394,148 @@ def test_approx_add_observation():
 
     assert (bq.x_s == bq.x_sc[:bq.ns]).all()
     assert (bq.l_s == bq.l_sc[:bq.ns]).all()
+
+
+def test_getstate():
+    util.npseed()
+    bq = util.make_bq(init=False)
+
+    # uninitialized
+    state = bq.__getstate__()
+    assert (state['x_s'] == bq.x_s).all()
+    assert (state['l_s'] == bq.l_s).all()
+    assert (state['tl_s'] == bq.tl_s).all()
+    assert state['options'] == bq.options
+    assert state['initialized'] == bq.initialized
+    assert sorted(state.keys()) == sorted(
+        ['x_s', 'l_s', 'tl_s', 'options', 'initialized'])
+
+    util.init_bq(bq)
+    state = bq.__getstate__()
+    assert (state['x_s'] == bq.x_s).all()
+    assert (state['l_s'] == bq.l_s).all()
+    assert (state['tl_s'] == bq.tl_s).all()
+    assert state['options'] == bq.options
+    assert state['initialized'] == bq.initialized
+    assert state['gp_log_l'] == bq.gp_log_l
+    assert (state['gp_log_l_jitter'] == bq.gp_log_l.jitter).all()
+    assert state['gp_l'] == bq.gp_l
+    assert (state['gp_l_jitter'] == bq.gp_l.jitter).all()
+    assert sorted(state.keys()) == sorted(
+        ['x_s', 'l_s', 'tl_s', 'options', 'initialized',
+         'gp_log_l', 'gp_log_l_jitter', 'gp_l', 'gp_l_jitter',
+         '_approx_x', '_approx_px'])
+
+
+def test_copy():
+    util.npseed()
+    bq1 = util.make_bq(init=False)
+    bq2 = bq1.copy(deep=False)
+    assert bq1 is not bq2
+
+    state1 = bq1.__getstate__()
+    state2 = bq2.__getstate__()
+    assert sorted(state1.keys()) == sorted(state2.keys())
+
+    for key in state1.keys():
+        if isinstance(state1[key], np.ndarray):
+            assert (state1[key] == state2[key]).all()
+        elif not isinstance(state1[key], GP):
+            assert state1[key] == state2[key]
+
+        if not isinstance(state1[key], bool):
+            assert state1[key] is state2[key]
+
+    util.init_bq(bq1)
+    assert bq1.initialized
+    assert not bq2.initialized
+    state1 = bq1.__getstate__()
+    state2 = bq2.__getstate__()
+    assert sorted(state1.keys()) != sorted(state2.keys())
+
+    for key in state1.keys():
+        if key == 'initialized':
+            continue
+        if key not in state2:
+            continue
+
+        if isinstance(state1[key], np.ndarray):
+            assert (state1[key] == state2[key]).all()
+        elif not isinstance(state1[key], GP):
+            assert state1[key] == state2[key]
+
+        if not isinstance(state1[key], bool):
+            assert state1[key] is state2[key]
+
+    bq1 = util.make_bq()
+    bq2 = bq1.copy(deep=False)
+
+    state1 = bq1.__getstate__()
+    state2 = bq2.__getstate__()
+    assert sorted(state1.keys()) == sorted(state2.keys())
+
+    for key in state1.keys():
+        if isinstance(state1[key], np.ndarray):
+            assert (state1[key] == state2[key]).all()
+        elif not isinstance(state1[key], GP):
+            assert state1[key] == state2[key]
+
+        if not isinstance(state1[key], bool):
+            assert state1[key] is state2[key]
+
+def test_deepcopy():
+    util.npseed()
+    bq1 = util.make_bq(init=False)
+    bq2 = bq1.copy(deep=True)
+    assert bq1 is not bq2
+
+    state1 = bq1.__getstate__()
+    state2 = bq2.__getstate__()
+    assert sorted(state1.keys()) == sorted(state2.keys())
+
+    for key in state1.keys():
+        if isinstance(state1[key], np.ndarray):
+            assert (state1[key] == state2[key]).all()
+        elif not isinstance(state1[key], GP):
+            assert state1[key] == state2[key]
+
+        if not isinstance(state1[key], bool):
+            assert state1[key] is not state2[key]
+
+    util.init_bq(bq1)
+    assert bq1.initialized
+    assert not bq2.initialized
+    state1 = bq1.__getstate__()
+    state2 = bq2.__getstate__()
+    assert sorted(state1.keys()) != sorted(state2.keys())
+
+    for key in state1.keys():
+        if key == 'initialized':
+            continue
+
+        if key not in state2:
+            continue
+
+        if isinstance(state1[key], np.ndarray):
+            assert (state1[key] == state2[key]).all()
+        elif not isinstance(state1[key], GP):
+            assert state1[key] == state2[key]
+
+        if not isinstance(state1[key], bool):
+            assert state1[key] is not state2[key]
+
+    bq1 = util.make_bq()
+    bq2 = bq1.copy(deep=True)
+
+    state1 = bq1.__getstate__()
+    state2 = bq2.__getstate__()
+    assert sorted(state1.keys()) == sorted(state2.keys())
+
+    for key in state1.keys():
+        if isinstance(state1[key], np.ndarray):
+            assert (state1[key] == state2[key]).all()
+        elif not isinstance(state1[key], GP):
+            assert state1[key] == state2[key]
+
+        if not isinstance(state1[key], bool):
+            assert state1[key] is not state2[key]

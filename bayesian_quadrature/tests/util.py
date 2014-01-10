@@ -38,7 +38,11 @@ def make_xy(n=9):
     return x, y
 
 
-def make_bq(n=9, x=None, nc=None):
+def init_bq(bq):
+    bq.init(params_tl=(15, 2, 0), params_l=(0.2, 1.3, 0))    
+
+
+def make_bq(n=9, x=None, nc=None, init=True):
     if x is None:
         x, y = make_xy(n=n)
     else:
@@ -49,7 +53,8 @@ def make_bq(n=9, x=None, nc=None):
         opt['n_candidate'] = nc
 
     bq = BQ(x, y, **opt)
-    bq.init(params_tl=(15, 2, 0), params_l=(0.2, 1.3, 0))
+    if init:
+        init_bq(bq)
     return bq
 
 

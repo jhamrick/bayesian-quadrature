@@ -158,9 +158,8 @@ class BQ(object):
         self.gp_l.jitter = np.zeros(self.nsc, dtype=DTYPE)
 
         # make the vector of locations for approximations
-        if self.options['use_approx']:
-            self._approx_x = self._make_approx_x()
-            self._approx_px = self._make_approx_px()
+        self._approx_x = self._make_approx_x()
+        self._approx_px = self._make_approx_px()
 
         self.initialized = True
 
@@ -240,7 +239,7 @@ class BQ(object):
         """
 
         if self.options['use_approx']:
-            return self._approx_Z_mean(self._approx_x)
+            return self._approx_Z_mean()
         else:
             return self._exact_Z_mean()
 
@@ -297,7 +296,7 @@ class BQ(object):
         """
 
         if self.options['use_approx']:
-            return self._approx_Z_var(self._approx_x)
+            return self._approx_Z_var()
         else:
             return self._exact_Z_var()
 
@@ -364,6 +363,9 @@ class BQ(object):
     def _esm(self, x_a):
         if np.isclose(x_a, self.x_s, atol=1e-2).any():
             return self.Z_mean() ** 2
+
+        if x_a is None or np.isnan(x_a) or np.isinf(x_a):
+            raise ValueError("invalid value for x_a: %s", x_a)
 
         # include new x_a
         x_sca = np.concatenate([self.x_sc, x_a])
@@ -713,6 +715,9 @@ class BQ(object):
             state['gp_l'] = self.gp_l
             state['gp_l_jitter'] = self.gp_l.jitter
 
+            state['_approx_x'] = self._approx_x
+            state['_approx_px'] = self._approx_px
+
         return state
 
     def __setstate__(self, state):
@@ -739,6 +744,9 @@ class BQ(object):
             self.l_c = self.l_sc[self.ns:]
             self.nc = self.nsc - self.ns
 
+            self._approx_x = state['_approx_x']
+            self._approx_px = state['_approx_px']
+
         else:
             self.gp_log_l = None
             self.gp_l = None
@@ -750,6 +758,9 @@ class BQ(object):
             self.x_sc = None
             self.l_sc = None
             self.nsc = None
+
+            self._approx_x = None
+            self._approx_px = None
 
     ##################################################################
     # Copying                                                        #
