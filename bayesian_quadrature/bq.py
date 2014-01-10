@@ -528,62 +528,84 @@ class BQ(object):
                 raise RuntimeError(
                     "couldn't find any good parameters for GP over exp(log(l))")
 
+        # sample hyperparameters for exp(log(l))
+        logger.debug("Sampling exp(log(l)) hypers (%s)..." % str(params))
         p0 = np.array([self.gp_l.get_param(p) for p in params])
         hypers = util.slice_sample(
             logpdf, nburn+1, window, p0, nburn=nburn, freq=1)
         self._set_gp_l_params(dict(zip(params, hypers[-1])))
 
-    def sample_lengthscales(self):
-        self.sample_hypers(['w'], nburn=1)
-
     ##################################################################
     # Active sampling                                                #
     ##################################################################
 
-    def _marginal_loss(self, x, n, params=None, set_params=False):
-        if params is None:
-            params = ['w']
+    def marginalize(self, funs, n, params, set_mle_params=False):
+        r"""
+        Compute the approximate marginal functions `funs` by
+        approximately marginalizing over the GP hyperparameters.
+
+        Parameters
+        ----------
+        funs : list
+            List of functions for which to compute the marginal.
+        n : int
+            Number of samples to take when doing the approximate
+            marginalization
+        params : list or tuple
+            List of parameters to marginalize over
+        set_mle_params : bool (default=True)
+            Whether to set the GP parameters to the samples with
+            maximum likelihood after marginalization.
+
+        """
 
         # cache state
         state = deepcopy(self.__getstate__())
 
-        # approximately marginalize over lengthscales
-        nesms = np.empty((n, x.size))
+        # allocate space for the function values
+        values = []
+        for fun in funs:
+            value = fun()
+            try: 
+                m = len(value)
+            except TypeError:
+                values.append(np.empty(n))
+            else:
+                values.append(np.empty((n, m)))
 
-        if set_params:
-            llh_l = np.empty(n)
-            llh_tl = np.empty(n)
-            params_l = np.empty((n, self.gp_l.params.size))
-            params_tl = np.empty((n, self.gp_log_l.params.size))
+        # we want the joint log likelihood, because exp(log(l))
+        # depends on log(l), and if we set the parameters to their
+        # separate MLII estimates, the parameters for exp(log(l))
+        # might not actually be optimal
+        if set_mle_params:
+            llh = self.gp_log_l.log_lh + self.gp_l.log_lh
+            params_tl = {p: self.gp_log_l.get_param(p) for p in params}
+            params_l = {p: self.gp_l.get_param(p) for p in params}
 
+        # sampling loop
         for i in xrange(n):
             self.sample_hypers(params, nburn=1)
-            nesms[i] = self.Z_mean() ** 2 - self.expected_squared_mean(x)
+            
+            for j, fun in enumerate(funs):
+                values[j][i] = fun()
 
-            if set_params:
-                llh_l = self.gp_l.log_lh
-                llh_tl = self.gp_log_l.log_lh
-                params_l[i] = self.gp_l.params
-                params_tl[i] = self.gp_log_l.params
-
-        # choose the point with the smallest expected loss
-        loss = np.mean(nesms, axis=0)
+            if set_mle_params:
+                new_llh = self.gp_log_l.log_lh + self.gp_l.log_lh
+                if new_llh > llh:
+                    llh = new_llh
+                    params_tl = {p: self.gp_log_l.get_param(p) for p in params}
+                    params_l = {p: self.gp_l.get_param(p) for p in params}
 
         # restore state
         self.__setstate__(state)
 
-        if set_params:
-            best = np.argmax(llh_l)
-            self._set_gp_log_l_params(
-                dict(zip(params, params_tl[np.argmax(llh_tl)])))
-            self._set_gp_l_params(
-                dict(zip(params, params_l[np.argmax(llh_l)])))
-            # self._set_gp_log_l_params(
-            #     dict(zip(params, np.mean(params_tl, axis=0))))
-            # self._set_gp_l_params(
-            #     dict(zip(params, np.mean(params_l, axis=0))))
+        # set the parameters to their MLII values
+        if set_mle_params:
+            self._set_gp_log_l_params(params_tl)
+            self._set_gp_l_params(params_l)
+            llh = self.gp_log_l.log_lh + self.gp_l.log_lh
 
-        return loss
+        return values
 
     def choose_next(self, x, n, plot=False):
         loss = self._marginal_loss(x, n)
@@ -858,8 +880,9 @@ class BQ(object):
         # TODO: improve matrix conditioning for log(l)
         self.gp_log_l.jitter.fill(0)
 
-        # pick new candidate points
-        self._choose_candidates()
+        # update values of candidate points
+        self.l_c = np.exp(self.gp_log_l.mean(self.x_c))
+        self.l_sc = np.concatenate([self.l_s, self.l_c], axis=0)
 
         # update the locations and values for exp(log(l))
         self.gp_l.x = self.x_sc
