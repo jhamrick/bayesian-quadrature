@@ -1,13 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import logging
+import scipy.optimize as optim
 
 from . import bq_c
 from .util_c import slice_sample as _slice_sample
 
 logger = logging.getLogger("bayesian_quadrature.util")
 DTYPE = np.dtype('float64')
-PREC = np.finfo(DTYPE).precision / 2.0
+PREC = np.finfo(DTYPE).precision
+MIN = np.log(np.exp2(np.float64(np.finfo(np.float64).minexp + 4)))
 
 
 def set_scientific(ax, low, high, axis=None):
@@ -64,7 +66,7 @@ def slice_sample(logpdf, niter, w, xval, nburn=1, freq=1):
     samples = np.empty((niter, xval.size))
     samples[0] = xval
 
-    _slice_sample(samples, logpdf, xval, w, False)
+    _slice_sample(samples, logpdf, xval, w, logger.level < 10)
 
     # don't return burnin samples or inbetween samples
     out = samples[nburn:][::freq]
@@ -73,13 +75,18 @@ def slice_sample(logpdf, niter, w, xval, nburn=1, freq=1):
 
 def make_gp_loglh(gp, params):
     def loglh(x):
+        if x is None or np.isnan(x).any():
+            return -np.inf
+
         for p, v in zip(params, x):
             try:
                 gp.set_param(p, v)
             except ValueError:
                 return -np.inf
+
         llh = gp.log_lh
         return llh
+
     return loglh
 
 
@@ -109,7 +116,7 @@ def improve_conditioning(gp):
     # the conditioning is really bad -- just increase the variance
     # a little for all the elements until it's less bad
     idx = np.arange(Kxx.shape[0])
-    while np.log10(cond) > PREC:
+    while np.log10(cond) > (PREC / 2.0):
         logger.debug("Adding jitter to all elements")
         bq_c.improve_covariance_conditioning(Kxx, jitter, idx=idx)
         cond = np.linalg.cond(Kxx)
@@ -140,3 +147,50 @@ def improve_tail_covariance(gp):
     new_jitter = np.clip(-gp.x * 1e-4, 0, max_jitter)
     Kxx += np.eye(gp.x.size) * new_jitter
     gp.jitter += new_jitter
+
+
+def _anneal(*args, **kwargs):
+    while True:
+        try:
+            res = optim.minimize(*args, **kwargs)
+        except TypeError:
+            pass
+        else:
+            break
+    return res
+
+def find_good_parameters(logpdf, x0, ntry=10):
+    if logpdf(x0) > MIN:
+        return True
+
+    logger.debug("Trying to find better parameters...")
+
+    for i in xrange(ntry):
+        
+        # try with L-BFGS-B first
+        logger.debug("Attempt #%d with L-BFGS-B", i+1)
+        res = optim.minimize(
+            fun=lambda x: -logpdf(x),
+            x0=x0,
+            method='L-BFGS-B')
+        
+        logger.debug(res)
+        if -res['fun'] > MIN:
+            return True
+        if logpdf(x0) < -res['fun']:
+            x0 = res['x']
+
+        # alternate with annealing
+        logger.debug("Attempt #%d with Anneal", i+1)
+        res = _anneal(
+            fun=lambda x: -logpdf(x),
+            x0=x0,
+            method='Anneal')
+
+        logger.debug(res)
+        if -res['fun'] > MIN:
+            return True    
+        if logpdf(x0) < -res['fun']:
+            x0 = res['x']
+
+    return False

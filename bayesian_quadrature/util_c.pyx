@@ -1,9 +1,12 @@
 import numpy as np
 cimport numpy as np
 
-from libc.math cimport exp, log
+from libc.math cimport exp, log, INFINITY
 from libc.stdlib cimport rand, srand, RAND_MAX
 from cpython cimport bool
+
+import logging
+logger = logging.getLogger("bayesian_quadrature.util")
 
 
 DTYPE = np.float64
@@ -43,16 +46,27 @@ def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarr
     right = np.empty(d, dtype=DTYPE)
     loc = np.empty(d, dtype=DTYPE)
 
+    if verbose:
+        logger.debug("Taking %d samples", n)
+            
     i = 0
     while i < (n - 1):
+        if verbose:
+            logger.debug("[%d] x value is %s", i, samples[i])
+
         # compute the height of the pdf
         xpr = logpdf(samples[i])
+        if verbose:
+            logger.debug("[%d] xpr is %s", i, xpr)
+        
+        if xpr == -INFINITY or xpr < MIN:
+            raise RuntimeError("zero probability encountered")
 
         # sample a value somewhere in that range
         yval = uniform(0, exp(xpr))
         logyval = log(yval)
         if verbose:
-            print "[%d] logyval is %s" % (i, logyval)
+            logger.debug("[%d] logyval is %s", i, logyval)
 
         # pick a direction
         dir[:] = np.random.rand(d) - 0.5
@@ -64,25 +78,25 @@ def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarr
 
         # widen the bounds until they're outside the slice
         if verbose:
-            print "[%d] Adjusting left bound..." % i
+            logger.debug("[%d] Adjusting left bound...", i)
         j = 0
         while logpdf(samples[i] + (left * dir)) > logyval:
             left -= w
             j += 1
             if j > 100:
                 if verbose:
-                    print "[%d] Slice is too wide, stopping adjustment" % i
+                    logger.debug("[%d] Slice is too wide, stopping adjustment", i)
                 break
 
         if verbose:
-            print "[%d] Adjusting right bound..." % i
+            logger.debug("[%d] Adjusting right bound...", i)
         j = 0
         while logpdf(samples[i] + (right * dir)) > logyval:
             right += w
             j += 1
             if j > 100:
                 if verbose:
-                    print "[%d] Slice is too wide, stopping adjustment" % i
+                    logger.debug("[%d] Slice is too wide, stopping adjustment", i)
                 break
 
         # now sample a new x value
@@ -91,7 +105,7 @@ def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarr
             # check the window size to make sure it's not too small
             if ((right - left) < 1e-9).any():
                 if verbose:
-                    print "[%d] Sampling window shrunk to zero!" % i
+                    logger.debug("[%d] Sampling window shrunk to zero!", i)
                 break
 
             # choose the x and evaluate its probability
@@ -104,7 +118,8 @@ def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarr
             # if it is within the slice, then we're done
             if pr > logyval:
                 if verbose:
-                    print "[%d] Got sample %s" % (i, samples[i + 1])
+                    logger.debug("[%d] pr is %s", i, pr)
+                    logger.debug("[%d] Got sample %s", i, samples[i + 1])
                 i += 1
                 break
 
@@ -112,10 +127,12 @@ def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarr
             # beyond this value again
             if loc[0] < 0:
                 if verbose:
-                    print "[%d] Setting left bound to %s" % (i, loc)
+                    logger.debug("[%d] Setting left bound to %s", i, loc)
                 left[:] = loc
             else:
                 if verbose:
-                    print "[%d] Setting right bound to %s" % (i, loc)
+                    logger.debug("[%d] Setting right bound to %s", i, loc)
                 right[:] = loc
 
+    if verbose:
+        logger.debug("Done")

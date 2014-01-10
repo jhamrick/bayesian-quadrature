@@ -11,6 +11,7 @@ from . import util
 
 logger = logging.getLogger("bayesian_quadrature")
 DTYPE = np.dtype('float64')
+MIN = np.log(np.exp2(np.float64(np.finfo(np.float64).minexp + 4)))
 
 
 class BQ(object):
@@ -361,6 +362,9 @@ class BQ(object):
         return esm
 
     def _esm(self, x_a):
+        if np.isclose(x_a, self.x_s, atol=1e-2).any():
+            return self.Z_mean() ** 2
+
         # include new x_a
         x_sca = np.concatenate([self.x_sc, x_a])
 
@@ -388,17 +392,27 @@ class BQ(object):
             xo = self._approx_x
             p_xo = self._approx_px
             Kxxo = np.array(self.gp_l.K(x_sca, xo), order='F')
-            esm = bq_c.approx_expected_squared_mean(
-                self.l_sc, np.array(K_l, order='F'), tm_a, tC_a,
-                np.array(xo[None], order='F'), p_xo, Kxxo)
+            try:
+                esm = bq_c.approx_expected_squared_mean(
+                    self.l_sc, np.array(K_l, order='F'), tm_a, tC_a,
+                    np.array(xo[None], order='F'), p_xo, Kxxo)
+            except np.linalg.LinAlgError:
+                logger.error(
+                    "could not compute expected squared mean for x_a=%s" % x_a)
+                raise
 
         else:
-            esm = bq_c.expected_squared_mean(
-                self.l_sc, np.array(K_l, order='F'), tm_a, tC_a,
-                np.array(x_sca[None], order='F'),
-                self.gp_l.K.h, np.array([self.gp_l.K.w]),
-                self.options['x_mean'],
-                self.options['x_cov'])
+            try:
+                esm = bq_c.expected_squared_mean(
+                    self.l_sc, np.array(K_l, order='F'), tm_a, tC_a,
+                    np.array(x_sca[None], order='F'),
+                    self.gp_l.K.h, np.array([self.gp_l.K.w]),
+                    self.options['x_mean'],
+                    self.options['x_cov'])
+            except np.linalg.LinAlgError:
+                logger.error(
+                    "could not compute expected squared mean for x_a=%s" % x_a)
+                raise
 
         if np.isnan(esm) or esm < 0:
             raise RuntimeError(
@@ -411,51 +425,114 @@ class BQ(object):
     # Hyperparameter optimization/marginalization                    #
     ##################################################################
 
-    def sample_hypers(self, params, n=100, nburn=10):
-        window = np.ones(len(params))
+    def sample_hypers(self, params, nburn=10):
+        window = np.ones(len(params)) * 0.01
 
         # sample hyperparameters for log(l)
         logger.debug("Sampling log(l) hypers (%s)..." % str(params))
         logpdf = util.make_gp_loglh(self.gp_log_l, params)
         p0 = np.array([self.gp_log_l.get_param(p) for p in params])
-        hypers = util.slice_sample(logpdf, n, window, p0, nburn=nburn, freq=1)
-        self._set_gp_log_l_params(dict(zip(params, np.mean(hypers, axis=0))))
+        hypers = util.slice_sample(
+            logpdf, nburn+1, window, p0, nburn=nburn, freq=1)
+        self._set_gp_log_l_params(dict(zip(params, hypers[-1])))
 
         # sample hyperparameters for exp(log(l))
         logger.debug("Sampling exp(log(l)) hypers (%s)..." % str(params))
         logpdf = util.make_gp_loglh(self.gp_l, params)
+
+        # Uh oh, by changing the first GP, we screwed up the
+        # second. Let's try giving it some parameters that seem
+        # reasonable?
+        llh = self.gp_l.log_lh
+        if llh < MIN:
+            logger.debug(
+                "Uh oh, log lh of GP over exp(log(l)) is close to zero")
+
+            p0 = [self.gp_l.get_param(p) for p in params]
+            p1 = hypers[-1]
+            p2 = dict(zip(params, hypers[-1]))
+            if 'h' in p2:
+                p2['h'] = np.abs(self.l_sc).max()
+            if 'w' in p2:
+                p2['w'] = self.gp_log_l.K.w
+            p2 = [p2.get(p) for p in params]
+            pp = [p0, p1, p2]
+            lp = [logpdf(p) for p in pp]
+
+            for i in xrange(len(pp)):
+                logger.debug("(%d) llh(%s) = %s", i, pp[i], lp[i])
+
+            i = np.argmax(lp)
+            logger.debug("Going with %d", i)
+
+            if not util.find_good_parameters(logpdf, pp[i]):
+                raise RuntimeError(
+                    "couldn't find any good parameters for GP over exp(log(l))")
+
         p0 = np.array([self.gp_l.get_param(p) for p in params])
-        hypers = util.slice_sample(logpdf, n, window, p0, nburn=nburn, freq=1)
-        self._set_gp_l_params(dict(zip(params, np.mean(hypers, axis=0))))
+        hypers = util.slice_sample(
+            logpdf, nburn+1, window, p0, nburn=nburn, freq=1)
+        self._set_gp_l_params(dict(zip(params, hypers[-1])))
 
     def sample_lengthscales(self):
-        self.sample_hypers(['w'], n=10, nburn=9)
+        self.sample_hypers(['w'], nburn=1)
 
     ##################################################################
     # Active sampling                                                #
     ##################################################################
 
-    def choose_next(self, x, n, cost_fun=None, plot=False):
+    def _marginal_loss(self, x, n, params=None, set_params=False):
+        if params is None:
+            params = ['w']
+
         # cache state
         state = deepcopy(self.__getstate__())
 
         # approximately marginalize over lengthscales
         nesms = np.empty((n, x.size))
+
+        if set_params:
+            llh_l = np.empty(n)
+            llh_tl = np.empty(n)
+            params_l = np.empty((n, self.gp_l.params.size))
+            params_tl = np.empty((n, self.gp_log_l.params.size))
+
         for i in xrange(n):
-            self.sample_lengthscales()
-            nesms[i] = -self.expected_squared_mean(x)
+            self.sample_hypers(params, nburn=1)
+            nesms[i] = self.Z_mean() ** 2 - self.expected_squared_mean(x)
+
+            if set_params:
+                llh_l = self.gp_l.log_lh
+                llh_tl = self.gp_log_l.log_lh
+                params_l[i] = self.gp_l.params
+                params_tl[i] = self.gp_log_l.params
 
         # choose the point with the smallest expected loss
-        nesm = np.mean(nesms, axis=0)
-        loss = np.array([nesm[i] * cost_fun(x[i]) for i in xrange(x.size)])
-        argbest = np.argmin(loss)
-        best = x[argbest]
+        loss = np.mean(nesms, axis=0)
 
         # restore state
         self.__setstate__(state)
 
+        if set_params:
+            best = np.argmax(llh_l)
+            self._set_gp_log_l_params(
+                dict(zip(params, params_tl[np.argmax(llh_tl)])))
+            self._set_gp_l_params(
+                dict(zip(params, params_l[np.argmax(llh_l)])))
+            # self._set_gp_log_l_params(
+            #     dict(zip(params, np.mean(params_tl, axis=0))))
+            # self._set_gp_l_params(
+            #     dict(zip(params, np.mean(params_l, axis=0))))
+
+        return loss
+
+    def choose_next(self, x, n, plot=False):
+        loss = self._marginal_loss(x, n)
+        argbest = np.argmin(loss)
+        best = x[argbest]
+
         if plot:
-            fig, (ax1, ax2, ax3) = plt.subplots(1, 3, sharex=True)
+            fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True)
 
             self.plot_l(ax1, xmin=x.min(), xmax=x.max())
             util.vlines(ax1, best, color='g', linestyle='--', lw=2)
@@ -464,11 +541,7 @@ class BQ(object):
             util.vlines(ax2, best, color='g', linestyle='--', lw=2)
             ax2.set_title("Negative expected sq. mean")
 
-            ax3.plot(x, loss, 'k-', lw=2)
-            util.vlines(ax3, best, color='g', linestyle='--', lw=2)
-            ax3.set_title("Expected loss")
-
-            fig.set_figwidth(14)
+            fig.set_figwidth(10)
             fig.set_figheight(3.5)
             plt.tight_layout()
 
@@ -708,6 +781,8 @@ class BQ(object):
     ##################################################################
 
     def _set_gp_log_l_params(self, params):
+        logger.debug("Setting params for GP over log(l) to %s", params)
+
         # set the parameter values
         for p, v in params.iteritems():
             self.gp_log_l.set_param(p, v)
@@ -726,6 +801,8 @@ class BQ(object):
         self.gp_l.jitter.fill(0)
 
     def _set_gp_l_params(self, params):
+        logger.debug("Setting params for GP over exp(log(l)) to %s", params)
+
         # set the parameter values
         for p, v in params.iteritems():
             self.gp_l.set_param(p, v)
