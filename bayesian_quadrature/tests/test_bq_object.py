@@ -542,6 +542,7 @@ def test_deepcopy():
 
 
 def test_set_params():
+    util.npseed()
     bq = util.make_bq()
     params_tl = bq.gp_log_l.params
     params_l = bq.gp_l.params
@@ -553,13 +554,8 @@ def test_set_params():
     assert (bq.gp_l.params == params_l).all()
     assert (bq.gp_log_l.jitter == 0).all()
     assert (bq.gp_l.jitter == 0).all()
-
-    if len(bq.x_sc) == len(x_sc):
-        assert not (bq.x_sc == x_sc).all()
-        assert not (bq.l_sc == l_sc).all()
-    else:
-        assert bq.x_sc != x_sc
-        assert bq.l_sc != l_sc
+    assert (bq.x_sc == x_sc).all()
+    assert not (bq.l_sc == l_sc).all()
 
     params_tl = bq.gp_log_l.params
 
@@ -568,3 +564,96 @@ def test_set_params():
     assert (bq.gp_l.params != params_l).all()
     assert (bq.gp_log_l.jitter == 0).all()
     assert (bq.gp_l.jitter == 0).all()
+
+
+def test_sample_hypers():
+    util.npseed()
+    bq = util.make_bq()
+    params = ['h', 'w']
+    params_tl = {p: bq.gp_log_l.get_param(p) for p in params}
+    params_l = {p: bq.gp_l.get_param(p) for p in params}
+
+    bq.sample_hypers(params)
+    assert not np.isinf(bq.gp_log_l.log_lh)
+    assert not np.isinf(bq.gp_l.log_lh)
+
+    for p in params:
+        assert bq.gp_log_l.get_param(p) != params_tl[p]
+        assert bq.gp_l.get_param(p) != params_l[p]
+
+    bq = util.make_bq(init=False)
+    bq.init(params_tl=(50, 10, 0), params_l=(20, 16, 0))
+    bq.sample_hypers(['h', 'w'])
+    assert not np.isinf(bq.gp_log_l.log_lh)
+    assert not np.isinf(bq.gp_l.log_lh)
+
+    bq = util.make_bq(init=False)
+    bq.init(params_tl=(15, 2, 0), params_l=(0.00002, 1.3, 0))
+    bq.sample_hypers(['h'])
+    assert not np.isinf(bq.gp_log_l.log_lh)
+    assert not np.isinf(bq.gp_l.log_lh)
+
+    bq = util.make_bq(init=False)
+    bq.init(params_tl=(15, 2, 0), params_l=(0.2, 16, 0))
+    bq.sample_hypers(['w'])
+    assert not np.isinf(bq.gp_log_l.log_lh)
+    assert not np.isinf(bq.gp_l.log_lh)
+
+    bq = util.make_bq(init=False)
+    bq.init(params_tl=(15, 2, 0), params_l=(0.00002, 1.3, 0))
+    with pytest.raises(RuntimeError):
+        bq.sample_hypers(['w'])
+
+
+def test_marginal_mean():
+    util.npseed()
+    bq = util.make_bq()
+
+    # marginal mean
+    values = bq.marginalize(
+        [bq.Z_mean], 20, ['h', 'w'], set_mle_params=False)
+
+    assert len(values) == 1
+    assert values[0].shape == (20,)
+
+
+def test_marginal_mean_and_variance():
+    util.npseed()
+    bq = util.make_bq()
+
+    # marginal mean and variance
+    values = bq.marginalize(
+        [bq.Z_mean, bq.Z_var], 20, ['h', 'w'], set_mle_params=False)
+
+    assert len(values) == 2
+    assert values[0].shape == (20,)
+    assert values[1].shape == (20,)
+
+
+def test_marginal_mean_mle():
+    util.npseed()
+    bq = util.make_bq()
+
+    # setting params
+    llh = bq.gp_log_l.log_lh + bq.gp_l.log_lh
+    values = bq.marginalize(
+        [bq.Z_mean], 20, ['h', 'w'], set_mle_params=True)
+
+    assert len(values) == 1
+    assert values[0].shape == (20,)
+    assert (bq.gp_log_l.log_lh + bq.gp_l.log_lh) >= llh
+
+
+def test_marginal_loss():
+    util.npseed()
+    bq = util.make_bq()
+    x_a = np.random.uniform(-10, 10, 5)
+
+    # setting params
+    llh = bq.gp_log_l.log_lh + bq.gp_l.log_lh
+    f = lambda: bq.expected_squared_mean(x_a)
+    values = bq.marginalize(
+        [f], 20, ['h', 'w'], set_mle_params=False)
+
+    assert len(values) == 1
+    assert values[0].shape == (20, 5)

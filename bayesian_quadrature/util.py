@@ -66,7 +66,9 @@ def slice_sample(logpdf, niter, w, xval, nburn=1, freq=1):
     samples = np.empty((niter, xval.size))
     samples[0] = xval
 
-    _slice_sample(samples, logpdf, xval, w, logger.level < 10)
+    # zero means unset, so we don't want to log in that case
+    verbose = (logger.level != 0) and (logger.level < 10)
+    _slice_sample(samples, logpdf, xval, w, verbose)
 
     # don't return burnin samples or inbetween samples
     out = samples[nburn:][::freq]
