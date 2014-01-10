@@ -375,6 +375,9 @@ def test_add_observation():
     assert (bq.x_s == bq.x_sc[:bq.ns]).all()
     assert (bq.l_s == bq.l_sc[:bq.ns]).all()
 
+    with pytest.raises(ValueError):
+        bq.add_observation(x[0], l[0])
+
 
 def test_approx_add_observation():
     util.npseed()
@@ -566,6 +569,14 @@ def test_set_params():
     assert (bq.gp_l.jitter == 0).all()
 
 
+def test_fit_hypers():
+    util.npseed()
+    bq = util.make_bq()
+    bq.fit_hypers(['h', 'w'])
+    assert not np.isinf(bq.gp_log_l.log_lh)
+    assert not np.isinf(bq.gp_l.log_lh)
+
+
 def test_sample_hypers():
     util.npseed()
     bq = util.make_bq()
@@ -611,7 +622,7 @@ def test_marginal_mean():
 
     # marginal mean
     values = bq.marginalize(
-        [bq.Z_mean], 20, ['h', 'w'], set_mle_params=False)
+        [bq.Z_mean], 20, ['h', 'w'])
 
     assert len(values) == 1
     assert values[0].shape == (20,)
@@ -623,25 +634,11 @@ def test_marginal_mean_and_variance():
 
     # marginal mean and variance
     values = bq.marginalize(
-        [bq.Z_mean, bq.Z_var], 20, ['h', 'w'], set_mle_params=False)
+        [bq.Z_mean, bq.Z_var], 20, ['h', 'w'])
 
     assert len(values) == 2
     assert values[0].shape == (20,)
     assert values[1].shape == (20,)
-
-
-def test_marginal_mean_mle():
-    util.npseed()
-    bq = util.make_bq()
-
-    # setting params
-    llh = bq.gp_log_l.log_lh + bq.gp_l.log_lh
-    values = bq.marginalize(
-        [bq.Z_mean], 20, ['h', 'w'], set_mle_params=True)
-
-    assert len(values) == 1
-    assert values[0].shape == (20,)
-    assert (bq.gp_log_l.log_lh + bq.gp_l.log_lh) >= llh
 
 
 def test_marginal_loss():
@@ -652,8 +649,16 @@ def test_marginal_loss():
     # setting params
     llh = bq.gp_log_l.log_lh + bq.gp_l.log_lh
     f = lambda: bq.expected_squared_mean(x_a)
-    values = bq.marginalize(
-        [f], 20, ['h', 'w'], set_mle_params=False)
+    values = bq.marginalize([f], 20, ['h', 'w'])
 
     assert len(values) == 1
     assert values[0].shape == (20, 5)
+
+
+def test_choose_next():
+    util.npseed()
+    bq = util.make_bq()
+    x_a = np.random.uniform(-10, 10, 5)
+
+    bq.choose_next(x_a, 20, ['h', 'w'])
+    bq.choose_next(x_a, 20, ['h', 'w'], plot=True)
