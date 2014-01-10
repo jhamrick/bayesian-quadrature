@@ -405,7 +405,7 @@ class BQ(object):
 
         # don't do the heavy computation if the point is close to one
         # we already have
-        if np.isclose(x_a, self.x_s, atol=1e-2).any():
+        if np.isclose(x_a, self.x_s, atol=1e-4).any():
             return self.Z_mean() ** 2
 
         # include new x_a
