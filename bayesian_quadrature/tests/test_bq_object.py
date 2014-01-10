@@ -572,9 +572,10 @@ def test_set_params():
 def test_fit_hypers():
     util.npseed()
     bq = util.make_bq()
+    llh = bq.gp_log_l.log_lh + bq.gp_l.log_lh
     bq.fit_hypers(['h', 'w'])
-    assert not np.isinf(bq.gp_log_l.log_lh)
-    assert not np.isinf(bq.gp_l.log_lh)
+    new_llh = bq.gp_log_l.log_lh + bq.gp_l.log_lh
+    assert new_llh >= llh
 
 
 def test_sample_hypers():
