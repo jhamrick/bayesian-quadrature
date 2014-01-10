@@ -461,13 +461,44 @@ class BQ(object):
                 "invalid expected squared mean for x_a=%s: %s" % (
                     x_a, esm))
 
+        if np.isinf(esm):
+            logger.warn("expected squared mean for x_a=%s is infinity!", x_a)
+
         return esm
 
     ##################################################################
     # Hyperparameter optimization/marginalization                    #
     ##################################################################
 
-    def sample_hypers(self, params, nburn=10):
+    def _make_llh_params(self, params):
+        nparam = len(params)
+
+        def f(x):
+            if x is None or np.isnan(x).any():
+                return -np.inf
+            try:
+                self._set_gp_log_l_params(dict(zip(params, x[:nparam])))
+                self._set_gp_l_params(dict(zip(params, x[nparam:])))
+            except ValueError:
+                return -np.inf
+
+            llh = self.gp_log_l.log_lh + self.gp_l.log_lh
+            return llh
+
+        return f
+
+    def fit_hypers(self, params):
+        p0_tl = [self.gp_log_l.get_param(p) for p in params]
+        p0_l = [self.gp_l.get_param(p) for p in params]
+        p0 = np.array(p0_tl + p0_l)
+
+        f = self._make_llh_params(params)
+        p0 = util.find_good_parameters(f, p0)
+        if p0 is None:
+            raise RuntimeError("couldn't find good parameters")
+        
+
+    def sample_hypers(self, params, n=1, nburn=10):
         r"""
         Use slice sampling to samples new hyperparameters for the two
         GPs. Note that this will probably cause
@@ -481,65 +512,31 @@ class BQ(object):
             Number of burn-in samples
 
         """
+
         # TODO: should the window be a parameter that is set by the
         # user? is there a way to choose a sane window size
         # automatically?
-        window = np.ones(len(params)) * 0.1
+        nparam = len(params)
+        window = 2 * nparam
 
-        # sample hyperparameters for log(l)
-        logger.debug("Sampling log(l) hypers (%s)..." % str(params))
-        logpdf = util.make_gp_loglh(self.gp_log_l, params)
-        p0 = np.array([self.gp_log_l.get_param(p) for p in params])
-        hypers = util.slice_sample(
-            logpdf, nburn+1, window, p0, nburn=nburn, freq=1)
-        self._set_gp_log_l_params(dict(zip(params, hypers[-1])))
+        p0_tl = [self.gp_log_l.get_param(p) for p in params]
+        p0_l = [self.gp_l.get_param(p) for p in params]
+        p0 = np.array(p0_tl + p0_l)
 
-        # Uh oh, by changing the first GP, we screwed up the
-        # second. Let's try to find some parameters with nonzero
-        # probability...
-        logpdf = util.make_gp_loglh(self.gp_l, params)
-        llh = self.gp_l.log_lh
-        if llh < MIN:
-            logger.debug(
-                "Uh oh, log lh of GP over exp(log(l)) is close to zero")
+        f = self._make_llh_params(params)
+        if f(p0) < MIN:
+            p0 = util.find_good_parameters(f, p0)
+            if p0 is None:
+                raise RuntimeError("couldn't find good starting parameters")
 
-            # try a few different possible sets of starting parameters
-            # to see which is best -- either the current ones, or ones
-            # based off the largest datapoint, or ones from the GP
-            # over log(l)
-            p0 = [self.gp_l.get_param(p) for p in params]
-            p1 = hypers[-1]
-            p2 = dict(zip(params, hypers[-1]))
-            if 'h' in p2:
-                p2['h'] = np.abs(self.l_sc).max()
-            if 'w' in p2:
-                p2['w'] = self.gp_log_l.K.w
-            p2 = [p2.get(p) for p in params]
-            pp = [p0, p1, p2]
-            lp = [logpdf(p) for p in pp]
-
-            for i in xrange(len(pp)):
-                logger.debug("(%d) llh(%s) = %s", i, pp[i], lp[i])
-
-            i = np.argmax(lp)
-            logger.debug("Going with %d", i)
-
-            if not util.find_good_parameters(logpdf, pp[i]):
-                raise RuntimeError(
-                    "couldn't find any good parameters for GP over exp(log(l))")
-
-        # sample hyperparameters for exp(log(l))
-        logger.debug("Sampling exp(log(l)) hypers (%s)..." % str(params))
-        p0 = np.array([self.gp_l.get_param(p) for p in params])
-        hypers = util.slice_sample(
-            logpdf, nburn+1, window, p0, nburn=nburn, freq=1)
-        self._set_gp_l_params(dict(zip(params, hypers[-1])))
+        hypers = util.slice_sample(f, nburn+n, window, p0, nburn=nburn, freq=1)
+        return hypers[:, :nparam], hypers[:, nparam:]
 
     ##################################################################
     # Active sampling                                                #
     ##################################################################
 
-    def marginalize(self, funs, n, params, set_mle_params=False):
+    def marginalize(self, funs, n, params):
         r"""
         Compute the approximate marginal functions `funs` by
         approximately marginalizing over the GP hyperparameters.
@@ -553,9 +550,6 @@ class BQ(object):
             marginalization
         params : list or tuple
             List of parameters to marginalize over
-        set_mle_params : bool (default=True)
-            Whether to set the GP parameters to the samples with
-            maximum likelihood after marginalization.
 
         """
 
@@ -573,58 +567,46 @@ class BQ(object):
             else:
                 values.append(np.empty((n, m)))
 
-        # we want the joint log likelihood, because exp(log(l))
-        # depends on log(l), and if we set the parameters to their
-        # separate MLII estimates, the parameters for exp(log(l))
-        # might not actually be optimal
-        if set_mle_params:
-            llh = self.gp_log_l.log_lh + self.gp_l.log_lh
-            params_tl = {p: self.gp_log_l.get_param(p) for p in params}
-            params_l = {p: self.gp_l.get_param(p) for p in params}
+        # do all the sampling at once, because it is faster
+        hypers_tl, hypers_l = self.sample_hypers(params, n=n, nburn=1)
 
-        # sampling loop
+        # compute values for the functions based on the parameters we
+        # just sampled
         for i in xrange(n):
-            self.sample_hypers(params, nburn=1)
+            params_tl = dict(zip(params, hypers_tl[i]))
+            params_l = dict(zip(params, hypers_l[i]))
+            self._set_gp_log_l_params(params_tl)
+            self._set_gp_l_params(params_l)
             
             for j, fun in enumerate(funs):
                 values[j][i] = fun()
 
-            if set_mle_params:
-                new_llh = self.gp_log_l.log_lh + self.gp_l.log_lh
-                if new_llh > llh:
-                    llh = new_llh
-                    params_tl = {p: self.gp_log_l.get_param(p) for p in params}
-                    params_l = {p: self.gp_l.get_param(p) for p in params}
-
         # restore state
         self.__setstate__(state)
 
-        # set the parameters to their MLII values
-        if set_mle_params:
-            self._set_gp_log_l_params(params_tl)
-            self._set_gp_l_params(params_l)
-            llh = self.gp_log_l.log_lh + self.gp_l.log_lh
-
         return values
 
-    def choose_next(self, x, n, plot=False):
-        loss = self._marginal_loss(x, n)
-        argbest = np.argmin(loss)
-        best = x[argbest]
+    def choose_next(self, x_a, n, params, plot=False):
+        f = lambda: -self.expected_squared_mean(x_a)
+        values = self.marginalize([f], n, params)
+        loss = values[0].mean(axis=0)
+        best = np.min(loss)
+        close = np.nonzero(np.isclose(loss, best))[0]
+        choice = np.random.choice(close)
+        best = x_a[choice]
 
         if plot:
             fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True)
 
-            self.plot_l(ax1, xmin=x.min(), xmax=x.max())
+            self.plot_l(ax1, xmin=x_a.min(), xmax=x_a.max())
             util.vlines(ax1, best, color='g', linestyle='--', lw=2)
 
-            ax2.plot(x, nesm, 'k-', lw=2)
+            ax2.plot(x_a, loss, 'k-', lw=2)
             util.vlines(ax2, best, color='g', linestyle='--', lw=2)
             ax2.set_title("Negative expected sq. mean")
 
             fig.set_figwidth(10)
             fig.set_figheight(3.5)
-            plt.tight_layout()
 
         return best
 
@@ -871,8 +853,6 @@ class BQ(object):
     ##################################################################
 
     def _set_gp_log_l_params(self, params):
-        logger.debug("Setting params for GP over log(l) to %s", params)
-
         # set the parameter values
         for p, v in params.iteritems():
             self.gp_log_l.set_param(p, v)
@@ -892,8 +872,6 @@ class BQ(object):
         self.gp_l.jitter.fill(0)
 
     def _set_gp_l_params(self, params):
-        logger.debug("Setting params for GP over exp(log(l)) to %s", params)
-
         # set the parameter values
         for p, v in params.iteritems():
             self.gp_l.set_param(p, v)

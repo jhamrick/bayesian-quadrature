@@ -22,11 +22,10 @@ cdef DTYPE_t uniform(DTYPE_t lo, DTYPE_t hi):
     return (rand() / FRAND_MAX) * (hi - lo) + lo
 
 
-def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarray[DTYPE_t, mode='c', ndim=1] xval, np.ndarray[DTYPE_t, mode='c', ndim=1] w, bool verbose):
+def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarray[DTYPE_t, mode='c', ndim=1] xval, DTYPE_t w, bool verbose):
     cdef np.ndarray[DTYPE_t, mode='c', ndim=1] dir
-    cdef np.ndarray[DTYPE_t, mode='c', ndim=1] left
-    cdef np.ndarray[DTYPE_t, mode='c', ndim=1] right
-    cdef np.ndarray[DTYPE_t, mode='c', ndim=1] loc
+    cdef np.ndarray[DTYPE_t, mode='c', ndim=1] temp
+    cdef DTYPE_t left, right, loc
     cdef DTYPE_t xpr, pr, yval, logyval
     cdef int pct, newpct, i, j, n
 
@@ -42,9 +41,7 @@ def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarr
 
     # allocate direction and edge vectors
     dir = np.zeros(d, dtype=DTYPE)
-    left = np.empty(d, dtype=DTYPE)
-    right = np.empty(d, dtype=DTYPE)
-    loc = np.empty(d, dtype=DTYPE)
+    temp = np.zeros(d, dtype=DTYPE)
 
     if verbose:
         logger.debug("Taking %d samples", n)
@@ -59,7 +56,7 @@ def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarr
         if verbose:
             logger.debug("[%d] xpr is %s", i, xpr)
         
-        if xpr == -INFINITY or xpr < MIN:
+        if xpr == -INFINITY:
             raise RuntimeError("zero probability encountered")
 
         # sample a value somewhere in that range
@@ -72,15 +69,22 @@ def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarr
         dir[:] = np.random.rand(d) - 0.5
         dir[:] /= np.linalg.norm(dir)
 
+        if verbose:
+            logger.debug("[%d] direction is %s", i, dir)
+
         # compute the initial window bounds
-        left[:] = -w.copy()
-        right[:] = w.copy()
+        left = -w
+        right = w
 
         # widen the bounds until they're outside the slice
         if verbose:
             logger.debug("[%d] Adjusting left bound...", i)
         j = 0
-        while logpdf(samples[i] + (left * dir)) > logyval:
+        while True:
+            temp[:] = samples[i] + left * dir
+            if logpdf(temp) < logyval:
+                break
+
             left -= w
             j += 1
             if j > 100:
@@ -91,7 +95,11 @@ def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarr
         if verbose:
             logger.debug("[%d] Adjusting right bound...", i)
         j = 0
-        while logpdf(samples[i] + (right * dir)) > logyval:
+        while True:
+            temp[:] = samples[i] + right * dir
+            if logpdf(temp) < logyval:
+                break
+
             right += w
             j += 1
             if j > 100:
@@ -99,20 +107,22 @@ def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarr
                     logger.debug("[%d] Slice is too wide, stopping adjustment", i)
                 break
 
+        if verbose:
+            logger.debug("[%d] Left bound is %s", i, left)
+            logger.debug("[%d] Right bound is %s", i, right)
+
         # now sample a new x value
         while True:
 
             # check the window size to make sure it's not too small
-            if ((right - left) < 1e-9).any():
+            if (right - left) < 1e-9:
                 if verbose:
                     logger.debug("[%d] Sampling window shrunk to zero!", i)
                 break
 
             # choose the x and evaluate its probability
-            for j in xrange(d):
-                loc[j] = uniform(left[j], right[j])
-
-            samples[i + 1] = samples[i] + (loc * dir)
+            loc = uniform(left, right)
+            samples[i + 1] = samples[i] + loc * dir
             pr = logpdf(samples[i + 1])
 
             # if it is within the slice, then we're done
@@ -125,14 +135,14 @@ def slice_sample(np.ndarray[DTYPE_t, mode='c', ndim=2] samples, logpdf, np.ndarr
 
             # otherwise, shrink the window bounds so we don't sample
             # beyond this value again
-            if loc[0] < 0:
+            if loc < 0:
                 if verbose:
                     logger.debug("[%d] Setting left bound to %s", i, loc)
-                left[:] = loc
+                left = loc
             else:
                 if verbose:
                     logger.debug("[%d] Setting right bound to %s", i, loc)
-                right[:] = loc
+                right = loc
 
     if verbose:
         logger.debug("Done")

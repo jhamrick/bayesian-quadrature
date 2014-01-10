@@ -5,14 +5,15 @@
 from numpy.linalg import LinAlgError
 from numpy import array, empty, zeros
 from numpy import float64, int32
-
-import scipy.stats
+from numpy import exp2, finfo
 
 ######################################################################
 
 from numpy cimport ndarray, float64_t, int32_t
-from libc.math cimport exp, log, M_PI
+from libc.math cimport exp, log, M_PI, INFINITY
 cimport linalg_c as la
+
+cdef float64_t MAX = log(exp2(float64(finfo(float64).maxexp - 4)))
 
 ######################################################################
 
@@ -83,7 +84,11 @@ cpdef float64_t int_exp_norm(float64_t c, float64_t m, float64_t S):
     out : value of the integral
     
     """
-    cdef float64_t out = exp((c * m) + (0.5 * c ** 2 * S))
+    cdef float64_t out = (c * m) + (0.5 * c ** 2 * S)
+    if out > MAX:
+        out = INFINITY
+    else:
+        out = exp(out)
     return out
 
 

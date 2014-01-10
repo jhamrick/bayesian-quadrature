@@ -12,7 +12,7 @@ from numpy import empty
 
 ######################################################################
 
-from libc.math cimport exp, log, fmax, fabs, M_PI, cos
+from libc.math cimport exp, log, fmax, fabs, M_PI, cos, INFINITY
 from numpy cimport float64_t
 
 cimport cython
@@ -473,10 +473,16 @@ cdef float64_t _esm(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[::1, 
     A_sc_l = la.dot11(A_sca[:nca-1], l_sc)
 
     e1 = ga.int_exp_norm(1, tm_a, tC_a)
+    if e1 == INFINITY:
+        E_m2 = INFINITY
+        return E_m2
+
     e2 = ga.int_exp_norm(2, tm_a, tC_a)
+    if e2 == INFINITY:
+        E_m2 = INFINITY
+        return E_m2
 
     E_m2 = (A_sc_l**2) + (2*A_sc_l*A_a * e1) + (A_a**2 * e2)
-
     return E_m2
 
 

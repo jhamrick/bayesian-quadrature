@@ -75,23 +75,6 @@ def slice_sample(logpdf, niter, w, xval, nburn=1, freq=1):
     return out
 
 
-def make_gp_loglh(gp, params):
-    def loglh(x):
-        if x is None or np.isnan(x).any():
-            return -np.inf
-
-        for p, v in zip(params, x):
-            try:
-                gp.set_param(p, v)
-            except ValueError:
-                return -np.inf
-
-        llh = gp.log_lh
-        return llh
-
-    return loglh
-
-
 def vlines(ax, x, **kwargs):
     ymin, ymax = ax.get_ylim()
     ax.vlines(x, ymin, ymax, **kwargs)
@@ -152,6 +135,10 @@ def improve_tail_covariance(gp):
 
 
 def _anneal(*args, **kwargs):
+    """Hack, because sometimes scipy's anneal function throws a TypeError
+    for no particular reason. So just try again until it works.
+
+    """
     while True:
         try:
             res = optim.minimize(*args, **kwargs)
@@ -162,10 +149,7 @@ def _anneal(*args, **kwargs):
     return res
 
 def find_good_parameters(logpdf, x0, ntry=10):
-    if logpdf(x0) > MIN:
-        return True
-
-    logger.debug("Trying to find better parameters...")
+    logger.debug("Trying to find good parameters...")
 
     for i in xrange(ntry):
         
@@ -178,7 +162,7 @@ def find_good_parameters(logpdf, x0, ntry=10):
         
         logger.debug(res)
         if -res['fun'] > MIN:
-            return True
+            return res['x']
         if logpdf(x0) < -res['fun']:
             x0 = res['x']
 
@@ -191,8 +175,8 @@ def find_good_parameters(logpdf, x0, ntry=10):
 
         logger.debug(res)
         if -res['fun'] > MIN:
-            return True    
+            return res['x']
         if logpdf(x0) < -res['fun']:
             x0 = res['x']
 
-    return False
+    return None
