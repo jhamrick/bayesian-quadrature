@@ -1,9 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats
+import logging
 from bayesian_quadrature import util
 
 from . import util as tutil
+
+logger = logging.getLogger("bayesian_quadrature.util")
+logger.setLevel("INFO")
 
 def test_set_scientific():
     fig, ax = plt.subplots()
