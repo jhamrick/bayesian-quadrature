@@ -160,9 +160,10 @@ def find_good_parameters(logpdf, x0, ntry=10):
             method='Powell')
         
         logger.debug(res)
-        if -res['fun'] > MIN:
+        p = logpdf(res['x'])
+        if p > MIN:
             return res['x']
-        if logpdf(x0) < -res['fun']:
+        if logpdf(x0) < p:
             x0 = res['x']
 
     return None
