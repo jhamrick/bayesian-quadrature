@@ -154,11 +154,11 @@ def find_good_parameters(logpdf, x0, ntry=10):
     for i in xrange(ntry):
         
         # try with L-BFGS-B first
-        logger.debug("Attempt #%d with L-BFGS-B", i+1)
+        logger.debug("Attempt #%d with Powell", i+1)
         res = optim.minimize(
             fun=lambda x: -logpdf(x),
             x0=x0,
-            method='L-BFGS-B')
+            method='Powell')
         
         logger.debug(res)
         if -res['fun'] > MIN:
