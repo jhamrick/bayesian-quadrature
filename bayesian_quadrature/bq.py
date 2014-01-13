@@ -876,7 +876,7 @@ class BQ(object):
 
         # update values of candidate points
         m = self.gp_log_l.mean(self.x_c)
-        V = np.diag(self.gp_log_l.cov(self.x_c))
+        V = np.diag(self.gp_log_l.cov(self.x_c)).copy()
         V[V < 0] = 0
         tl_c = m + 2 * np.sqrt(V)
         if (tl_c > MAX).any():
