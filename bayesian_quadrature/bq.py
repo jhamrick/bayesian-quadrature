@@ -7,6 +7,7 @@ from copy import copy, deepcopy
 from gp import GP, GaussianKernel, PeriodicKernel
 
 from . import bq_c
+from . import linalg_c as la
 from . import util
 
 logger = logging.getLogger("bayesian_quadrature")
@@ -425,6 +426,18 @@ class BQ(object):
         # also add noise to the new point
         bq_c.improve_covariance_conditioning(K_l, jitter, np.array([self.nsc]))
 
+        L = np.empty(K_l.shape, order='F')
+        try:
+            la.cho_factor(np.array(K_l, order='F'), L)
+        except np.linalg.LinAlgError:
+            # if the matrix is singular, it's because either x_a is
+            # close to a point we already have, or the kernel produces
+            # similar values for all points (e.g., there is a very
+            # large variance). In both cases, out expectation should
+            # be that the mean won't change much, so just return the
+            # mean we currently have.
+            return self.Z_mean() ** 2
+
         # compute expected transformed mean
         tm_a = self.gp_log_l.mean(x_a)
 
@@ -435,27 +448,17 @@ class BQ(object):
             xo = self._approx_x
             p_xo = self._approx_px
             Kxxo = np.array(self.gp_l.K(x_sca, xo), order='F')
-            try:
-                esm = bq_c.approx_expected_squared_mean(
-                    self.l_sc, np.array(K_l, order='F'), tm_a, tC_a,
-                    np.array(xo[None], order='F'), p_xo, Kxxo)
-            except np.linalg.LinAlgError:
-                logger.error(
-                    "could not compute expected squared mean for x_a=%s" % x_a)
-                raise
+            esm = bq_c.approx_expected_squared_mean(
+                self.l_sc, L, tm_a, tC_a,
+                np.array(xo[None], order='F'), p_xo, Kxxo)
 
         else:
-            try:
-                esm = bq_c.expected_squared_mean(
-                    self.l_sc, np.array(K_l, order='F'), tm_a, tC_a,
-                    np.array(x_sca[None], order='F'),
-                    self.gp_l.K.h, np.array([self.gp_l.K.w]),
-                    self.options['x_mean'],
-                    self.options['x_cov'])
-            except np.linalg.LinAlgError:
-                logger.error(
-                    "could not compute expected squared mean for x_a=%s" % x_a)
-                raise
+            esm = bq_c.expected_squared_mean(
+                self.l_sc, L, tm_a, tC_a,
+                np.array(x_sca[None], order='F'),
+                self.gp_l.K.h, np.array([self.gp_l.K.w]),
+                self.options['x_mean'],
+                self.options['x_cov'])
 
         if np.isnan(esm) or esm < 0:
             raise RuntimeError(
@@ -530,9 +533,10 @@ class BQ(object):
 
         f = self._make_llh_params(params)
         if f(p0) < MIN:
-            p0 = util.find_good_parameters(f, p0)
-            if p0 is None:
+            pn = util.find_good_parameters(f, p0)
+            if pn is None:
                 raise RuntimeError("couldn't find good starting parameters")
+            p0 = pn
 
         hypers = util.slice_sample(f, nburn+n, window, p0, nburn=nburn, freq=1)
         return hypers[:, :nparam], hypers[:, nparam:]
@@ -873,6 +877,7 @@ class BQ(object):
         # update values of candidate points
         m = self.gp_log_l.mean(self.x_c)
         V = np.diag(self.gp_log_l.cov(self.x_c))
+        V[V < 0] = 0
         tl_c = m + 2 * np.sqrt(V)
         if (tl_c > MAX).any():
             raise np.linalg.LinAlgError("GP mean is too large")

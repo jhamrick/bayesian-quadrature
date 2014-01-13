@@ -422,7 +422,7 @@ def approx_Z_var(float64_t[::1, :] xo, float64_t[::1] p_xo, float64_t[::1] m_l, 
     return out
 
 
-cdef float64_t _esm(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[::1, :] K_l, float64_t tm_a, float64_t tC_a) except? -1:
+cdef float64_t _esm(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[::1, :] L_l, float64_t tm_a, float64_t tC_a) except? -1:
     r"""
     Computes the expected squared mean of :math:`Z` given a new
     observation at :math:`x_a`.
@@ -437,8 +437,9 @@ cdef float64_t _esm(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[::1, 
         :math:`\int K_\ell(x_{sca}, x) p(x)\ \mathrm{d}x`
     l_sc : float64_t[::1]
         :math:`n_{sc}` vector of observed and candidate locations
-    K_l : float64_t[::1, :]
-        :math:`n_{sca}\times n_{sca}` kernel matrix :math:`K_{\ell}(x_{sca}, x_{sca})`
+    L_l : float64_t[::1, :]
+        :math:`n_{sca}\times n_{sca}` lower-triangular Cholesky factor
+        of the kernel matrix :math:`K_{\ell}(x_{sca}, x_{sca})`
     tm_a : float64_t
         prior mean of :math:`\log\ell_a`
     tC_a : float64_t
@@ -450,24 +451,22 @@ cdef float64_t _esm(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[::1, 
 
     """    
 
-    cdef int nca = K_l.shape[0]
+    cdef int nca = L_l.shape[0]
     cdef int nc = nca - 1
 
-    cdef float64_t[::1, :] L = empty((nca, nca), dtype=float64, order='F')
     cdef float64_t[::1] A_sca = empty(nca, dtype=float64, order='F')
 
     cdef float64_t A_a, A_sc_l, e1, e2, E_m2
     cdef int i, j
 
-    if K_l.shape[1] != nca:
-        la.value_error("K_l is not square")
+    if L_l.shape[1] != nca:
+        la.value_error("L_l is not square")
     if int_K_l.shape[0] != nca:
         la.value_error("int_K_l has invalid shape")
     if l_sc.shape[0] != nc:
         la.value_error("l_sc has invalid shape")
 
-    la.cho_factor(K_l, L)
-    la.cho_solve_vec(L, int_K_l, A_sca)
+    la.cho_solve_vec(L_l, int_K_l, A_sca)
 
     A_a = A_sca[nca-1]
     A_sc_l = la.dot11(A_sca[:nca-1], l_sc)
