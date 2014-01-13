@@ -596,7 +596,7 @@ def test_sample_hypers():
         assert bq.gp_l.get_param(p) != params_l[p]
 
     bq = util.make_bq(init=False)
-    bq.init(params_tl=(50, 10, 0), params_l=(20, 16, 0))
+    bq.init(params_tl=(15, 2, 0), params_l=(0.2, 1.3, 0))
     bq.sample_hypers(['h', 'w'])
     assert not np.isinf(bq.gp_log_l.log_lh)
     assert not np.isinf(bq.gp_l.log_lh)
@@ -608,13 +608,13 @@ def test_sample_hypers():
     assert not np.isinf(bq.gp_l.log_lh)
 
     bq = util.make_bq(init=False)
-    bq.init(params_tl=(15, 2, 0), params_l=(0.2, 16, 0))
+    bq.init(params_tl=(15, 2, 0), params_l=(0.2, 5, 0))
     bq.sample_hypers(['w'])
     assert not np.isinf(bq.gp_log_l.log_lh)
     assert not np.isinf(bq.gp_l.log_lh)
 
     bq = util.make_bq(init=False)
-    bq.init(params_tl=(15, 2, 0), params_l=(0.00002, 1.3, 0))
+    bq.init(params_tl=(15, 2, 0), params_l=(0.00000002, 1.3, 0))
     with pytest.raises(RuntimeError):
         bq.sample_hypers(['w'])
 

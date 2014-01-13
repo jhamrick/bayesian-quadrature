@@ -153,26 +153,12 @@ def find_good_parameters(logpdf, x0, ntry=10):
 
     for i in xrange(ntry):
         
-        # try with L-BFGS-B first
         logger.debug("Attempt #%d with Powell", i+1)
         res = optim.minimize(
             fun=lambda x: -logpdf(x),
             x0=x0,
             method='Powell')
         
-        logger.debug(res)
-        if -res['fun'] > MIN:
-            return res['x']
-        if logpdf(x0) < -res['fun']:
-            x0 = res['x']
-
-        # alternate with annealing
-        logger.debug("Attempt #%d with Anneal", i+1)
-        res = _anneal(
-            fun=lambda x: -logpdf(x),
-            x0=x0,
-            method='Anneal')
-
         logger.debug(res)
         if -res['fun'] > MIN:
             return res['x']
