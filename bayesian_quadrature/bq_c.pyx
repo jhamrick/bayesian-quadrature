@@ -422,10 +422,10 @@ def approx_Z_var(float64_t[::1, :] xo, float64_t[::1] p_xo, float64_t[::1] m_l, 
     return out
 
 
-cdef float64_t _esm(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[::1, :] L_l, float64_t tm_a, float64_t tC_a) except? -1:
+cdef int _esm_and_em(float64_t[::1] out, float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[::1, :] L_l, float64_t tm_a, float64_t tC_a) except? -1:
     r"""
-    Computes the expected squared mean of :math:`Z` given a new
-    observation at :math:`x_a`.
+    Computes the expected squared mean and expected mean of :math:`Z`
+    given a new observation at :math:`x_a`.
 
     .. math ::
     
@@ -433,6 +433,8 @@ cdef float64_t _esm(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[::1, 
 
     Parameters
     ----------
+    out : float64_t[::1]
+        array of size 2 to hold :math:`E[m^2]` and :math:`E[m]`
     int_K_l : float64_t[::1]
         :math:`\int K_\ell(x_{sca}, x) p(x)\ \mathrm{d}x`
     l_sc : float64_t[::1]
@@ -444,10 +446,6 @@ cdef float64_t _esm(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[::1, 
         prior mean of :math:`\log\ell_a`
     tC_a : float64_t
         prior variance of :math:`\log\ell_a`
-
-    Returns
-    -------
-    out : expected squared mean of :math:`Z`
 
     """    
 
@@ -473,22 +471,29 @@ cdef float64_t _esm(float64_t[::1] int_K_l, float64_t[::1] l_sc, float64_t[::1, 
 
     e1 = ga.int_exp_norm(1, tm_a, tC_a)
     if e1 == INFINITY:
-        E_m2 = INFINITY
-        return E_m2
+        out[:] = INFINITY
+        return 0
+
+    E_m = A_sc_l + A_a * e1
 
     e2 = ga.int_exp_norm(2, tm_a, tC_a)
     if e2 == INFINITY:
-        E_m2 = INFINITY
-        return E_m2
+        out[0] = INFINITY
+        out[1] = E_m
+        return 0
 
     E_m2 = (A_sc_l**2) + (2*A_sc_l*A_a * e1) + (A_a**2 * e2)
-    return E_m2
+
+    out[0] = E_m2
+    out[1] = E_m
+
+    return 0
 
 
-def expected_squared_mean(float64_t[::1] l_sc, float64_t[::1, :] K_l, float64_t tm_a, float64_t tC_a, float64_t[::1, :] x_sca, float64_t h_l, float64_t[::1] w_l, float64_t[::1] mu, float64_t[::1, :] cov):
+def expected_squared_mean_and_mean(float64_t[::1] l_sc, float64_t[::1, :] K_l, float64_t tm_a, float64_t tC_a, float64_t[::1, :] x_sca, float64_t h_l, float64_t[::1] w_l, float64_t[::1] mu, float64_t[::1, :] cov):
     r"""
-    Computes the expected squared mean of :math:`Z` given a new
-    observation at :math:`x_a`.
+    Computes the expected squared mean and expected mean of :math:`Z`
+    given a new observation at :math:`x_a`.
 
     .. math ::
     
@@ -517,21 +522,23 @@ def expected_squared_mean(float64_t[::1] l_sc, float64_t[::1, :] K_l, float64_t 
 
     Returns
     -------
-    out : expected squared mean of :math:`Z`
+    out : expected squared mean and expected mean of :math:`Z`
 
     """    
 
     cdef int n = x_sca.shape[1]
     cdef float64_t[::1] int_K_l = empty(n, dtype=float64, order='F')
     ga.int_K(int_K_l, x_sca, h_l, w_l, mu, cov)
-    esm = _esm(int_K_l, l_sc, K_l, tm_a, tC_a)
-    return esm
+
+    cdef float64_t[::1] out = empty(2, dtype=float64)
+    _esm_and_em(out, int_K_l, l_sc, K_l, tm_a, tC_a)
+    return (out[0], out[1])
 
 
-def approx_expected_squared_mean(float64_t[::1] l_sc, float64_t[::1, :] K_l, float64_t tm_a, float64_t tC_a, float64_t[::1, :] xo, float64_t[::1] p_xo, float64_t[::1, :] Kxxo):
+def approx_expected_squared_mean_and_mean(float64_t[::1] l_sc, float64_t[::1, :] K_l, float64_t tm_a, float64_t tC_a, float64_t[::1, :] xo, float64_t[::1] p_xo, float64_t[::1, :] Kxxo):
     r"""
-    Approximates the expected squared mean of :math:`Z` given a new
-    observation at :math:`x_a`.
+    Approximates the expected squared mean and expected mean of
+    :math:`Z` given a new observation at :math:`x_a`.
 
     .. math ::
     
@@ -558,7 +565,7 @@ def approx_expected_squared_mean(float64_t[::1] l_sc, float64_t[::1, :] K_l, flo
 
     Returns
     -------
-    out : approximate expected squared mean of :math:`Z`
+    out : approximate expected squared mean and expected mean of :math:`Z`
 
     """    
 
@@ -586,8 +593,9 @@ def approx_expected_squared_mean(float64_t[::1] l_sc, float64_t[::1, :] K_l, flo
             Kp2 = Kxxo[i, j+1] * p_xo[j+1]
             int_K_l[i] += diff[j] * (Kp1 + Kp2) / 2.0
 
-    esm = _esm(int_K_l, l_sc, K_l, tm_a, tC_a)
-    return esm
+    cdef float64_t[::1] out = empty(2, dtype=float64)
+    _esm_and_em(out, int_K_l, l_sc, K_l, tm_a, tC_a)
+    return (out[0], out[1])
 
 
 def filter_candidates(float64_t[::1] x_c, float64_t[::1] x_s, float64_t thresh):

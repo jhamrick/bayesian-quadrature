@@ -374,7 +374,7 @@ class BQ(object):
 
     def expected_squared_mean(self, x_a):
         r"""
-        Computes the expected variance of :math:`Z` given a new
+        Computes the expected square mean of :math:`Z` given a new
         observation :math:`x_a`. This is defined as:
 
         .. math ::
@@ -394,10 +394,53 @@ class BQ(object):
         """
         esm = np.empty(x_a.shape[0])
         for i in xrange(x_a.shape[0]):
-            esm[i] = self._esm(x_a[[i]])
+            esm[i] = self._esm_and_em(x_a[[i]])[0]
         return esm
 
-    def _esm(self, x_a):
+    def expected_mean(self, x_a):
+        r"""
+        Computes the expected mean of :math:`Z` given a new
+        observation :math:`x_a`.
+
+        Parameters
+        ----------
+        x_a : numpy.ndarray
+            vector of points for which to (independently) compute the
+            expected mean
+
+        Returns
+        -------
+        out : expected mean for each point in `x_a`
+
+        """
+        em = np.empty(x_a.shape[0])
+        for i in xrange(x_a.shape[0]):
+            em[i] = self._esm_and_em(x_a[[i]])[1]
+        return em
+
+    def expected_squared_mean_and_mean(self, x_a):
+        r"""
+        Computes the expected squared mean and expected mean of
+        :math:`Z` given a new observation :math:`x_a`.
+
+        Parameters
+        ----------
+        x_a : numpy.ndarray
+            vector of points for which to (independently) compute the
+            expected mean
+
+        Returns
+        -------
+        out : expected squared mean and expected mean for each point
+              in `x_a`
+
+        """
+        em = np.empty((x_a.shape[0], 2))
+        for i in xrange(x_a.shape[0]):
+            em[i] = self._esm_and_em(x_a[[i]])
+        return em
+
+    def _esm_and_em(self, x_a):
         """Computes the expected square mean for a single point `x_a`."""
 
         # check for invalid inputs
@@ -407,7 +450,9 @@ class BQ(object):
         # don't do the heavy computation if the point is close to one
         # we already have
         if np.isclose(x_a, self.x_s, atol=1e-4).any():
-            return self.Z_mean() ** 2
+            em = self.Z_mean()
+            esm = em ** 2
+            return esm, em
 
         # include new x_a
         x_sca = np.concatenate([self.x_sc, x_a])
@@ -436,7 +481,9 @@ class BQ(object):
             # large variance). In both cases, out expectation should
             # be that the mean won't change much, so just return the
             # mean we currently have.
-            return self.Z_mean() ** 2
+            em = self.Z_mean()
+            esm = em ** 2
+            return esm, em
 
         # compute expected transformed mean
         tm_a = self.gp_log_l.mean(x_a)
@@ -448,12 +495,12 @@ class BQ(object):
             xo = self._approx_x
             p_xo = self._approx_px
             Kxxo = np.array(self.gp_l.K(x_sca, xo), order='F')
-            esm = bq_c.approx_expected_squared_mean(
+            esm, em = bq_c.approx_expected_squared_mean_and_mean(
                 self.l_sc, L, tm_a, tC_a,
                 np.array(xo[None], order='F'), p_xo, Kxxo)
 
         else:
-            esm = bq_c.expected_squared_mean(
+            esm, em = bq_c.expected_squared_mean_and_mean(
                 self.l_sc, L, tm_a, tC_a,
                 np.array(x_sca[None], order='F'),
                 self.gp_l.K.h, np.array([self.gp_l.K.w]),
@@ -464,11 +511,16 @@ class BQ(object):
             raise RuntimeError(
                 "invalid expected squared mean for x_a=%s: %s" % (
                     x_a, esm))
+        if np.isnan(em):
+            raise RuntimeError(
+                "invalid expected mean for x_a=%s: %s" % (x_a, em))
 
         if np.isinf(esm):
             logger.warn("expected squared mean for x_a=%s is infinity!", x_a)
+        if np.isinf(em):
+            logger.warn("expected mean for x_a=%s is infinity!", x_a)
 
-        return esm
+        return esm, em
 
     ##################################################################
     # Hyperparameter optimization/marginalization                    #
@@ -570,11 +622,11 @@ class BQ(object):
         for fun in funs:
             value = fun()
             try: 
-                m = len(value)
-            except TypeError:
+                m = value.shape
+            except AttributeError:
                 values.append(np.empty(n))
             else:
-                values.append(np.empty((n, m)))
+                values.append(np.empty((n,) + m))
 
         # do all the sampling at once, because it is faster
         hypers_tl, hypers_l = self.sample_hypers(params, n=n, nburn=1)
