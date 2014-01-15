@@ -123,7 +123,7 @@ class BQ(object):
         }
 
         if self.options['use_approx']:
-            logger.info("Using approximate solutions for non-Gaussian kernel")
+            logger.debug("Using approximate solutions for non-Gaussian kernel")
 
     def init(self, params_tl, params_l):
         """Initialize the GPs.
