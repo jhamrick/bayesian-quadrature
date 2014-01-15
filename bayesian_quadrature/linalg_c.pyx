@@ -13,14 +13,36 @@ from libc.math cimport log, sqrt, fabs
 
 cdef extern from "cblas.h":
     float64_t cblas_ddot(int32_t N, float64_t *X, int32_t incX, float64_t *Y, int32_t incY)
+    
+cdef extern enum CBLAS_ORDER:
+    CblasRowMajor = 101
+    CblasColMajor = 102
 
-cdef extern from "clapack.h":
-    int32_t dpotrf(char *uplo, int32_t *n, float64_t *a, int32_t *lda, int32_t *info)
-    int32_t dpotrs(char *uplo, int32_t *n, int32_t *nrhs, float64_t *a, int32_t *lda, float64_t *b, int32_t *ldb, int32_t *info)
+cdef extern enum CBLAS_UPLO:
+    CblasUpper = 121
+    CblasLower = 122
 
-######################################################################
+IF UNAME_SYSNAME == "Darwin":
+    cdef extern from "clapack.h":
+        int32_t dpotrf_(char *uplo, int32_t *n, float64_t *a, int32_t *lda, int32_t *info)
+        int32_t dpotrs_(char *uplo, int32_t *n, int32_t *nrhs, float64_t *a, int32_t *lda, float64_t *b, int32_t *ldb, int32_t *info)
 
-cdef char UPLO = 'L'
+    cdef char UPLO = 'L'
+
+    cdef int32_t clapack_dpotrf(int32_t Order, int32_t Uplo, int32_t N, float64_t *A, int32_t lda):
+        cdef int32_t info
+        dpotrf_(&UPLO, &N, A, &lda, &info)
+        return info
+
+    cdef int32_t clapack_dpotrs(int32_t Order, int32_t Uplo, int32_t N, int32_t NRHS, float64_t *A, int32_t lda, float64_t *B, int32_t ldb):
+        cdef int32_t info
+        dpotrs_(&UPLO, &N, &NRHS, A, &lda, B, &ldb, &info)
+        return info
+
+ELIF UNAME_SYSNAME == "Linux":
+    cdef extern from "clapack.h":
+        int32_t clapack_dpotrf(int32_t Order, int32_t Uplo, int32_t N, float64_t *A, int32_t lda)
+        int32_t clapack_dpotrs(int32_t Order, int32_t Uplo, int32_t N, int32_t NRHS, float64_t *A, int32_t lda, float64_t *B, int32_t ldb)
 
 ######################################################################
 
@@ -61,7 +83,7 @@ cpdef int cho_factor(float64_t[::1, :] C, float64_t[::1, :] L) except -1:
     if &C[0, 0] != &L[0, 0]:
         L[:, :] = C[:, :]
 
-    dpotrf(&UPLO, &n, &L[0, 0], &n, &info)
+    info = clapack_dpotrf(CblasColMajor, CblasLower, n, &L[0, 0], n)
 
     if info < 0:
         value_error("illegal value")
@@ -106,7 +128,7 @@ cpdef int cho_solve_vec(float64_t[::1, :] L, float64_t[::1] b, float64_t[::1] x)
     if &x[0] != &b[0]:
         x[:] = b[:]
 
-    dpotrs(&UPLO, &n, &nrhs, &L[0, 0], &n, &x[0], &n, &info)
+    info = clapack_dpotrs(CblasColMajor, CblasLower, n, nrhs, &L[0, 0], n, &x[0], n);
 
     if info < 0:
         value_error("illegal value")
@@ -149,7 +171,7 @@ cpdef int cho_solve_mat(float64_t[::1, :] L, float64_t[::1, :] B, float64_t[::1,
     if &X[0, 0] != &B[0, 0]:
         X[:, :] = B[:, :]
 
-    dpotrs(&UPLO, &n, &nrhs, &L[0, 0], &n, &X[0, 0], &n, &info)
+    info = clapack_dpotrs(CblasColMajor, CblasLower, n, nrhs, &L[0, 0], n, &X[0, 0], n);
 
     if info < 0:
         value_error("illegal value")
