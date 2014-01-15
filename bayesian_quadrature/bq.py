@@ -123,7 +123,7 @@ class BQ(object):
         }
 
         if self.options['use_approx']:
-            logger.warn("Using approximate solutions for non-Gaussian kernel")
+            logger.info("Using approximate solutions for non-Gaussian kernel")
 
     def init(self, params_tl, params_l):
         """Initialize the GPs.
@@ -677,13 +677,21 @@ class BQ(object):
         return best
 
     def add_observation(self, x_a, l_a):
-        if np.isclose(x_a, self.x_s).any():
-            raise ValueError("point already sampled")
+        diffs = np.abs(x_a - self.x_s)
+        if diffs.min() < self.options['candidate_thresh']:
+            c = diffs.argmin()
+            logger.debug(
+                "x_a=%s is close to x_s=%s, averaging them",
+                x_a, self.x_s[c])
+            self.x_s[c] = (self.x_s[c] + x_a) / 2.
+            self.l_s[c] = (self.l_s[c] + l_a) / 2.
+            self.tl_s[c] = np.log(float(self.l_s[c]))
 
-        self.x_s = np.append(self.x_s, float(x_a))
-        self.l_s = np.append(self.l_s, float(l_a))
-        self.tl_s = np.append(self.tl_s, np.log(float(l_a)))
-        self.ns += 1
+        else:
+            self.x_s = np.append(self.x_s, float(x_a))
+            self.l_s = np.append(self.l_s, float(l_a))
+            self.tl_s = np.append(self.tl_s, np.log(float(l_a)))
+            self.ns += 1
 
         # reinitialize the bq object
         self.init(self.gp_log_l.params, self.gp_l.params)
