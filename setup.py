@@ -9,11 +9,11 @@ from numpy.distutils.system_info import get_info
 # try to find LAPACK and BLAS
 blas_info = get_info('blas_opt')
 try:
-    # Linux
-    blas_include = blas_info['include_dirs'][0]
-except KeyError:
     # OS X
     blas_include = blas_info['extra_compile_args'][1][2:]
+except KeyError:
+    # Linux
+    blas_inclue = ["/usr/include/atlas/"]
 
 includes = [blas_include, np.get_include()]
 
@@ -21,7 +21,7 @@ extensions = [
     Extension(
         "bayesian_quadrature.linalg_c", ["bayesian_quadrature/linalg_c.pyx"],
         include_dirs=includes,
-        libraries=["m"]
+        libraries=["m", "lapack", "blas"]
     ),
 
     Extension(
