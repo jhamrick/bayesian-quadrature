@@ -14,7 +14,8 @@ options = {
     'x_mean': 0.0,
     'x_var': 10.0,
     'candidate_thresh': 0.5,
-    'kernel': GaussianKernel
+    'kernel': GaussianKernel,
+    'optim_method': 'L-BFGS-B',
 }
 
 
