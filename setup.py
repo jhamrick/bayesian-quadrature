@@ -13,7 +13,7 @@ try:
     blas_include = blas_info['extra_compile_args'][1][2:]
 except KeyError:
     # Linux
-    blas_include = ["/usr/include/atlas/"]
+    blas_include = "/usr/include/atlas/"
 
 includes = [blas_include, np.get_include()]
 
