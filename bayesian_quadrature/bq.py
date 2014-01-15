@@ -486,10 +486,10 @@ class BQ(object):
             return esm, em
 
         # compute expected transformed mean
-        tm_a = self.gp_log_l.mean(x_a)
+        tm_a = np.array(self.gp_log_l.mean(x_a))
 
         # compute expected transformed covariance
-        tC_a = self.gp_log_l.cov(x_a)
+        tC_a = np.array(self.gp_log_l.cov(x_a), order='F')
 
         if self.options['use_approx']:
             xo = self._approx_x
