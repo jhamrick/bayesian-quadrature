@@ -1,5 +1,5 @@
 numpy>=1.7.1
-gaussian_processes==1.0.4
+gaussian_processes==1.0.5
 scipy>=0.13.0
 Cython>=0.19.2
 matplotlib>=1.2.1
