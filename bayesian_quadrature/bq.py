@@ -328,7 +328,7 @@ class BQ(object):
         x_sc = np.array(self.x_sc[None], order='F')
 
         alpha_l = self.gp_l.inv_Kxx_y
-        L_tl = self.gp_log_l.Lxx
+        L_tl = np.array(self.gp_log_l.Lxx, order='F')
 
         h_l, w_l = self.gp_l.K.params
         w_l = np.array([w_l])

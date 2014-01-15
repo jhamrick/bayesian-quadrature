@@ -365,7 +365,7 @@ def test_add_observation():
     l = bq.l_s.copy()
     tl = bq.tl_s.copy()
 
-    x_a = np.random.uniform(-5, 5, 1)
+    x_a = 20
     l_a = util.f_x(x_a)
     tl_a = np.log(l_a)
 
@@ -373,22 +373,25 @@ def test_add_observation():
     assert (bq.x_s == np.append(x, x_a)).all()
     assert (bq.l_s == np.append(l, l_a)).all()
     assert (bq.tl_s == np.append(tl, tl_a)).all()
-
+        
     assert (bq.x_s == bq.x_sc[:bq.ns]).all()
     assert (bq.l_s == bq.l_sc[:bq.ns]).all()
 
-    with pytest.raises(ValueError):
-        bq.add_observation(x[0], l[0])
+    old_x_s = bq.x_s.copy()
+    old_l_s = bq.l_s.copy()
+    bq.add_observation(x[0], l[0])
+    assert (old_x_s == bq.x_s).all()
+    assert (old_l_s == bq.l_s).all()
 
 
 def test_approx_add_observation():
     util.npseed()
-    bq = util.make_periodic_bq()
+    bq = util.make_periodic_bq(np.linspace(-np.pi, 0, 4))
     x = bq.x_s.copy()
     l = bq.l_s.copy()
     tl = bq.tl_s.copy()
 
-    x_a = np.random.randint(-np.pi, np.pi, 1)
+    x_a = np.pi / 2.
     l_a = util.f_x(x_a)
     tl_a = np.log(l_a)
 
@@ -399,6 +402,12 @@ def test_approx_add_observation():
 
     assert (bq.x_s == bq.x_sc[:bq.ns]).all()
     assert (bq.l_s == bq.l_sc[:bq.ns]).all()
+
+    old_x_s = bq.x_s.copy()
+    old_l_s = bq.l_s.copy()
+    bq.add_observation(x[0], l[0])
+    assert (old_x_s == bq.x_s).all()
+    assert (old_l_s == bq.l_s).all()
 
 
 def test_getstate():
