@@ -505,7 +505,7 @@ class BQ(object):
                 np.array(x_sca[None], order='F'),
                 self.gp_l.K.h, np.array([self.gp_l.K.w]),
                 self.options['x_mean'],
-                self.options['x_cov'])
+                np.array(self.options['x_cov'], order='F'))
 
         if np.isnan(esm) or esm < 0:
             raise RuntimeError(
