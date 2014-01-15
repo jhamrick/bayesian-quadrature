@@ -943,7 +943,7 @@ class BQ(object):
             raise np.linalg.LinAlgError("GP mean is too large")
 
         self.l_c = np.exp(m)
-        self.l_sc = np.concatenate([self.l_s, self.l_c], axis=0)
+        self.l_sc = np.array(np.concatenate([self.l_s, self.l_c]))
 
         # update the locations and values for exp(log(l))
         self.gp_l.x = self.x_sc
@@ -982,8 +982,8 @@ class BQ(object):
         self.nc = self.x_c.shape[0]
 
         # concatenate with the observations we already have
-        self.x_sc = np.concatenate([self.x_s, self.x_c], axis=0)
-        self.l_sc = np.concatenate([self.l_s, self.l_c], axis=0)
+        self.x_sc = np.array(np.concatenate([self.x_s, self.x_c]))
+        self.l_sc = np.array(np.concatenate([self.l_s, self.l_c]))
         self.nsc = self.ns + self.nc
 
     def _make_approx_x(self, xmin=None, xmax=None, n=1000):
