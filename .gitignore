@@ -13,5 +13,7 @@ docs/source/active-sampling-example.rst
 docs/source/*_files/
 docs/ipynb/*.rst
 docs/ipynb/*_files/
+docs/ipynb/.ipynb_checkpoints
 docs/_build
 htmlcov
+dist
