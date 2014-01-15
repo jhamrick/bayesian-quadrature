@@ -6,7 +6,15 @@ from Cython.Build import cythonize
 import numpy as np
 from numpy.distutils.system_info import get_info
 
-blas_include = get_info('blas_opt')['extra_compile_args'][1][2:]
+# try to find LAPACK and BLAS
+blas_info = get_info('blas_opt')
+try:
+    # Linux
+    blas_include = blas_info['include_dirs'][0]
+except KeyError:
+    # OS X
+    blas_include = blas_info['extra_compile_args'][1][2:]
+
 includes = [blas_include, np.get_include()]
 
 extensions = [
