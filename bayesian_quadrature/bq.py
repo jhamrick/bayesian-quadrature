@@ -91,7 +91,7 @@ class BQ(object):
         self._approx_x = None
         self._approx_px = None
 
-    def load_options(self, kernel, n_candidate, candidate_thresh, x_mean, x_var):
+    def load_options(self, kernel, n_candidate, candidate_thresh, x_mean, x_var, optim_method):
         r"""
         Load options.
 
@@ -109,6 +109,9 @@ class BQ(object):
             Prior mean, :math:`\mu`.
         x_var : float
             Prior variance, :math:`\sigma^2`.
+        optim_method : string
+            Method to use for parameter optimization (e.g., 'L-BFGS-B'
+            or 'Powell')
 
         """
         # store the options dictionary for future use
@@ -119,7 +122,8 @@ class BQ(object):
             'x_mean': np.array([x_mean], dtype=DTYPE, order='F'),
             'x_cov': np.array([[x_var]], dtype=DTYPE, order='F'),
             'use_approx': not (kernel is GaussianKernel),
-            'wrapped': kernel is PeriodicKernel
+            'wrapped': kernel is PeriodicKernel,
+            'optim_method': optim_method
         }
 
         if self.options['use_approx']:
@@ -553,7 +557,7 @@ class BQ(object):
         p0 = np.array(p0_tl + p0_l)
 
         f = self._make_llh_params(params)
-        p0 = util.find_good_parameters(f, p0)
+        p0 = util.find_good_parameters(f, p0, self.options['optim_method'])
         if p0 is None:
             raise RuntimeError("couldn't find good parameters")
         
@@ -585,7 +589,7 @@ class BQ(object):
 
         f = self._make_llh_params(params)
         if f(p0) < MIN:
-            pn = util.find_good_parameters(f, p0)
+            pn = util.find_good_parameters(f, p0, self.options['optim_method'])
             if pn is None:
                 raise RuntimeError("couldn't find good starting parameters")
             p0 = pn

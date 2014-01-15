@@ -148,16 +148,16 @@ def _anneal(*args, **kwargs):
             break
     return res
 
-def find_good_parameters(logpdf, x0, ntry=10):
+def find_good_parameters(logpdf, x0, method, ntry=10):
     logger.debug("Trying to find good parameters...")
 
     for i in xrange(ntry):
         
-        logger.debug("Attempt #%d with Powell", i+1)
+        logger.debug("Attempt #%d with %s", i+1, method)
         res = optim.minimize(
             fun=lambda x: -logpdf(x),
             x0=x0,
-            method='Powell')
+            method=method)
         
         logger.debug(res)
         p = logpdf(res['x'])
