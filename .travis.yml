@@ -10,6 +10,8 @@ virtualenv:
 
 # Setup anaconda
 before_install:
+- sudo apt-get -qq update
+- sudo apt-get -qq install libatlas-dev libatlas-base-dev liblapack-dev libblas-dev gfortran
 #- if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then wget http://repo.continuum.io/miniconda/Miniconda-2.0.3-Linux-x86_64.sh -O miniconda.sh; else wget http://repo.continuum.io/miniconda/Miniconda3-2.0.3-Linux-x86_64.sh -O miniconda.sh; fi
 - wget http://repo.continuum.io/miniconda/Miniconda-2.0.0-Linux-x86_64.sh -O miniconda.sh
 - chmod +x miniconda.sh
@@ -17,7 +19,7 @@ before_install:
 - export PATH=/home/travis/anaconda/bin:$PATH
 # Install packages
 install:
-- conda install --yes pip python=$TRAVIS_PYTHON_VERSION numpy scipy sympy matplotlib cython
+- conda install --yes pip python=$TRAVIS_PYTHON_VERSION numpy scipy sympy matplotlib cython atlas
 - pip install -r requirements.txt --use-mirrors
 - pip install pytest pytest-cov coveralls
 - python setup.py build_ext --inplace

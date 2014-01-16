@@ -2,7 +2,7 @@ import numpy as np
 import scipy.stats
 import pytest
 import matplotlib.pyplot as plt
-from gp import PeriodicKernel
+from gp import PeriodicKernel, GaussianKernel
 
 from .. import BQ
 from .. import bq_c
@@ -14,6 +14,8 @@ options = {
     'x_mean': 0.0,
     'x_var': 10.0,
     'candidate_thresh': 0.5,
+    'kernel': GaussianKernel,
+    'optim_method': 'L-BFGS-B',
 }
 
 
@@ -37,7 +39,11 @@ def make_xy(n=9):
     return x, y
 
 
-def make_bq(n=9, x=None, nc=None):
+def init_bq(bq):
+    bq.init(params_tl=(15, 2, 0), params_l=(0.2, 1.3, 0))    
+
+
+def make_bq(n=9, x=None, nc=None, init=True):
     if x is None:
         x, y = make_xy(n=n)
     else:
@@ -48,13 +54,13 @@ def make_bq(n=9, x=None, nc=None):
         opt['n_candidate'] = nc
 
     bq = BQ(x, y, **opt)
-    bq.fit_log_l((30, 5, 0))
-    bq.fit_l((y.max(), 1, 0))
+    if init:
+        init_bq(bq)
     return bq
 
 
 def make_xo():
-    return np.linspace(-10, 10, 1000)
+    return np.linspace(-10, 10, 500)
 
 
 def vmpdf(x, mu, kappa):
@@ -74,11 +80,12 @@ def make_periodic_bq(x=None, nc=None):
         opt['n_candidate'] = nc
 
     if x is None:
-        x = np.linspace(-np.pi, np.pi, 9)
+        x = np.linspace(-np.pi, np.pi, 9)[:-1]
     y = f_xp(x)
     
     bq = BQ(x, y, **opt)
-    bq.fit_log_l((3.5, np.pi, 1, 0))
-    bq.fit_l((0.4, np.pi / 2., 1, 0))
+    bq.init(
+        params_tl=(5, 2 * np.pi, 1, 0),
+        params_l=(0.2, np.pi / 2., 1, 0))
 
     return bq
