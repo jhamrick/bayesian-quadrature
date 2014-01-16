@@ -14,6 +14,7 @@ Active Sampling Example
     
     # import the bayesian quadrature object
     from bayesian_quadrature import BQ
+    from gp import GaussianKernel
     
     # seed the numpy random generator, so we always get the same randomness
     np.random.seed(8706)
@@ -22,14 +23,12 @@ First, we need to define various parameters:
 .. code:: python
 
     options = {
-        'ntry': 10,
         'n_candidate': 10,
         'x_mean': 0.0,
         'x_var': 10.0,
         'candidate_thresh': 0.5,
-        's': 0,
-        'h': 30,
-        'w': 1
+        'kernel': GaussianKernel,
+        'optim_method': 'L-BFGS-B'
     }
 .. code:: python
 
@@ -60,9 +59,7 @@ Create the bayesian quadrature object, and fit its parameters.
 .. code:: python
 
     bq = BQ(x, y, **options)
-    bq._fit_log_l(params=(30, 5, 0))
-    bq._fit_l(params=(y.max(), 1, 0))
-    
+    bq.init(params_tl=(15, 2, 0), params_l=(0.2, 1.3, 0))
     plot(bq)
 
 
@@ -72,9 +69,10 @@ Create the bayesian quadrature object, and fit its parameters.
 .. code:: python
 
     def add(bq):
-        f = lambda x: -bq.expected_squared_mean(x)
-        result = optim.minimize(f, x0=bq.x_s[[-1]], method='Anneal')
-        x = result['x']
+        params = ['h', 'w']
+    
+        x_a = np.sort(np.random.uniform(-10, 10, 20))
+        x = bq.choose_next(x_a, n=100, params=params)
         print "x = %s" % x
     
         mean = bq.Z_mean()
@@ -87,7 +85,8 @@ Create the bayesian quadrature object, and fit its parameters.
         upper = mean + conf
         print "Z = %.4f [%.4f, %.4f]" % (mean, lower, upper)
     
-        bq.add_observation(x, f_y(x), update_hypers=False)
+        bq.add_observation(x, f_y(x))
+        bq.fit_hypers(params)
         plot(bq)
 .. code:: python
 
@@ -95,10 +94,10 @@ Create the bayesian quadrature object, and fit its parameters.
 
 .. parsed-literal::
 
-    x = [ 8.38072719]
-    E[Z] = 3.91311660415e-05
-    V(Z) = 7.35821724873e-08
-    Z = 0.0000 [-0.0005, 0.0006]
+    x = 1.4052910677
+    E[Z] = 1.81816144454e-05
+    V(Z) = 4.95413041126e-09
+    Z = 0.0000 [-0.0001, 0.0002]
 
 
 
@@ -111,10 +110,10 @@ Create the bayesian quadrature object, and fit its parameters.
 
 .. parsed-literal::
 
-    x = [-13.99486275]
-    E[Z] = 1.82838280487e-06
-    V(Z) = 1.92734121513e-11
-    Z = 0.0000 [-0.0000, 0.0000]
+    x = 6.64358430235
+    E[Z] = 0.0655204987334
+    V(Z) = 0.0126525192528
+    Z = 0.0655 [-0.1549, 0.2860]
 
 
 
@@ -127,10 +126,10 @@ Create the bayesian quadrature object, and fit its parameters.
 
 .. parsed-literal::
 
-    x = [ 22.38841161]
-    E[Z] = 0.00498128729266
-    V(Z) = 0.000718758731603
-    Z = 0.0050 [-0.0476, 0.0575]
+    x = -2.09951783218
+    E[Z] = 0.0586980981797
+    V(Z) = 0.0207373317676
+    Z = 0.0587 [-0.2236, 0.3409]
 
 
 
@@ -143,10 +142,10 @@ Create the bayesian quadrature object, and fit its parameters.
 
 .. parsed-literal::
 
-    x = [ 0.68794779]
-    E[Z] = 0.0120439137555
-    V(Z) = 0.00339976596937
-    Z = 0.0120 [-0.1022, 0.1263]
+    x = -9.01101433922
+    E[Z] = 0.103667506169
+    V(Z) = 0.0763855441687
+    Z = 0.1037 [-0.4380, 0.6454]
 
 
 
@@ -159,10 +158,10 @@ Create the bayesian quadrature object, and fit its parameters.
 
 .. parsed-literal::
 
-    x = [-26.11690899]
-    E[Z] = 0.111067061737
-    V(Z) = 0.000969252758332
-    Z = 0.1111 [0.0500, 0.1721]
+    x = 9.1002318972
+    E[Z] = 0.0752797700545
+    V(Z) = 0.0203972059936
+    Z = 0.0753 [-0.2046, 0.3552]
 
 
 
@@ -175,10 +174,10 @@ Create the bayesian quadrature object, and fit its parameters.
 
 .. parsed-literal::
 
-    x = [ 37.00028536]
-    E[Z] = 0.0934449401357
-    V(Z) = 7.25604358277e-05
-    Z = 0.0934 [0.0767, 0.1101]
+    x = 4.71861182049
+    E[Z] = 0.0931528467188
+    V(Z) = 0.0373985303269
+    Z = 0.0932 [-0.2859, 0.4722]
 
 
 
@@ -191,10 +190,10 @@ Create the bayesian quadrature object, and fit its parameters.
 
 .. parsed-literal::
 
-    x = [-1.42074313]
-    E[Z] = 0.092918444988
-    V(Z) = 6.70379039832e-05
-    Z = 0.0929 [0.0769, 0.1090]
+    x = -6.90978217015
+    E[Z] = 0.0610104395892
+    V(Z) = 0.0053876473346
+    Z = 0.0610 [-0.0829, 0.2049]
 
 
 
@@ -207,10 +206,10 @@ Create the bayesian quadrature object, and fit its parameters.
 
 .. parsed-literal::
 
-    x = [ 0.50438492]
-    E[Z] = 0.115564444982
-    V(Z) = 2.91463372003e-05
-    Z = 0.1156 [0.1050, 0.1261]
+    x = 0.196855581753
+    E[Z] = 0.124567153682
+    V(Z) = 0.120224063159
+    Z = 0.1246 [-0.5550, 0.8042]
 
 
 
@@ -223,10 +222,10 @@ Create the bayesian quadrature object, and fit its parameters.
 
 .. parsed-literal::
 
-    x = [-6.42252679]
-    E[Z] = 0.118322542482
-    V(Z) = 1.6026047549e-06
-    Z = 0.1183 [0.1158, 0.1208]
+    x = 3.08558498792
+    E[Z] = 0.121650895453
+    V(Z) = 0.00415513324733
+    Z = 0.1217 [-0.0047, 0.2480]
 
 
 
@@ -239,10 +238,10 @@ Create the bayesian quadrature object, and fit its parameters.
 
 .. parsed-literal::
 
-    x = [ 1.75389045]
-    E[Z] = 0.116513262652
-    V(Z) = 1.07857228737e-06
-    Z = 0.1165 [0.1145, 0.1185]
+    x = -3.20225408927
+    E[Z] = 0.126989779828
+    V(Z) = 0.00235994553969
+    Z = 0.1270 [0.0318, 0.2222]
 
 
 
@@ -255,10 +254,10 @@ Create the bayesian quadrature object, and fit its parameters.
 
 .. parsed-literal::
 
-    x = [ 0.66158667]
-    E[Z] = 0.121449680361
-    V(Z) = 8.82840192951e-07
-    Z = 0.1214 [0.1196, 0.1233]
+    x = -1.00877980771
+    E[Z] = 0.117121406149
+    V(Z) = 0.000535153011259
+    Z = 0.1171 [0.0718, 0.1625]
 
 
 
@@ -271,10 +270,10 @@ Create the bayesian quadrature object, and fit its parameters.
 
 .. parsed-literal::
 
-    x = [ 1.69273804]
-    E[Z] = 0.12009898129
-    V(Z) = 7.7039271662e-07
-    Z = 0.1201 [0.1184, 0.1218]
+    x = 7.5969086774
+    E[Z] = 0.119578413594
+    V(Z) = 9.60697466024e-08
+    Z = 0.1196 [0.1190, 0.1202]
 
 
 

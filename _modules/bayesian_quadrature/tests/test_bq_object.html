@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>bayesian_quadrature.tests.test_bq_object &mdash; bayesian_quadrature 0.1.0 documentation</title>
+    <title>bayesian_quadrature.tests.test_bq_object &mdash; bayesian_quadrature 0.2.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -16,7 +16,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '0.1.0',
+        VERSION:     '0.2.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -26,7 +26,7 @@
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="../../../index.html" />
+    <link rel="top" title="bayesian_quadrature 0.2.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" /> 
   </head>
   <body>
@@ -42,7 +42,7 @@
         <li class="right" >
           <a href="../../../np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">bayesian_quadrature 0.2.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -56,6 +56,7 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pytest</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">gp</span> <span class="kn">import</span> <span class="n">GP</span>
 
 <span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">BQ</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">util</span>
@@ -74,6 +75,45 @@
     <span class="n">bq</span> <span class="o">=</span> <span class="n">BQ</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
     <span class="k">assert</span> <span class="p">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
     <span class="k">assert</span> <span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">tl_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">ns</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">bq</span><span class="o">.</span><span class="n">initialized</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span> <span class="ow">is</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span> <span class="ow">is</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_c</span> <span class="ow">is</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_c</span> <span class="ow">is</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">nc</span> <span class="ow">is</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_sc</span> <span class="ow">is</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_sc</span> <span class="ow">is</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">nsc</span> <span class="ow">is</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">_approx_x</span> <span class="ow">is</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">_approx_px</span> <span class="ow">is</span> <span class="bp">None</span>
+
+    <span class="n">util</span><span class="o">.</span><span class="n">init_bq</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">tl_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">ns</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">initialized</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="p">,</span> <span class="s">&#39;jitter&#39;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="p">,</span> <span class="s">&#39;jitter&#39;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_c</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_c</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">nc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_sc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_sc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">nsc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">_approx_x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+    <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">_approx_px</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+
+    </div>
+<div class="viewcode-block" id="test_bad_init"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_bad_init">[docs]</a><span class="k">def</span> <span class="nf">test_bad_init</span><span class="p">():</span>
+    <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_xy</span><span class="p">()</span>
 
     <span class="k">with</span> <span class="n">pytest</span><span class="o">.</span><span class="n">raises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
         <span class="n">BQ</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">],</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
@@ -89,21 +129,21 @@
 </div>
 <div class="viewcode-block" id="test_choose_candidates"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_choose_candidates">[docs]</a><span class="k">def</span> <span class="nf">test_choose_candidates</span><span class="p">():</span>
     <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
-    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
+
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">(</span><span class="n">nc</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
     <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_c</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span>
     <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_sc</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;=</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_s</span><span class="o">.</span><span class="n">size</span>
 
     <span class="n">diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">x_sc</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_c</span><span class="p">[</span><span class="bp">None</span><span class="p">])</span>
-    <span class="k">assert</span> <span class="p">((</span><span class="n">diff</span> <span class="o">&gt;</span> <span class="mf">1e-1</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">diff</span> <span class="o">==</span> <span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="n">thresh</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">options</span><span class="p">[</span><span class="s">&#39;candidate_thresh&#39;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="p">((</span><span class="n">diff</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">diff</span> <span class="o">==</span> <span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 
 </div>
 <div class="viewcode-block" id="test_l_mean"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_l_mean">[docs]</a><span class="k">def</span> <span class="nf">test_l_mean</span><span class="p">():</span>
     <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
     <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
-    <span class="n">xo</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_xo</span><span class="p">()</span>
-    <span class="n">yo</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">f_x</span><span class="p">(</span><span class="n">xo</span><span class="p">)</span>
-    <span class="n">l</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_mean</span><span class="p">(</span><span class="n">xo</span><span class="p">)</span>
-    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">yo</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
+    <span class="n">l</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_mean</span><span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">x_s</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_s</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">)</span>
 
 </div>
 <div class="viewcode-block" id="test_Z_mean"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_Z_mean">[docs]</a><span class="k">def</span> <span class="nf">test_Z_mean</span><span class="p">():</span>
@@ -113,7 +153,7 @@
     <span class="n">approx_Z</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">_approx_Z_mean</span><span class="p">(</span><span class="n">xo</span><span class="p">)</span>
     <span class="n">calc_Z</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">_exact_Z_mean</span><span class="p">()</span>
 
-    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">approx_Z</span><span class="p">,</span> <span class="n">calc_Z</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">approx_Z</span><span class="p">,</span> <span class="n">calc_Z</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">)</span>
 
 </div>
 <div class="viewcode-block" id="test_Z_mean_same"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_Z_mean_same">[docs]</a><span class="k">def</span> <span class="nf">test_Z_mean_same</span><span class="p">():</span>
@@ -173,15 +213,28 @@
     <span class="k">assert</span> <span class="p">(</span><span class="n">esm</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 
 </div>
+<div class="viewcode-block" id="test_expected_squared_mean_params"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_expected_squared_mean_params">[docs]</a><span class="k">def</span> <span class="nf">test_expected_squared_mean_params</span><span class="p">():</span>
+    <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">pytest</span><span class="o">.</span><span class="n">raises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+        <span class="n">bq</span><span class="o">.</span><span class="n">expected_squared_mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]))</span>
+    <span class="k">with</span> <span class="n">pytest</span><span class="o">.</span><span class="n">raises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+        <span class="n">bq</span><span class="o">.</span><span class="n">expected_squared_mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]))</span>
+    <span class="k">with</span> <span class="n">pytest</span><span class="o">.</span><span class="n">raises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+        <span class="n">bq</span><span class="o">.</span><span class="n">expected_squared_mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]))</span>
+
+</div>
 <div class="viewcode-block" id="test_expected_squared_mean"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_expected_squared_mean">[docs]</a><span class="k">def</span> <span class="nf">test_expected_squared_mean</span><span class="p">():</span>
     <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
     <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
-    <span class="n">x_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">)[:,</span> <span class="bp">None</span><span class="p">]</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">_make_approx_x</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">xa</span> <span class="ow">in</span> <span class="n">x_a</span><span class="p">:</span>
-        <span class="n">esm</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">_exact_expected_squared_mean</span><span class="p">(</span><span class="n">xa</span><span class="p">)</span>
-        <span class="n">approx</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">_approx_expected_squared_mean</span><span class="p">(</span><span class="n">xa</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">esm</span><span class="p">,</span> <span class="n">approx</span><span class="p">)</span>
+    <span class="n">x_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+
+    <span class="n">esm</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">expected_squared_mean</span><span class="p">(</span><span class="n">x_a</span><span class="p">)</span>
+    
+    <span class="n">bq</span><span class="o">.</span><span class="n">options</span><span class="p">[</span><span class="s">&#39;use_approx&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">approx</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">expected_squared_mean</span><span class="p">(</span><span class="n">x_a</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">approx</span><span class="p">,</span> <span class="n">esm</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
 </div>
 <div class="viewcode-block" id="test_plot_gp_log_l"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_plot_gp_log_l">[docs]</a><span class="k">def</span> <span class="nf">test_plot_gp_log_l</span><span class="p">():</span>
@@ -367,7 +420,7 @@
     <span class="n">l</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_s</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
     <span class="n">tl</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">tl_s</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
-    <span class="n">x_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">x_a</span> <span class="o">=</span> <span class="mi">20</span>
     <span class="n">l_a</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">f_x</span><span class="p">(</span><span class="n">x_a</span><span class="p">)</span>
     <span class="n">tl_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">l_a</span><span class="p">)</span>
 
@@ -375,19 +428,25 @@
     <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">x_s</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">x_a</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
     <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">l_s</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">l_a</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
     <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">tl_s</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tl</span><span class="p">,</span> <span class="n">tl_a</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-
+        
     <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">x_s</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_sc</span><span class="p">[:</span><span class="n">bq</span><span class="o">.</span><span class="n">ns</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
     <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">l_s</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_sc</span><span class="p">[:</span><span class="n">bq</span><span class="o">.</span><span class="n">ns</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+
+    <span class="n">old_x_s</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_s</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">old_l_s</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_s</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">add_observation</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">old_x_s</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">old_l_s</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 
 </div>
 <div class="viewcode-block" id="test_approx_add_observation"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_approx_add_observation">[docs]</a><span class="k">def</span> <span class="nf">test_approx_add_observation</span><span class="p">():</span>
     <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
-    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_periodic_bq</span><span class="p">()</span>
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_periodic_bq</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
     <span class="n">x</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_s</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
     <span class="n">l</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_s</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
     <span class="n">tl</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">tl_s</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
-    <span class="n">x_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">x_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mf">2.</span>
     <span class="n">l_a</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">f_x</span><span class="p">(</span><span class="n">x_a</span><span class="p">)</span>
     <span class="n">tl_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">l_a</span><span class="p">)</span>
 
@@ -398,19 +457,278 @@
 
     <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">x_s</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_sc</span><span class="p">[:</span><span class="n">bq</span><span class="o">.</span><span class="n">ns</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
     <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">l_s</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_sc</span><span class="p">[:</span><span class="n">bq</span><span class="o">.</span><span class="n">ns</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+
+    <span class="n">old_x_s</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_s</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">old_l_s</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_s</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">add_observation</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">old_x_s</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">old_l_s</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="test_getstate"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_getstate">[docs]</a><span class="k">def</span> <span class="nf">test_getstate</span><span class="p">():</span>
+    <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+    <span class="c"># uninitialized</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s">&#39;x_s&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s">&#39;l_s&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s">&#39;tl_s&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">tl_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">state</span><span class="p">[</span><span class="s">&#39;options&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">options</span>
+    <span class="k">assert</span> <span class="n">state</span><span class="p">[</span><span class="s">&#39;initialized&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">initialized</span>
+    <span class="k">assert</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="nb">sorted</span><span class="p">(</span>
+        <span class="p">[</span><span class="s">&#39;x_s&#39;</span><span class="p">,</span> <span class="s">&#39;l_s&#39;</span><span class="p">,</span> <span class="s">&#39;tl_s&#39;</span><span class="p">,</span> <span class="s">&#39;options&#39;</span><span class="p">,</span> <span class="s">&#39;initialized&#39;</span><span class="p">])</span>
+
+    <span class="n">util</span><span class="o">.</span><span class="n">init_bq</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s">&#39;x_s&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s">&#39;l_s&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s">&#39;tl_s&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">tl_s</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">state</span><span class="p">[</span><span class="s">&#39;options&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">options</span>
+    <span class="k">assert</span> <span class="n">state</span><span class="p">[</span><span class="s">&#39;initialized&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">initialized</span>
+    <span class="k">assert</span> <span class="n">state</span><span class="p">[</span><span class="s">&#39;gp_log_l&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s">&#39;gp_log_l_jitter&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">jitter</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">state</span><span class="p">[</span><span class="s">&#39;gp_l&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s">&#39;gp_l_jitter&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">jitter</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="nb">sorted</span><span class="p">(</span>
+        <span class="p">[</span><span class="s">&#39;x_s&#39;</span><span class="p">,</span> <span class="s">&#39;l_s&#39;</span><span class="p">,</span> <span class="s">&#39;tl_s&#39;</span><span class="p">,</span> <span class="s">&#39;options&#39;</span><span class="p">,</span> <span class="s">&#39;initialized&#39;</span><span class="p">,</span>
+         <span class="s">&#39;gp_log_l&#39;</span><span class="p">,</span> <span class="s">&#39;gp_log_l_jitter&#39;</span><span class="p">,</span> <span class="s">&#39;gp_l&#39;</span><span class="p">,</span> <span class="s">&#39;gp_l_jitter&#39;</span><span class="p">,</span>
+         <span class="s">&#39;_approx_x&#39;</span><span class="p">,</span> <span class="s">&#39;_approx_px&#39;</span><span class="p">])</span>
+
+</div>
+<div class="viewcode-block" id="test_copy"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_copy">[docs]</a><span class="k">def</span> <span class="nf">test_copy</span><span class="p">():</span>
+    <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
+    <span class="n">bq1</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">bq2</span> <span class="o">=</span> <span class="n">bq1</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">deep</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">bq1</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">bq2</span>
+
+    <span class="n">state1</span> <span class="o">=</span> <span class="n">bq1</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="n">state2</span> <span class="o">=</span> <span class="n">bq2</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state1</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state2</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">state1</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">GP</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">is</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="n">util</span><span class="o">.</span><span class="n">init_bq</span><span class="p">(</span><span class="n">bq1</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">bq1</span><span class="o">.</span><span class="n">initialized</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">bq2</span><span class="o">.</span><span class="n">initialized</span>
+    <span class="n">state1</span> <span class="o">=</span> <span class="n">bq1</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="n">state2</span> <span class="o">=</span> <span class="n">bq2</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state1</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">!=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state2</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">state1</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s">&#39;initialized&#39;</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">state2</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">GP</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">is</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="n">bq1</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
+    <span class="n">bq2</span> <span class="o">=</span> <span class="n">bq1</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">deep</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+    <span class="n">state1</span> <span class="o">=</span> <span class="n">bq1</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="n">state2</span> <span class="o">=</span> <span class="n">bq2</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state1</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state2</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">state1</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">GP</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">is</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="test_deepcopy"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_deepcopy">[docs]</a><span class="k">def</span> <span class="nf">test_deepcopy</span><span class="p">():</span>
+    <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
+    <span class="n">bq1</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">bq2</span> <span class="o">=</span> <span class="n">bq1</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">deep</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">bq1</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">bq2</span>
+
+    <span class="n">state1</span> <span class="o">=</span> <span class="n">bq1</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="n">state2</span> <span class="o">=</span> <span class="n">bq2</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state1</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state2</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">state1</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">GP</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="n">util</span><span class="o">.</span><span class="n">init_bq</span><span class="p">(</span><span class="n">bq1</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">bq1</span><span class="o">.</span><span class="n">initialized</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">bq2</span><span class="o">.</span><span class="n">initialized</span>
+    <span class="n">state1</span> <span class="o">=</span> <span class="n">bq1</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="n">state2</span> <span class="o">=</span> <span class="n">bq2</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state1</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">!=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state2</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">state1</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s">&#39;initialized&#39;</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">state2</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">GP</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="n">bq1</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
+    <span class="n">bq2</span> <span class="o">=</span> <span class="n">bq1</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">deep</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+    <span class="n">state1</span> <span class="o">=</span> <span class="n">bq1</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="n">state2</span> <span class="o">=</span> <span class="n">bq2</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state1</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">state2</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">state1</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">GP</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">state1</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">state2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+</div>
+<div class="viewcode-block" id="test_set_params"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_set_params">[docs]</a><span class="k">def</span> <span class="nf">test_set_params</span><span class="p">():</span>
+    <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
+    <span class="n">params_tl</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">params</span>
+    <span class="n">params_l</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">params</span>
+    <span class="n">x_sc</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">x_sc</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">l_sc</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">l_sc</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="n">bq</span><span class="o">.</span><span class="n">_set_gp_log_l_params</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">h</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">w</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mf">0.01</span><span class="p">))</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">params</span> <span class="o">!=</span> <span class="n">params_tl</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">params</span> <span class="o">==</span> <span class="n">params_l</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">jitter</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">jitter</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">x_sc</span> <span class="o">==</span> <span class="n">x_sc</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">l_sc</span> <span class="o">==</span> <span class="n">l_sc</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+
+    <span class="n">params_tl</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">params</span>
+
+    <span class="n">bq</span><span class="o">.</span><span class="n">_set_gp_l_params</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">h</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">w</span><span class="o">=</span><span class="mf">1.4</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mf">0.01</span><span class="p">))</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">params</span> <span class="o">==</span> <span class="n">params_tl</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">params</span> <span class="o">!=</span> <span class="n">params_l</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">jitter</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">jitter</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="test_fit_hypers"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_fit_hypers">[docs]</a><span class="k">def</span> <span class="nf">test_fit_hypers</span><span class="p">():</span>
+    <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
+    <span class="n">llh</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">log_lh</span> <span class="o">+</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">log_lh</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">fit_hypers</span><span class="p">([</span><span class="s">&#39;h&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">])</span>
+    <span class="n">new_llh</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">log_lh</span> <span class="o">+</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">log_lh</span>
+    <span class="k">assert</span> <span class="n">new_llh</span> <span class="o">&gt;=</span> <span class="n">llh</span>
+
+</div>
+<div class="viewcode-block" id="test_sample_hypers"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_sample_hypers">[docs]</a><span class="k">def</span> <span class="nf">test_sample_hypers</span><span class="p">():</span>
+    <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;h&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">]</span>
+    <span class="n">params_tl</span> <span class="o">=</span> <span class="p">{</span><span class="n">p</span><span class="p">:</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">get_param</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span><span class="p">}</span>
+    <span class="n">params_l</span> <span class="o">=</span> <span class="p">{</span><span class="n">p</span><span class="p">:</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">get_param</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span><span class="p">}</span>
+
+    <span class="n">bq</span><span class="o">.</span><span class="n">sample_hypers</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">log_lh</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">log_lh</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">get_param</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">!=</span> <span class="n">params_tl</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">get_param</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">!=</span> <span class="n">params_l</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">params_tl</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">params_l</span><span class="o">=</span><span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">1.3</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">sample_hypers</span><span class="p">([</span><span class="s">&#39;h&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">log_lh</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">log_lh</span><span class="p">)</span>
+
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">params_tl</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">params_l</span><span class="o">=</span><span class="p">(</span><span class="mf">0.00002</span><span class="p">,</span> <span class="mf">1.3</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">sample_hypers</span><span class="p">([</span><span class="s">&#39;h&#39;</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">log_lh</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">log_lh</span><span class="p">)</span>
+
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">params_tl</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">params_l</span><span class="o">=</span><span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">sample_hypers</span><span class="p">([</span><span class="s">&#39;w&#39;</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">log_lh</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">log_lh</span><span class="p">)</span>
+
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">params_tl</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">params_l</span><span class="o">=</span><span class="p">(</span><span class="mf">0.00000002</span><span class="p">,</span> <span class="mf">1.3</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="k">with</span> <span class="n">pytest</span><span class="o">.</span><span class="n">raises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+        <span class="n">bq</span><span class="o">.</span><span class="n">sample_hypers</span><span class="p">([</span><span class="s">&#39;w&#39;</span><span class="p">])</span>
+
+</div>
+<div class="viewcode-block" id="test_marginal_mean"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_marginal_mean">[docs]</a><span class="k">def</span> <span class="nf">test_marginal_mean</span><span class="p">():</span>
+    <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
+
+    <span class="c"># marginal mean</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">marginalize</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">bq</span><span class="o">.</span><span class="n">Z_mean</span><span class="p">],</span> <span class="mi">20</span><span class="p">,</span> <span class="p">[</span><span class="s">&#39;h&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">])</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="k">assert</span> <span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">20</span><span class="p">,)</span>
+
+</div>
+<div class="viewcode-block" id="test_marginal_mean_and_variance"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_marginal_mean_and_variance">[docs]</a><span class="k">def</span> <span class="nf">test_marginal_mean_and_variance</span><span class="p">():</span>
+    <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
+
+    <span class="c"># marginal mean and variance</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">marginalize</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">bq</span><span class="o">.</span><span class="n">Z_mean</span><span class="p">,</span> <span class="n">bq</span><span class="o">.</span><span class="n">Z_var</span><span class="p">],</span> <span class="mi">20</span><span class="p">,</span> <span class="p">[</span><span class="s">&#39;h&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">])</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
+    <span class="k">assert</span> <span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">20</span><span class="p">,)</span>
+    <span class="k">assert</span> <span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">20</span><span class="p">,)</span>
+
+</div>
+<div class="viewcode-block" id="test_marginal_loss"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_marginal_loss">[docs]</a><span class="k">def</span> <span class="nf">test_marginal_loss</span><span class="p">():</span>
+    <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
+    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
+    <span class="n">x_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+
+    <span class="c"># setting params</span>
+    <span class="n">llh</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_log_l</span><span class="o">.</span><span class="n">log_lh</span> <span class="o">+</span> <span class="n">bq</span><span class="o">.</span><span class="n">gp_l</span><span class="o">.</span><span class="n">log_lh</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">bq</span><span class="o">.</span><span class="n">expected_squared_mean</span><span class="p">(</span><span class="n">x_a</span><span class="p">)</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">marginalize</span><span class="p">([</span><span class="n">f</span><span class="p">],</span> <span class="mi">20</span><span class="p">,</span> <span class="p">[</span><span class="s">&#39;h&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">])</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="k">assert</span> <span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
 
 </div>
 <div class="viewcode-block" id="test_choose_next"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_choose_next">[docs]</a><span class="k">def</span> <span class="nf">test_choose_next</span><span class="p">():</span>
     <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
     <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
-    <span class="n">bq</span><span class="o">.</span><span class="n">choose_next</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">x_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
 
-</div>
-<div class="viewcode-block" id="test_choose_next_with_cost"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_bq_object.test_choose_next_with_cost">[docs]</a><span class="k">def</span> <span class="nf">test_choose_next_with_cost</span><span class="p">():</span>
-    <span class="n">util</span><span class="o">.</span><span class="n">npseed</span><span class="p">()</span>
-    <span class="n">bq</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">make_bq</span><span class="p">()</span>
-    <span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span>
-    <span class="n">bq</span><span class="o">.</span><span class="n">choose_next</span><span class="p">(</span><span class="n">cost_fun</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+    <span class="n">bq</span><span class="o">.</span><span class="n">choose_next</span><span class="p">(</span><span class="n">x_a</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="p">[</span><span class="s">&#39;h&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">])</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">choose_next</span><span class="p">(</span><span class="n">x_a</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="p">[</span><span class="s">&#39;h&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">],</span> <span class="n">plot</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span></div>
 </pre></div>
 
           </div>
@@ -447,7 +765,7 @@
         <li class="right" >
           <a href="../../../np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">bayesian_quadrature 0.2.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

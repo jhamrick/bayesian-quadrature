@@ -13,6 +13,7 @@ Gaussian Kernel Example
     
     # import the bayesian quadrature object
     from bayesian_quadrature import BQ
+    from gp import GaussianKernel
     
     # seed the numpy random generator, so we always get the same randomness
     np.random.seed(8706)
@@ -21,11 +22,12 @@ First, we need to define various parameters:
 .. code:: python
 
     options = {
-        'ntry': 10,
         'n_candidate': 5,
         'x_mean': 0.0,
         'x_var': 10.0,
         'candidate_thresh': 0.5,
+        'kernel': GaussianKernel,
+        'optim_method': 'L-BFGS-B'
     }
 Now, sample some random :math:`x` points and compute the :math:`y`
 points from a standard normal distribution.
@@ -40,8 +42,8 @@ Create the bayesian quadrature object, and fit its parameters.
 .. code:: python
 
     bq = BQ(x, y, **options)
-    bq.fit_log_l((10, 5, 0))
-    bq.fit_l((y.max(), 1, 0))
+    bq.init(params_tl=(15, 2, 0), params_l=(0.2, 1.3, 0))
+    bq.fit_hypers(['h', 'w'])
 Plot the result.
 
 .. code:: python
@@ -61,8 +63,8 @@ Print out the mean and variance of the integral, :math:`Z`:
 
 .. parsed-literal::
 
-    E[Z] = 0.116264
-    V(Z) = 0.000003
+    E[Z] = 0.141767
+    V(Z) = 0.000737
 
 
 Compute the expected variance given a potential new observation, and

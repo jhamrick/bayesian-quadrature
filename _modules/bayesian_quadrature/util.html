@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>bayesian_quadrature.util &mdash; bayesian_quadrature 0.1.0 documentation</title>
+    <title>bayesian_quadrature.util &mdash; bayesian_quadrature 0.2.0 documentation</title>
     
     <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
@@ -16,7 +16,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
-        VERSION:     '0.1.0',
+        VERSION:     '0.2.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -26,7 +26,7 @@
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="../../index.html" />
+    <link rel="top" title="bayesian_quadrature 0.2.0 documentation" href="../../index.html" />
     <link rel="up" title="Module code" href="../index.html" /> 
   </head>
   <body>
@@ -42,7 +42,7 @@
         <li class="right" >
           <a href="../../np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li>
+        <li><a href="../../index.html">bayesian_quadrature 0.2.0 documentation</a> &raquo;</li>
           <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -55,8 +55,16 @@
   <h1>Source code for bayesian_quadrature.util</h1><div class="highlight"><pre>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">scipy.optimize</span> <span class="kn">as</span> <span class="nn">optim</span>
 
-<span class="kn">from</span> <span class="nn">util_c</span> <span class="kn">import</span> <span class="n">slice_sample</span> <span class="k">as</span> <span class="n">_slice_sample</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">bq_c</span>
+<span class="kn">from</span> <span class="nn">.util_c</span> <span class="kn">import</span> <span class="n">slice_sample</span> <span class="k">as</span> <span class="n">_slice_sample</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&quot;bayesian_quadrature.util&quot;</span><span class="p">)</span>
+<span class="n">DTYPE</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="s">&#39;float64&#39;</span><span class="p">)</span>
+<span class="n">PREC</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">DTYPE</span><span class="p">)</span><span class="o">.</span><span class="n">precision</span>
+<span class="n">MIN</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp2</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span><span class="o">.</span><span class="n">minexp</span> <span class="o">+</span> <span class="mi">4</span><span class="p">)))</span>
 
 
 <div class="viewcode-block" id="set_scientific"><a class="viewcode-back" href="../../bayesian_quadrature.util.html#bayesian_quadrature.util.set_scientific">[docs]</a><span class="k">def</span> <span class="nf">set_scientific</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
@@ -89,7 +97,7 @@
         <span class="n">ax</span><span class="o">.</span><span class="n">get_yaxis</span><span class="p">()</span><span class="o">.</span><span class="n">set_major_formatter</span><span class="p">(</span><span class="n">fmt</span><span class="p">)</span>
 
 </div>
-<div class="viewcode-block" id="slice_sample"><a class="viewcode-back" href="../../bayesian_quadrature.util.html#bayesian_quadrature.util.slice_sample">[docs]</a><span class="k">def</span> <span class="nf">slice_sample</span><span class="p">(</span><span class="n">logpdf</span><span class="p">,</span> <span class="n">niter</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">xval</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">nburn</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<div class="viewcode-block" id="slice_sample"><a class="viewcode-back" href="../../bayesian_quadrature.util.html#bayesian_quadrature.util.slice_sample">[docs]</a><span class="k">def</span> <span class="nf">slice_sample</span><span class="p">(</span><span class="n">logpdf</span><span class="p">,</span> <span class="n">niter</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">xval</span><span class="p">,</span> <span class="n">nburn</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Draws samples from &#39;logpdf&#39;, optionally starting from &#39;xval&#39;.  The</span>
 <span class="sd">    pdf should return log values.</span>
 
@@ -99,30 +107,121 @@
 <span class="sd">        Target distribution. logpdf(xval) should return ln(Pr(xval))</span>
 <span class="sd">    niter : int</span>
 <span class="sd">        Number of iterations to run</span>
-<span class="sd">    w : float</span>
+<span class="sd">    w : np.ndarray</span>
 <span class="sd">        The step by which to adjust the window size.</span>
-<span class="sd">    xval : float</span>
-<span class="sd">        The initial starting value.  If not given, rejection sampling</span>
-<span class="sd">        is used within [-window, window] until a value with</span>
-<span class="sd">        non-zero probability is found.</span>
-<span class="sd">    nburn : int (default 0)</span>
+<span class="sd">    xval : numpy.ndarray</span>
+<span class="sd">        The initial starting value.</span>
+<span class="sd">    nburn : int (default 1)</span>
 <span class="sd">        Number of samples to skip at the beginning</span>
 <span class="sd">    freq : int (default 1)</span>
 <span class="sd">        How often to record samples</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">niter</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
-    <span class="k">if</span> <span class="n">xval</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">samples</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">xval</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">niter</span><span class="p">,</span> <span class="n">xval</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+    <span class="n">samples</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">xval</span>
 
-    <span class="n">_slice_sample</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">logpdf</span><span class="p">,</span> <span class="n">xval</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
+    <span class="c"># zero means unset, so we don&#39;t want to log in that case</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="p">(</span><span class="n">logger</span><span class="o">.</span><span class="n">level</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">logger</span><span class="o">.</span><span class="n">level</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">)</span>
+    <span class="n">_slice_sample</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">logpdf</span><span class="p">,</span> <span class="n">xval</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
 
     <span class="c"># don&#39;t return burnin samples or inbetween samples</span>
     <span class="n">out</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">nburn</span><span class="p">:][::</span><span class="n">freq</span><span class="p">]</span>
-    <span class="k">return</span> <span class="n">out</span></div>
+    <span class="k">return</span> <span class="n">out</span>
+
+</div>
+<div class="viewcode-block" id="vlines"><a class="viewcode-back" href="../../bayesian_quadrature.util.html#bayesian_quadrature.util.vlines">[docs]</a><span class="k">def</span> <span class="nf">vlines</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">ymin</span><span class="p">,</span> <span class="n">ymax</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_ylim</span><span class="p">()</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">vlines</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">ymin</span><span class="p">,</span> <span class="n">ymax</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">ymin</span><span class="p">,</span> <span class="n">ymax</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="hlines"><a class="viewcode-back" href="../../bayesian_quadrature.util.html#bayesian_quadrature.util.hlines">[docs]</a><span class="k">def</span> <span class="nf">hlines</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_xlim</span><span class="p">()</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">hlines</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="improve_conditioning"><a class="viewcode-back" href="../../bayesian_quadrature.util.html#bayesian_quadrature.util.improve_conditioning">[docs]</a><span class="k">def</span> <span class="nf">improve_conditioning</span><span class="p">(</span><span class="n">gp</span><span class="p">):</span>
+    <span class="n">Kxx</span> <span class="o">=</span> <span class="n">gp</span><span class="o">.</span><span class="n">Kxx</span>
+    <span class="n">cond</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cond</span><span class="p">(</span><span class="n">Kxx</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Kxx conditioning number is </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">cond</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">gp</span><span class="p">,</span> <span class="s">&quot;jitter&quot;</span><span class="p">):</span>
+        <span class="n">jitter</span> <span class="o">=</span> <span class="n">gp</span><span class="o">.</span><span class="n">jitter</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">jitter</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">Kxx</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">DTYPE</span><span class="p">)</span>
+        <span class="n">gp</span><span class="o">.</span><span class="n">jitter</span> <span class="o">=</span> <span class="n">jitter</span>
+
+    <span class="c"># the conditioning is really bad -- just increase the variance</span>
+    <span class="c"># a little for all the elements until it&#39;s less bad</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">Kxx</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">while</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">cond</span><span class="p">)</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">PREC</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Adding jitter to all elements&quot;</span><span class="p">)</span>
+        <span class="n">bq_c</span><span class="o">.</span><span class="n">improve_covariance_conditioning</span><span class="p">(</span><span class="n">Kxx</span><span class="p">,</span> <span class="n">jitter</span><span class="p">,</span> <span class="n">idx</span><span class="o">=</span><span class="n">idx</span><span class="p">)</span>
+        <span class="n">cond</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cond</span><span class="p">(</span><span class="n">Kxx</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Kxx conditioning number is now </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">cond</span><span class="p">)</span>
+
+    <span class="c"># now improve just for those elements which result in a</span>
+    <span class="c"># negative variance, until there are no more negative elements</span>
+    <span class="c"># in the diagonal</span>
+    <span class="n">gp</span><span class="o">.</span><span class="n">_memoized</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;Kxx&#39;</span><span class="p">:</span> <span class="n">Kxx</span><span class="p">}</span>
+    <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">gp</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">gp</span><span class="o">.</span><span class="n">_x</span><span class="p">))</span>
+    <span class="k">while</span> <span class="p">(</span><span class="n">var</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">var</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Adding jitter to indices </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">idx</span><span class="p">)</span>
+        <span class="n">bq_c</span><span class="o">.</span><span class="n">improve_covariance_conditioning</span><span class="p">(</span><span class="n">Kxx</span><span class="p">,</span> <span class="n">jitter</span><span class="p">,</span> <span class="n">idx</span><span class="o">=</span><span class="n">idx</span><span class="p">)</span>
+
+        <span class="n">Kxx</span> <span class="o">=</span> <span class="n">gp</span><span class="o">.</span><span class="n">Kxx</span>
+        <span class="n">gp</span><span class="o">.</span><span class="n">_memoized</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;Kxx&#39;</span><span class="p">:</span> <span class="n">Kxx</span><span class="p">}</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">gp</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">gp</span><span class="o">.</span><span class="n">_x</span><span class="p">))</span>
+        <span class="n">cond</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cond</span><span class="p">(</span><span class="n">Kxx</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Kxx conditioning number is now </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">cond</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="improve_tail_covariance"><a class="viewcode-back" href="../../bayesian_quadrature.util.html#bayesian_quadrature.util.improve_tail_covariance">[docs]</a><span class="k">def</span> <span class="nf">improve_tail_covariance</span><span class="p">(</span><span class="n">gp</span><span class="p">):</span>
+    <span class="n">Kxx</span> <span class="o">=</span> <span class="n">gp</span><span class="o">.</span><span class="n">Kxx</span>
+    <span class="n">gp</span><span class="o">.</span><span class="n">_memoized</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;Kxx&#39;</span><span class="p">:</span> <span class="n">Kxx</span><span class="p">}</span>
+    <span class="n">max_jitter</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">Kxx</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">*</span> <span class="mf">1e-2</span>
+    <span class="n">new_jitter</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="o">-</span><span class="n">gp</span><span class="o">.</span><span class="n">x</span> <span class="o">*</span> <span class="mf">1e-4</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">max_jitter</span><span class="p">)</span>
+    <span class="n">Kxx</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">gp</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">)</span> <span class="o">*</span> <span class="n">new_jitter</span>
+    <span class="n">gp</span><span class="o">.</span><span class="n">jitter</span> <span class="o">+=</span> <span class="n">new_jitter</span>
+
+</div>
+<span class="k">def</span> <span class="nf">_anneal</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Hack, because sometimes scipy&#39;s anneal function throws a TypeError</span>
+<span class="sd">    for no particular reason. So just try again until it works.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">res</span>
+
+<div class="viewcode-block" id="find_good_parameters"><a class="viewcode-back" href="../../bayesian_quadrature.util.html#bayesian_quadrature.util.find_good_parameters">[docs]</a><span class="k">def</span> <span class="nf">find_good_parameters</span><span class="p">(</span><span class="n">logpdf</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">ntry</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Trying to find good parameters...&quot;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">ntry</span><span class="p">):</span>
+        
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Attempt #</span><span class="si">%d</span><span class="s"> with </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">method</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span>
+            <span class="n">fun</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">logpdf</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+            <span class="n">x0</span><span class="o">=</span><span class="n">x0</span><span class="p">,</span>
+            <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">)</span>
+        
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">logpdf</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">p</span> <span class="o">&gt;</span> <span class="n">MIN</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">res</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">logpdf</span><span class="p">(</span><span class="n">x0</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">p</span><span class="p">:</span>
+            <span class="n">x0</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="bp">None</span></div>
 </pre></div>
 
           </div>
@@ -159,7 +258,7 @@
         <li class="right" >
           <a href="../../np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li>
+        <li><a href="../../index.html">bayesian_quadrature 0.2.0 documentation</a> &raquo;</li>
           <li><a href="../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

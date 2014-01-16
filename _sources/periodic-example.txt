@@ -22,12 +22,12 @@ First, we need to define various parameters:
 .. code:: python
 
     options = {
-        'ntry': 10,
         'n_candidate': 5,
         'x_mean': 0.0,
         'x_var': 10.0,
         'candidate_thresh': 0.5,
-        'kernel': PeriodicKernel
+        'kernel': PeriodicKernel,
+        'optim_method': 'L-BFGS-B'
     }
 Now, sample some random :math:`x` points and compute the :math:`y`
 points from a standard normal distribution.
@@ -48,14 +48,8 @@ Create the bayesian quadrature object, and fit its parameters.
 .. code:: python
 
     bq = BQ(x, y, **options)
-    bq.fit_log_l((3.5, np.pi, 1, 0))
-    bq.fit_l((0.4, np.pi / 2., 1, 0))
-
-.. parsed-literal::
-
-    WARNING:bayesian_quadrature:Using approximate solutions for non-Gaussian kernel
-
-
+    bq.init(params_tl=(5, 2*np.pi, 1, 0), params_l=(0.2, np.pi / 2., 1, 0))
+    bq.fit_hypers(['h', 'w'])
 Plot the result.
 
 .. code:: python
@@ -76,8 +70,8 @@ Print out the mean and variance of the integral, :math:`Z`:
 
 .. parsed-literal::
 
-    E[Z] = 0.164879
-    V(Z) = 0.000452
+    E[Z] = 0.166155
+    V(Z) = 0.000064
 
 
 Compute the expected variance given a potential new observation, and

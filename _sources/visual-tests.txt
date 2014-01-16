@@ -16,7 +16,8 @@ correct. Ideally, we want to see two things:
 
     # imports 
     %matplotlib inline
-    from bayesian_quadrature import BQ, bq_c, util
+    from bayesian_quadrature import BQ, bq_c, gauss_c, util
+    from gp import GaussianKernel
     
     # set loglevel to debug
     import logging
@@ -30,11 +31,12 @@ correct. Ideally, we want to see two things:
 
     # parameters
     options = {
-        'ntry': 10,
         'n_candidate': 10,
         'x_mean': 0.0,
         'x_var': 10.0,
         'candidate_thresh': 0.5,
+        'kernel': GaussianKernel,
+        'optim_method': 'L-BFGS-B'
     }
     
     # different number of approximation points to try, to see if the
@@ -50,7 +52,7 @@ approximate/analytic solution values.
 
     def plot_0d(calc, approx):
         fig, ax = plt.subplots()
-        ax.plot(N, np.abs(calc-approx), lw=2, color='r')
+        ax.plot(N, np.abs(calc - approx), lw=2, color='r')
         ax.set_title("Error")
         ax.set_xlabel("# approximation points")
         ax.set_xlim(N.min(), N.max())
@@ -67,13 +69,13 @@ approximate/analytic solution values.
     def plot_1d(calc, approx):
         fig, (ax1, ax2) = plt.subplots(1, 2)
     
-        ax1.plot(N, np.abs(calc-approx).sum(axis=-1), lw=2, color='r')
+        ax1.plot(N, np.abs(calc[:, None] - approx).sum(axis=0), lw=2, color='r')
         ax1.set_title("Error")
         ax1.set_xlabel("# approximation points")
         ax1.set_xlim(N.min(), N.max())
         util.set_scientific(ax1, -5, 4)
     
-        ax2.plot(approx[-1], lw=2, label="approx")
+        ax2.plot(approx[:, -1], lw=2, label="approx")
         ax2.plot(calc, '--', lw=2, label="calc")
         ax2.set_title("Comparison")
         ax2.legend(loc=0)
@@ -84,8 +86,8 @@ approximate/analytic solution values.
 .. code:: python
 
     def print_1d(calc, approx):
-        maxerr = np.abs(calc - approx[-1]).max()
-        approx_sum, calc_sum = approx[-1].sum(), calc.sum()
+        maxerr = np.abs(calc - approx[..., -1]).max()
+        approx_sum, calc_sum = approx[..., -1].sum(), calc.sum()
         print "max error  : %s" % maxerr
         print "sum(approx): %s" % approx_sum
         print "sum(calc)  : %s" % calc_sum
@@ -94,22 +96,22 @@ approximate/analytic solution values.
     def plot_2d(calc, approx):
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)
     
-        ax1.plot(N, np.abs(calc-approx).sum(axis=-1).sum(axis=-1), lw=2, color='r')
+        ax1.plot(N, np.abs(calc[:, :, None] - approx).sum(axis=0).sum(axis=0), lw=2, color='r')
         ax1.set_title("Error")
         ax1.set_xlabel("# approximation points")
         ax1.set_xlim(N.min(), N.max())
         util.set_scientific(ax1, -5, 4)
     
-        vmax = max(approx[-1].max(), calc.max())
+        vmax = max(approx[:, :, -1].max(), calc.max())
     
-        ax2.imshow(approx[-1], cmap='gray', interpolation='nearest', vmin=0, vmax=vmax)
+        ax2.imshow(approx[:, :, -1], cmap='gray', interpolation='nearest', vmin=0, vmax=vmax)
         ax2.set_title("Approximation")
     
         ax3.imshow(calc, cmap='gray', interpolation='nearest', vmin=0, vmax=vmax)
         ax3.set_title("Calculated")
     
         i = 0
-        ax4.plot(approx[-1, i], lw=2, label='approx')
+        ax4.plot(approx[i, :, -1], lw=2, label='approx')
         ax4.plot(calc[i], '--', lw=2, label='calc')
         ax4.set_title("Comparison at index %d" % i)
         ax4.legend(loc=0)
@@ -129,21 +131,16 @@ against.
     
     # create the bayesian quadrature object
     bq = BQ(x, y, **options)
-    bq.fit_log_l((30, 5, 0))
-    bq.fit_l((y.max(), 1, 0))
+    bq.init(
+        params_tl=(15, 2, 0.), 
+        params_l=(0.2, 1.3, 0.))
     
     # plot the BQ approximation
-    fig, axes = bq.plot(xmin=xmin, xmax=xmax)
+    fig, axes = bq.plot(f_l=f_y, xmin=xmin, xmax=xmax)
 
 .. parsed-literal::
 
-    DEBUG:bayesian_quadrature:Setting parameters for GP over log(l)
-    DEBUG:bayesian_quadrature:Kxx conditioning number is 2993734.68101
     DEBUG:bayesian_quadrature:Choosing candidate points
-    DEBUG:bayesian_quadrature:Setting parameters for GP over exp(log(l))
-    DEBUG:bayesian_quadrature:Kxx conditioning number is 18.7987497995
-    DEBUG:bayesian_quadrature:Adding jitter to indices [ 7  9 10 11 12]
-    DEBUG:bayesian_quadrature:Kxx conditioning number is now 18.7860902033
 
 
 
@@ -164,6 +161,18 @@ against.
 .. image:: visual-tests_files/visual-tests_13_0.png
 
 
+.. code:: python
+
+    x_l = np.array(bq.gp_l.x[None], order='F')
+    h_l = bq.gp_l.K.h
+    w_l = np.array([bq.gp_l.K.w], order='F')
+    
+    x_tl = np.array(bq.gp_log_l.x[None], order='F')
+    h_tl = bq.gp_log_l.K.h
+    w_tl = np.array([bq.gp_log_l.K.w], order='F')
+    
+    xm = bq.options['x_mean']
+    xC = bq.options['x_cov']
 int\_K
 ------
 
@@ -172,16 +181,17 @@ Test
 
 .. code:: python
 
-    calc = np.empty(bq.nsc)
-    bq_c.int_K(
-        calc, bq.gp_l.x[:, None],
-        bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-        bq.x_mean, bq.x_cov)
+    calc = np.empty(bq.nsc, order='F')
+    gauss_c.int_K(calc, x_l, h_l, w_l, xm, xC)
     
-    approx = np.empty((N.size, bq.nsc))
+    approx = np.empty((bq.nsc, N.size), order='F')
     for i, n in enumerate(N):
         xo = np.linspace(xmin, xmax, n)
-        approx[i] = bq_c.approx_int_K(xo, bq.gp_l, bq.x_mean, bq.x_cov)
+        Kxxo = np.array(bq.gp_l.Kxxo(xo), order='F')
+        gauss_c.approx_int_K(
+            approx[:, i], 
+            np.array(xo[None], order='F'),
+            Kxxo, xm, xC)
 .. code:: python
 
     plot_1d(calc, approx)
@@ -189,13 +199,13 @@ Test
 
 .. parsed-literal::
 
-    max error  : 2.56704190814e-06
-    sum(approx): 0.125943330984
-    sum(calc)  : 0.125946448156
+    max error  : 1.55678221442e-09
+    sum(approx): 0.0339891854186
+    sum(calc)  : 0.033989188741
 
 
 
-.. image:: visual-tests_files/visual-tests_16_1.png
+.. image:: visual-tests_files/visual-tests_17_1.png
 
 
 int\_K1\_K2
@@ -206,18 +216,18 @@ Test
 
 .. code:: python
 
-    calc = np.empty((bq.nsc, bq.ns))
-    bq_c.int_K1_K2(
-        calc, bq.gp_l.x[:, None], bq.gp_log_l.x[:, None],
-        bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-        bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
-        bq.x_mean, bq.x_cov)
+    calc = np.empty((bq.nsc, bq.ns), order='F')
+    gauss_c.int_K1_K2(calc, x_l, x_tl, h_l, w_l, h_tl, w_tl, xm, xC)
     
-    approx = np.empty((N.size, bq.nsc, bq.ns))
+    approx = np.empty((bq.nsc, bq.ns, N.size), order='F')
     for i, n in enumerate(N):
         xo = np.linspace(xmin, xmax, n)
-        approx[i] = bq_c.approx_int_K1_K2(
-            xo, bq.gp_l, bq.gp_log_l, bq.x_mean, bq.x_cov)
+        K1xxo = np.array(bq.gp_l.Kxxo(xo), order='F')
+        K2xxo = np.array(bq.gp_log_l.Kxxo(xo), order='F')
+        gauss_c.approx_int_K1_K2(
+            approx[:, :, i], 
+            np.array(xo[None], order='F'), 
+            K1xxo, K2xxo, xm, xC)
 .. code:: python
 
     plot_2d(calc, approx)
@@ -225,13 +235,13 @@ Test
 
 .. parsed-literal::
 
-    max error  : 0.000105501273301
-    sum(approx): 60.2728482429
-    sum(calc)  : 60.2732411992
+    max error  : 0.000933347326451
+    sum(approx): 5.55089408134
+    sum(calc)  : 5.55090592396
 
 
 
-.. image:: visual-tests_files/visual-tests_19_1.png
+.. image:: visual-tests_files/visual-tests_20_1.png
 
 
 int\_int\_K1\_K2\_K1
@@ -242,18 +252,18 @@ Test
 
 .. code:: python
 
-    calc = np.empty((bq.nsc, bq.nsc))
-    bq_c.int_int_K1_K2_K1(
-        calc, bq.gp_l.x[:, None],
-        bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-        bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
-        bq.x_mean, bq.x_cov)
+    calc = np.empty((bq.nsc, bq.nsc), order='F')
+    gauss_c.int_int_K1_K2_K1(calc, x_l, h_l, w_l, h_tl, w_tl, xm, xC)
         
-    approx = np.empty((N.size, bq.nsc, bq.nsc))
+    approx = np.empty((bq.nsc, bq.nsc, N.size), order='F')
     for i, n in enumerate(N):
         xo = np.linspace(xmin, xmax, n)
-        approx[i] = bq_c.approx_int_int_K1_K2_K1(
-            xo, bq.gp_l, bq.gp_log_l, bq.x_mean, bq.x_cov)
+        K1xxo = np.array(bq.gp_l.Kxxo(xo), order='F')
+        K2xoxo = np.array(bq.gp_log_l.Kxoxo(xo), order='F')
+        gauss_c.approx_int_int_K1_K2_K1(
+            approx[:, :, i], 
+            np.array(xo[None], order='F'),
+            K1xxo, K2xoxo, xm, xC)
 .. code:: python
 
     plot_2d(calc, approx)
@@ -261,13 +271,13 @@ Test
 
 .. parsed-literal::
 
-    max error  : 7.5782619634e-07
-    sum(approx): 0.864015199079
-    sum(calc)  : 0.864026031844
+    max error  : 7.56401320431e-12
+    sum(approx): 0.0230979040561
+    sum(calc)  : 0.0230979040904
 
 
 
-.. image:: visual-tests_files/visual-tests_22_1.png
+.. image:: visual-tests_files/visual-tests_23_1.png
 
 
 int\_int\_K1\_K2
@@ -278,18 +288,18 @@ Test
 
 .. code:: python
 
-    calc = np.empty(bq.ns)
-    bq_c.int_int_K1_K2(
-        calc, bq.gp_log_l.x[:, None],
-        bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-        bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
-        bq.x_mean, bq.x_cov)
+    calc = np.empty(bq.ns, order='F')
+    gauss_c.int_int_K1_K2(calc, x_tl, h_l, w_l, h_tl, w_tl, xm, xC)
     
-    approx = np.empty((N.size, bq.ns))
+    approx = np.empty((bq.ns, N.size), order='F')
     for i, n in enumerate(N):
         xo = np.linspace(xmin, xmax, n)
-        approx[i] = bq_c.approx_int_int_K1_K2(
-            xo, bq.gp_l, bq.gp_log_l, bq.x_mean, bq.x_cov)
+        K1xoxo = np.array(bq.gp_l.Kxoxo(xo), order='F')
+        K2xxo = np.array(bq.gp_log_l.Kxxo(xo), order='F')
+        gauss_c.approx_int_int_K1_K2(
+            approx[:, i],
+            np.array(xo[None], order='F'),
+            K1xoxo, K2xxo, xm, xC)
 .. code:: python
 
     plot_1d(calc, approx)
@@ -297,13 +307,13 @@ Test
 
 .. parsed-literal::
 
-    max error  : 6.62100940785e-06
-    sum(approx): 6.93025978949
-    sum(calc)  : 6.93030166067
+    max error  : 2.90292116595e-07
+    sum(approx): 0.576959029431
+    sum(calc)  : 0.576959869272
 
 
 
-.. image:: visual-tests_files/visual-tests_25_1.png
+.. image:: visual-tests_files/visual-tests_26_1.png
 
 
 int\_int\_K
@@ -314,14 +324,14 @@ Test
 
 .. code:: python
 
-    calc = bq_c.int_int_K(
-        1, bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-        bq.x_mean, bq.x_cov)
+    calc = gauss_c.int_int_K(1, h_l, w_l, xm, xC)
     
-    approx = np.empty(N.size)
+    approx = np.empty(N.size, order='F')
     for i, n in enumerate(N):
         xo = np.linspace(xmin, xmax, n)
-        approx[i] = bq_c.approx_int_int_K(xo, bq.gp_l, bq.x_mean, bq.x_cov)
+        Kxoxo = np.array(bq.gp_l.Kxoxo(xo), order='F')
+        approx[i] = gauss_c.approx_int_int_K(
+            np.array(xo[None], order='F'), Kxoxo, xm, xC)
 .. code:: python
 
     plot_0d(calc, approx)
@@ -329,84 +339,13 @@ Test
 
 .. parsed-literal::
 
-    error : 2.90604660867e-07
-    approx: 0.0138551566723
-    calc  : 0.013855447277
+    error : 1.01454767464e-07
+    approx: 0.00342631605819
+    calc  : 0.00342641751296
 
 
 
-.. image:: visual-tests_files/visual-tests_28_1.png
-
-
-int\_K1\_dK2
-------------
-
-Test
-:math:`\int K_1(x_1, x^\prime) \frac{\partial K_2}{\partial w_2}(x\prime, x_2) \mathcal{N}(x^\prime | \mu, \Sigma)\ \mathrm{d}x^\prime`
-
-.. code:: python
-
-    calc = np.empty((bq.nsc, bq.ns, 1))
-    bq_c.int_K1_dK2(
-        calc, bq.gp_l.x[:, None], bq.gp_log_l.x[:, None],
-        bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-        bq.gp_log_l.K.h, np.array([bq.gp_log_l.K.w]),
-        bq.x_mean, bq.x_cov)
-    
-    approx = np.empty((N.size, bq.nsc, bq.ns, 1))
-    for i, n in enumerate(N):
-        xo = np.linspace(xmin, xmax, n)
-        approx[i] = bq_c.approx_int_K1_dK2(
-            xo, bq.gp_l, bq.gp_log_l, bq.x_mean, bq.x_cov)
-.. code:: python
-
-    plot_2d(calc[..., 0], approx[..., 0])
-    print_1d(calc[..., 0], approx[..., 0])
-
-.. parsed-literal::
-
-    max error  : 0.0285703576777
-    sum(approx): -6.41184043406
-    sum(calc)  : -6.4761234464
-
-
-
-.. image:: visual-tests_files/visual-tests_31_1.png
-
-
-int\_dK
--------
-
-Test
-:math:`\int \frac{\partial K}{\partial w}(x^\prime, x) \mathcal{N}(x^\prime | \mu, \sigma)\ \mathrm{d}x^\prime`
-
-.. code:: python
-
-    calc = np.empty((bq.nsc, 1))
-    bq_c.int_dK(
-        calc, bq.gp_l.x[:, None],
-        bq.gp_l.K.h, np.array([bq.gp_l.K.w]),
-        bq.x_mean, bq.x_cov)
-    
-    approx = np.empty((N.size, bq.nsc, 1))
-    for i, n in enumerate(N):
-        xo = np.linspace(xmin, xmax, n)
-        approx[i] = bq_c.approx_int_dK(
-            xo, bq.gp_l, bq.x_mean, bq.x_cov)
-.. code:: python
-
-    plot_1d(calc[..., 0], approx[..., 0])
-    print_1d(calc[..., 0], approx[..., 0])
-
-.. parsed-literal::
-
-    max error  : 1.023203096e-05
-    sum(approx): -0.00119125374514
-    sum(calc)  : -0.00117714484755
-
-
-
-.. image:: visual-tests_files/visual-tests_34_1.png
+.. image:: visual-tests_files/visual-tests_29_1.png
 
 
 Mean of Z
@@ -428,13 +367,13 @@ Test :math:`E[Z]`.
 
 .. parsed-literal::
 
-    error : 1.82270865068e-13
-    approx: 0.120285623577
-    calc  : 0.120285623577
+    error : 1.8803056015e-08
+    approx: 0.119771024599
+    calc  : 0.119771005796
 
 
 
-.. image:: visual-tests_files/visual-tests_37_1.png
+.. image:: visual-tests_files/visual-tests_32_1.png
 
 
 Variance of Z
@@ -456,11 +395,11 @@ Test :math:`\mathrm{Var}(Z)`.
 
 .. parsed-literal::
 
-    error : 5.20205230419e-11
-    approx: 6.05178761461e-07
-    calc  : 6.05126740938e-07
+    error : 6.18632061484e-11
+    approx: 5.97977452085e-07
+    calc  : 5.98039315292e-07
 
 
 
-.. image:: visual-tests_files/visual-tests_40_1.png
+.. image:: visual-tests_files/visual-tests_35_1.png
 

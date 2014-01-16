@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>bayesian_quadrature.tests.test_util &mdash; bayesian_quadrature 0.1.0 documentation</title>
+    <title>bayesian_quadrature.tests.test_util &mdash; bayesian_quadrature 0.2.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -16,7 +16,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '0.1.0',
+        VERSION:     '0.2.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -26,7 +26,7 @@
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="../../../index.html" />
+    <link rel="top" title="bayesian_quadrature 0.2.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" /> 
   </head>
   <body>
@@ -42,7 +42,7 @@
         <li class="right" >
           <a href="../../../np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">bayesian_quadrature 0.2.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -56,9 +56,13 @@
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">scipy.stats</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">bayesian_quadrature</span> <span class="kn">import</span> <span class="n">util</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">util</span> <span class="k">as</span> <span class="n">tutil</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&quot;bayesian_quadrature.util&quot;</span><span class="p">)</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="s">&quot;INFO&quot;</span><span class="p">)</span>
 
 <div class="viewcode-block" id="test_set_scientific"><a class="viewcode-back" href="../../../bayesian_quadrature.tests.html#bayesian_quadrature.tests.test_util.test_set_scientific">[docs]</a><span class="k">def</span> <span class="nf">test_set_scientific</span><span class="p">():</span>
     <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
@@ -73,8 +77,10 @@
 
     <span class="k">def</span> <span class="nf">logpdf</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">x</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
-
-    <span class="n">samples</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">slice_sample</span><span class="p">(</span><span class="n">logpdf</span><span class="p">,</span> <span class="mi">10000</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">xval</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">nburn</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        
+    <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">])</span>
+    <span class="n">x0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">])</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">slice_sample</span><span class="p">(</span><span class="n">logpdf</span><span class="p">,</span> <span class="mi">10000</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">xval</span><span class="o">=</span><span class="n">x0</span><span class="p">,</span> <span class="n">nburn</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
     <span class="n">hist</span><span class="p">,</span> <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">normed</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
     <span class="n">centers</span> <span class="o">=</span> <span class="p">(</span><span class="n">bins</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">bins</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">/</span> <span class="mf">2.</span>
     <span class="n">bin_pdf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">logpdf</span><span class="p">(</span><span class="n">centers</span><span class="p">))</span>
@@ -90,7 +96,9 @@
             <span class="k">return</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
         <span class="k">return</span> <span class="mi">0</span>
 
-    <span class="n">samples</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">slice_sample</span><span class="p">(</span><span class="n">logpdf</span><span class="p">,</span> <span class="mi">10000</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">xval</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">nburn</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.5</span><span class="p">])</span>
+    <span class="n">x0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">])</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">slice_sample</span><span class="p">(</span><span class="n">logpdf</span><span class="p">,</span> <span class="mi">10000</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">xval</span><span class="o">=</span><span class="n">x0</span><span class="p">,</span> <span class="n">nburn</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
     <span class="n">hist</span><span class="p">,</span> <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">normed</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
 
     <span class="k">assert</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">hist</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.05</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span></div>
@@ -130,7 +138,7 @@
         <li class="right" >
           <a href="../../../np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">bayesian_quadrature 0.2.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

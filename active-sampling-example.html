@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Active Sampling Example &mdash; bayesian_quadrature 0.1.0 documentation</title>
+    <title>Active Sampling Example &mdash; bayesian_quadrature 0.2.0 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -16,7 +16,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '0.1.0',
+        VERSION:     '0.2.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -26,7 +26,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="index.html" />
+    <link rel="top" title="bayesian_quadrature 0.2.0 documentation" href="index.html" />
     <link rel="next" title="Bayesian Quadrature: Mean Derivation" href="bq_mean.html" />
     <link rel="prev" title="Periodic Kernel Example" href="periodic-example.html" /> 
   </head>
@@ -49,7 +49,7 @@
         <li class="right" >
           <a href="periodic-example.html" title="Periodic Kernel Example"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
+        <li><a href="index.html">bayesian_quadrature 0.2.0 documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -70,20 +70,19 @@ import scipy.optimize as optim
 
 # import the bayesian quadrature object
 from bayesian_quadrature import BQ
+from gp import GaussianKernel
 
 # seed the numpy random generator, so we always get the same randomness
 np.random.seed(8706)</pre>
 </div>
 <p>First, we need to define various parameters:</p>
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">options</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s">&#39;ntry&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
     <span class="s">&#39;n_candidate&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
     <span class="s">&#39;x_mean&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
     <span class="s">&#39;x_var&#39;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">,</span>
     <span class="s">&#39;candidate_thresh&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
-    <span class="s">&#39;s&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
-    <span class="s">&#39;h&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>
-    <span class="s">&#39;w&#39;</span><span class="p">:</span> <span class="mi">1</span>
+    <span class="s">&#39;kernel&#39;</span><span class="p">:</span> <span class="n">GaussianKernel</span><span class="p">,</span>
+    <span class="s">&#39;optim_method&#39;</span><span class="p">:</span> <span class="s">&#39;L-BFGS-B&#39;</span>
 <span class="p">}</span>
 </pre></div>
 </div>
@@ -112,17 +111,16 @@ points from a standard normal distribution.</p>
 </div>
 <p>Create the bayesian quadrature object, and fit its parameters.</p>
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">bq</span> <span class="o">=</span> <span class="n">BQ</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
-<span class="n">bq</span><span class="o">.</span><span class="n">_fit_log_l</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
-<span class="n">bq</span><span class="o">.</span><span class="n">_fit_l</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
-
+<span class="n">bq</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">params_tl</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">params_l</span><span class="o">=</span><span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">1.3</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
 <span class="n">plot</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_8_0.png" src="_images/active-sampling-example_8_0.png" />
 <div class="code python highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">bq</span><span class="p">):</span>
-    <span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">bq</span><span class="o">.</span><span class="n">expected_squared_mean</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">x0</span><span class="o">=</span><span class="n">bq</span><span class="o">.</span><span class="n">x_s</span><span class="p">[[</span><span class="o">-</span><span class="mi">1</span><span class="p">]],</span> <span class="n">method</span><span class="o">=</span><span class="s">&#39;Anneal&#39;</span><span class="p">)</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">]</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;h&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">]</span>
+
+    <span class="n">x_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">))</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">choose_next</span><span class="p">(</span><span class="n">x_a</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
     <span class="k">print</span> <span class="s">&quot;x = </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">x</span>
 
     <span class="n">mean</span> <span class="o">=</span> <span class="n">bq</span><span class="o">.</span><span class="n">Z_mean</span><span class="p">()</span>
@@ -135,127 +133,128 @@ points from a standard normal distribution.</p>
     <span class="n">upper</span> <span class="o">=</span> <span class="n">mean</span> <span class="o">+</span> <span class="n">conf</span>
     <span class="k">print</span> <span class="s">&quot;Z = </span><span class="si">%.4f</span><span class="s"> [</span><span class="si">%.4f</span><span class="s">, </span><span class="si">%.4f</span><span class="s">]&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">mean</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">)</span>
 
-    <span class="n">bq</span><span class="o">.</span><span class="n">add_observation</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">f_y</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">update_hypers</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">add_observation</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">f_y</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+    <span class="n">bq</span><span class="o">.</span><span class="n">fit_hypers</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
     <span class="n">plot</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">add</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="p">[</span> <span class="mf">8.38072719</span><span class="p">]</span>
-<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">3.91311660415e-05</span>
-<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">7.35821724873e-08</span>
-<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.0000</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.0005</span><span class="p">,</span> <span class="mf">0.0006</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="mf">1.4052910677</span>
+<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.81816144454e-05</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">4.95413041126e-09</span>
+<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.0000</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.0001</span><span class="p">,</span> <span class="mf">0.0002</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_10_1.png" src="_images/active-sampling-example_10_1.png" />
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">add</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">13.99486275</span><span class="p">]</span>
-<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.82838280487e-06</span>
-<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">1.92734121513e-11</span>
-<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.0000</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.0000</span><span class="p">,</span> <span class="mf">0.0000</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="mf">6.64358430235</span>
+<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0655204987334</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.0126525192528</span>
+<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.0655</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.1549</span><span class="p">,</span> <span class="mf">0.2860</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_11_1.png" src="_images/active-sampling-example_11_1.png" />
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">add</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="p">[</span> <span class="mf">22.38841161</span><span class="p">]</span>
-<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.00498128729266</span>
-<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.000718758731603</span>
-<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.0050</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.0476</span><span class="p">,</span> <span class="mf">0.0575</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="o">-</span><span class="mf">2.09951783218</span>
+<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0586980981797</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.0207373317676</span>
+<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.0587</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.2236</span><span class="p">,</span> <span class="mf">0.3409</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_12_1.png" src="_images/active-sampling-example_12_1.png" />
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">add</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="p">[</span> <span class="mf">0.68794779</span><span class="p">]</span>
-<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0120439137555</span>
-<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.00339976596937</span>
-<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.0120</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.1022</span><span class="p">,</span> <span class="mf">0.1263</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="o">-</span><span class="mf">9.01101433922</span>
+<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.103667506169</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.0763855441687</span>
+<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.1037</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.4380</span><span class="p">,</span> <span class="mf">0.6454</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_13_1.png" src="_images/active-sampling-example_13_1.png" />
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">add</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">26.11690899</span><span class="p">]</span>
-<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.111067061737</span>
-<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.000969252758332</span>
-<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.1111</span> <span class="p">[</span><span class="mf">0.0500</span><span class="p">,</span> <span class="mf">0.1721</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="mf">9.1002318972</span>
+<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0752797700545</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.0203972059936</span>
+<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.0753</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.2046</span><span class="p">,</span> <span class="mf">0.3552</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_14_1.png" src="_images/active-sampling-example_14_1.png" />
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">add</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="p">[</span> <span class="mf">37.00028536</span><span class="p">]</span>
-<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0934449401357</span>
-<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">7.25604358277e-05</span>
-<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.0934</span> <span class="p">[</span><span class="mf">0.0767</span><span class="p">,</span> <span class="mf">0.1101</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="mf">4.71861182049</span>
+<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0931528467188</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.0373985303269</span>
+<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.0932</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.2859</span><span class="p">,</span> <span class="mf">0.4722</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_15_1.png" src="_images/active-sampling-example_15_1.png" />
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">add</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">1.42074313</span><span class="p">]</span>
-<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.092918444988</span>
-<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">6.70379039832e-05</span>
-<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.0929</span> <span class="p">[</span><span class="mf">0.0769</span><span class="p">,</span> <span class="mf">0.1090</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="o">-</span><span class="mf">6.90978217015</span>
+<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0610104395892</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.0053876473346</span>
+<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.0610</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.0829</span><span class="p">,</span> <span class="mf">0.2049</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_16_1.png" src="_images/active-sampling-example_16_1.png" />
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">add</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="p">[</span> <span class="mf">0.50438492</span><span class="p">]</span>
-<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.115564444982</span>
-<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">2.91463372003e-05</span>
-<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.1156</span> <span class="p">[</span><span class="mf">0.1050</span><span class="p">,</span> <span class="mf">0.1261</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="mf">0.196855581753</span>
+<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.124567153682</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.120224063159</span>
+<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.1246</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.5550</span><span class="p">,</span> <span class="mf">0.8042</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_17_1.png" src="_images/active-sampling-example_17_1.png" />
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">add</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">6.42252679</span><span class="p">]</span>
-<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.118322542482</span>
-<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">1.6026047549e-06</span>
-<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.1183</span> <span class="p">[</span><span class="mf">0.1158</span><span class="p">,</span> <span class="mf">0.1208</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="mf">3.08558498792</span>
+<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.121650895453</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.00415513324733</span>
+<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.1217</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.0047</span><span class="p">,</span> <span class="mf">0.2480</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_18_1.png" src="_images/active-sampling-example_18_1.png" />
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">add</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="p">[</span> <span class="mf">1.75389045</span><span class="p">]</span>
-<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.116513262652</span>
-<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">1.07857228737e-06</span>
-<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.1165</span> <span class="p">[</span><span class="mf">0.1145</span><span class="p">,</span> <span class="mf">0.1185</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="o">-</span><span class="mf">3.20225408927</span>
+<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.126989779828</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.00235994553969</span>
+<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.1270</span> <span class="p">[</span><span class="mf">0.0318</span><span class="p">,</span> <span class="mf">0.2222</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_19_1.png" src="_images/active-sampling-example_19_1.png" />
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">add</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="p">[</span> <span class="mf">0.66158667</span><span class="p">]</span>
-<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.121449680361</span>
-<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">8.82840192951e-07</span>
-<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.1214</span> <span class="p">[</span><span class="mf">0.1196</span><span class="p">,</span> <span class="mf">0.1233</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.00877980771</span>
+<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.117121406149</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.000535153011259</span>
+<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.1171</span> <span class="p">[</span><span class="mf">0.0718</span><span class="p">,</span> <span class="mf">0.1625</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_20_1.png" src="_images/active-sampling-example_20_1.png" />
 <div class="code python highlight-python"><div class="highlight"><pre><span class="n">add</span><span class="p">(</span><span class="n">bq</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="p">[</span> <span class="mf">1.69273804</span><span class="p">]</span>
-<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.12009898129</span>
-<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">7.7039271662e-07</span>
-<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.1201</span> <span class="p">[</span><span class="mf">0.1184</span><span class="p">,</span> <span class="mf">0.1218</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">x</span> <span class="o">=</span> <span class="mf">7.5969086774</span>
+<span class="n">E</span><span class="p">[</span><span class="n">Z</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.119578413594</span>
+<span class="n">V</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span> <span class="o">=</span> <span class="mf">9.60697466024e-08</span>
+<span class="n">Z</span> <span class="o">=</span> <span class="mf">0.1196</span> <span class="p">[</span><span class="mf">0.1190</span><span class="p">,</span> <span class="mf">0.1202</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="_images/active-sampling-example_21_1.png" src="_images/active-sampling-example_21_1.png" />
@@ -313,7 +312,7 @@ points from a standard normal distribution.</p>
         <li class="right" >
           <a href="periodic-example.html" title="Periodic Kernel Example"
              >previous</a> |</li>
-        <li><a href="index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
+        <li><a href="index.html">bayesian_quadrature 0.2.0 documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

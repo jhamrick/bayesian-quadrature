@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Cython module: bq_c &mdash; bayesian_quadrature 0.1.0 documentation</title>
+    <title>Cython module: bq_c &mdash; bayesian_quadrature 0.2.0 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -16,7 +16,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '0.1.0',
+        VERSION:     '0.2.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -26,8 +26,8 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="bayesian_quadrature 0.1.0 documentation" href="index.html" />
-    <link rel="next" title="Cython module: util_c" href="bayesian_quadrature.util_c.html" />
+    <link rel="top" title="bayesian_quadrature 0.2.0 documentation" href="index.html" />
+    <link rel="next" title="Cython module: gauss_c" href="bayesian_quadrature.gauss_c.html" />
     <link rel="prev" title="Utilities" href="bayesian_quadrature.util.html" /> 
   </head>
   <body>
@@ -44,12 +44,12 @@
           <a href="np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="bayesian_quadrature.util_c.html" title="Cython module: util_c"
+          <a href="bayesian_quadrature.gauss_c.html" title="Cython module: gauss_c"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="bayesian_quadrature.util.html" title="Utilities"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
+        <li><a href="index.html">bayesian_quadrature 0.2.0 documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -66,159 +66,424 @@ shouldn&#8217;t need to be called directly by user code. However, they are
 provided here for reference.</p>
 <span class="target" id="module-bayesian_quadrature.bq_c"></span><dl class="function">
 <dt id="bayesian_quadrature.bq_c.Z_mean">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">Z_mean</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.Z_mean" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">Z_mean</tt><big>(</big><em>__Pyx_memviewslice x_sc</em>, <em>__Pyx_memviewslice alpha_l</em>, <em>float64_t h_l</em>, <em>__Pyx_memviewslice w_l</em>, <em>__Pyx_memviewslice mu</em>, <em>__Pyx_memviewslice cov</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.Z_mean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the mean of the integral:</p>
+<div class="math">
+\[Z = \int \ell(x)\mathcal{N}(x \big\vert \mu, \Sigma)\ \mathrm{d}x\]</div>
+<p>where the mean is defined as:</p>
+<div class="math">
+\[m(Z) = E[Z \big\vert \bar{\ell}(x_sc)]\]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>x_sc</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(d\times n\)</span> vector of observed and candidate locations</p>
+</div></blockquote>
+<p><strong>alpha_l</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(K_\ell(x_{sc}, x_{sc})^{-1}\bar{\ell}(x_{sc})\)</span></p>
+</div></blockquote>
+<p><strong>h_l</strong> : float64_t</p>
+<blockquote>
+<div><p>output scale parameter for kernel <span class="math">\(K_\ell\)</span></p>
+</div></blockquote>
+<p><strong>w_l</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(d\)</span> vector of lengthscales for kernel <span class="math">\(K_\ell\)</span></p>
+</div></blockquote>
+<p><strong>mu</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(d\)</span> prior mean</p>
+</div></blockquote>
+<p><strong>cov</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(d\times d\)</span> prior covariance</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first last"><strong>out</strong> : mean of <span class="math">\(Z\)</span></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="function">
 <dt id="bayesian_quadrature.bq_c.Z_var">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">Z_var</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.Z_var" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">Z_var</tt><big>(</big><em>__Pyx_memviewslice x_s</em>, <em>__Pyx_memviewslice x_sc</em>, <em>__Pyx_memviewslice alpha_l</em>, <em>__Pyx_memviewslice L_tl</em>, <em>float64_t h_l</em>, <em>__Pyx_memviewslice w_l</em>, <em>float64_t h_tl</em>, <em>__Pyx_memviewslice w_tl</em>, <em>__Pyx_memviewslice mu</em>, <em>__Pyx_memviewslice cov</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.Z_var" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the variance of the integral:</p>
+<div class="math">
+\[Z = \int \ell(x)\mathcal{N}(x \big\vert \mu, \Sigma)\ \mathrm{d}x\]</div>
+<p>where the variance is defined as:</p>
+<div class="math">
+\[V(Z) = \int\int m_\ell(x) C_{\log\ell}(x, x^\prime) m_\ell(x^\prime) p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>x_s</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(d\times n_s\)</span> vector of observed locations</p>
+</div></blockquote>
+<p><strong>x_sc</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(d\times n_{sc}\)</span> vector of observed and candidate locations</p>
+</div></blockquote>
+<p><strong>alpha_l</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(K_\ell(x_{sc}, x_{sc})^{-1}\bar{\ell}(x_{sc})\)</span></p>
+</div></blockquote>
+<p><strong>L_tl</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p>lower-triangular Cholesky factor of <span class="math">\(K_{\log\ell}(x_{s}, x_{s})\)</span></p>
+</div></blockquote>
+<p><strong>h_l</strong> : float64_t</p>
+<blockquote>
+<div><p>output scale parameter for kernel <span class="math">\(K_\ell\)</span></p>
+</div></blockquote>
+<p><strong>w_l</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(d\)</span> vector of lengthscales for kernel <span class="math">\(K_\ell\)</span></p>
+</div></blockquote>
+<p><strong>h_tl</strong> : float64_t</p>
+<blockquote>
+<div><p>output scale parameter for kernel <span class="math">\(K_{\log\ell}\)</span></p>
+</div></blockquote>
+<p><strong>w_tl</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(d\)</span> vector of lengthscales for kernel <span class="math">\(K_{\log\ell}\)</span></p>
+</div></blockquote>
+<p><strong>mu</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(d\)</span> prior mean</p>
+</div></blockquote>
+<p><strong>cov</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(d\times d\)</span> prior covariance</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first last"><strong>out</strong> : variance of <span class="math">\(Z\)</span></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="function">
-<dt id="bayesian_quadrature.bq_c.approx_int_K">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">approx_int_K</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.approx_int_K" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dt id="bayesian_quadrature.bq_c.approx_Z_mean">
+<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">approx_Z_mean</tt><big>(</big><em>__Pyx_memviewslice xo</em>, <em>__Pyx_memviewslice p_xo</em>, <em>__Pyx_memviewslice l</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.approx_Z_mean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Approximate the mean of the integral:</p>
+<div class="math">
+\[Z = \int \ell(x)p(x)\ \mathrm{d}x\]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>xo</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(d\times n\)</span> vector of approximation locations</p>
+</div></blockquote>
+<p><strong>p_xo</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(n\)</span> vector prior probabilities at approximation locations</p>
+</div></blockquote>
+<p><strong>l</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(n\)</span> vector of likelihood evaluated at approximation locations</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first last"><strong>out</strong> : approximate mean of <span class="math">\(Z\)</span></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="function">
-<dt id="bayesian_quadrature.bq_c.approx_int_K1_K2">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">approx_int_K1_K2</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.approx_int_K1_K2" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dt id="bayesian_quadrature.bq_c.approx_Z_var">
+<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">approx_Z_var</tt><big>(</big><em>__Pyx_memviewslice xo</em>, <em>__Pyx_memviewslice p_xo</em>, <em>__Pyx_memviewslice m_l</em>, <em>__Pyx_memviewslice C_tl</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.approx_Z_var" title="Permalink to this definition">¶</a></dt>
+<dd><p>Approximate the variance of the integral:</p>
+<div class="math">
+\[Z = \int \ell(x)p(x)\ \mathrm{d}x\]</div>
+<p>where the variance is defined as:</p>
+<div class="math">
+\[V(Z) = \int\int m_\ell(x) C_{\log\ell}(x, x^\prime) m_\ell(x^\prime) p(x)p(x^\prime)\ \mathrm{d}x\ \mathrm{d}x^\prime\]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>xo</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(d\times n\)</span> vector of approximation locations</p>
+</div></blockquote>
+<p><strong>p_xo</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(n\)</span> vector prior probabilities at approximation locations</p>
+</div></blockquote>
+<p><strong>m_l</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(n\)</span> vector of likelihoods evaluated at approximation locations</p>
+</div></blockquote>
+<p><strong>C_tl</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(n\times n\)</span> covariance matrix for <span class="math">\(\log\ell\)</span> evaluated at approximation locations</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first last"><strong>out</strong> : approximate variance of <span class="math">\(Z\)</span></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="function">
-<dt id="bayesian_quadrature.bq_c.approx_int_K1_dK2">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">approx_int_K1_dK2</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.approx_int_K1_dK2" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dt id="bayesian_quadrature.bq_c.approx_expected_squared_mean_and_mean">
+<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">approx_expected_squared_mean_and_mean</tt><big>(</big><em>__Pyx_memviewslice l_sc</em>, <em>__Pyx_memviewslice K_l</em>, <em>float64_t tm_a</em>, <em>float64_t tC_a</em>, <em>__Pyx_memviewslice xo</em>, <em>__Pyx_memviewslice p_xo</em>, <em>__Pyx_memviewslice Kxxo</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.approx_expected_squared_mean_and_mean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Approximates the expected squared mean and expected mean of
+<span class="math">\(Z\)</span> given a new observation at <span class="math">\(x_a\)</span>.</p>
+<div class="math">
+\[E[m(Z)^2 \big\vert x_a] = \int m(Z | \ell_s, \ell_a)^2 \mathcal{N}(\log\ell_a | \hat{m}_a, \hat{C}_a)\ \mathrm{d}\log\ell_a\]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>l_sc</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(n_{sc}\)</span> vector of observed and candidate locations</p>
+</div></blockquote>
+<p><strong>K_l</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(n_{sca}\times n_{sca}\)</span> kernel matrix <span class="math">\(K_{\ell}(x_{sca}, x_{sca})\)</span></p>
+</div></blockquote>
+<p><strong>tm_a</strong> : float64_t</p>
+<blockquote>
+<div><p>prior mean of <span class="math">\(\log\ell_a\)</span></p>
+</div></blockquote>
+<p><strong>tC_a</strong> : float64_t</p>
+<blockquote>
+<div><p>prior variance of <span class="math">\(\log\ell_a\)</span></p>
+</div></blockquote>
+<p><strong>xo</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(d\times m\)</span> vector of approximation locations</p>
+</div></blockquote>
+<p><strong>Kxxo</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(n_{sca}\times m\)</span> kernel matrix</p>
+</div></blockquote>
+<p><strong>mu</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(d\)</span> mean</p>
+</div></blockquote>
+<p><strong>cov</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(d\times d\)</span> covariance</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first last"><strong>out</strong> : approximate expected squared mean and expected mean of <span class="math">\(Z\)</span></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="function">
-<dt id="bayesian_quadrature.bq_c.approx_int_dK">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">approx_int_dK</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.approx_int_dK" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="bayesian_quadrature.bq_c.approx_int_int_K">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">approx_int_int_K</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.approx_int_int_K" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="bayesian_quadrature.bq_c.approx_int_int_K1_K2">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">approx_int_int_K1_K2</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.approx_int_int_K1_K2" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="bayesian_quadrature.bq_c.approx_int_int_K1_K2_K1">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">approx_int_int_K1_K2_K1</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.approx_int_int_K1_K2_K1" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="bayesian_quadrature.bq_c.expected_squared_mean">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">expected_squared_mean</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.expected_squared_mean" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dt id="bayesian_quadrature.bq_c.expected_squared_mean_and_mean">
+<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">expected_squared_mean_and_mean</tt><big>(</big><em>__Pyx_memviewslice l_sc</em>, <em>__Pyx_memviewslice K_l</em>, <em>float64_t tm_a</em>, <em>float64_t tC_a</em>, <em>__Pyx_memviewslice x_sca</em>, <em>float64_t h_l</em>, <em>__Pyx_memviewslice w_l</em>, <em>__Pyx_memviewslice mu</em>, <em>__Pyx_memviewslice cov</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.expected_squared_mean_and_mean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the expected squared mean and expected mean of <span class="math">\(Z\)</span>
+given a new observation at <span class="math">\(x_a\)</span>.</p>
+<div class="math">
+\[E[m(Z)^2 \big\vert x_a] = \int m(Z | \ell_s, \ell_a)^2 \mathcal{N}(\log\ell_a | \hat{m}_a, \hat{C}_a)\ \mathrm{d}\log\ell_a\]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>l_sc</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(n_{sc}\)</span> vector of observed and candidate locations</p>
+</div></blockquote>
+<p><strong>K_l</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(n_{sca}\times n_{sca}\)</span> kernel matrix <span class="math">\(K_{\ell}(x_{sca}, x_{sca})\)</span></p>
+</div></blockquote>
+<p><strong>tm_a</strong> : float64_t</p>
+<blockquote>
+<div><p>prior mean of <span class="math">\(\log\ell_a\)</span></p>
+</div></blockquote>
+<p><strong>tC_a</strong> : float64_t</p>
+<blockquote>
+<div><p>prior variance of <span class="math">\(\log\ell_a\)</span></p>
+</div></blockquote>
+<p><strong>x_sca</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(d\times n_{sca}\)</span> input vector</p>
+</div></blockquote>
+<p><strong>h_l</strong> : float64_t</p>
+<blockquote>
+<div><p>output scale kernel parameter for <span class="math">\(K_\ell\)</span></p>
+</div></blockquote>
+<p><strong>w_l</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(d\)</span> vector of lengthscales for <span class="math">\(K_\ell\)</span></p>
+</div></blockquote>
+<p><strong>mu</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(d\)</span> mean</p>
+</div></blockquote>
+<p><strong>cov</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(d\times d\)</span> covariance</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first last"><strong>out</strong> : expected squared mean and expected mean of <span class="math">\(Z\)</span></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="function">
 <dt id="bayesian_quadrature.bq_c.filter_candidates">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">filter_candidates</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.filter_candidates" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">filter_candidates</tt><big>(</big><em>__Pyx_memviewslice x_c</em>, <em>__Pyx_memviewslice x_s</em>, <em>float64_t thresh</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.filter_candidates" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a vector of possible candidate locations, <span class="math">\(x_c\)</span>,
+filter out locations which are close to one or more observations
+<span class="math">\(x_s\)</span>, or to other candidate locations.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>x_c</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p>potential candidate locations</p>
+</div></blockquote>
+<p><strong>x_s</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p>observed locations</p>
+</div></blockquote>
+<p><strong>thresh</strong> : float64_t</p>
+<blockquote class="last">
+<div><p>minimum allowed distance</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="function">
 <dt id="bayesian_quadrature.bq_c.improve_covariance_conditioning">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">improve_covariance_conditioning</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.improve_covariance_conditioning" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="bayesian_quadrature.bq_c.int_K">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">int_K</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.int_K" title="Permalink to this definition">¶</a></dt>
-<dd><p>Computes integrals of the form:</p>
-<p>int K(x&#8217;, x) N(x&#8217; | mu, cov) dx&#8217;</p>
-<p>where K is a Gaussian kernel matrix parameterized by <tt class="xref py py-obj docutils literal"><span class="pre">h</span></tt> and <tt class="xref py py-obj docutils literal"><span class="pre">w</span></tt>.</p>
-<p>The result is:</p>
-<p>out[i] = h^2 N(x_i | mu, W + cov)</p>
+<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">improve_covariance_conditioning</tt><big>(</big><em>__Pyx_memviewslice M</em>, <em>__Pyx_memviewslice jitters</em>, <em>__Pyx_memviewslice idx</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.improve_covariance_conditioning" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add noise to the indices <tt class="xref py py-obj docutils literal"><span class="pre">idx</span></tt> along the diagonal of <tt class="xref py py-obj docutils literal"><span class="pre">M</span></tt>. Update
+the corresponding locations in the <tt class="xref py py-obj docutils literal"><span class="pre">jitters</span></tt> vector to include
+this new noise.</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="bayesian_quadrature.bq_c.int_K1_K2">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">int_K1_K2</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.int_K1_K2" title="Permalink to this definition">¶</a></dt>
-<dd><p>Computes integrals of the form:</p>
-<p>int K_1(x1, x&#8217;) K_2(x&#8217;, x2) N(x&#8217; | mu, cov) dx&#8217;</p>
-<p>where K_1 is a Gaussian kernel matrix parameterized by <tt class="xref py py-obj docutils literal"><span class="pre">h1</span></tt> and
-<tt class="xref py py-obj docutils literal"><span class="pre">w1</span></tt>, and K_2 is a Gaussian kernel matrix parameterized by <tt class="xref py py-obj docutils literal"><span class="pre">h2</span></tt>
-and <tt class="xref py py-obj docutils literal"><span class="pre">w2</span></tt>.</p>
-<p>The result is:</p>
-<p>out[i, j] = h1^2 h2^2 N([x1_i, x2_j] | [mu, mu], [W1 + cov, cov; cov, W2 + cov])</p>
+<dt id="bayesian_quadrature.bq_c.p_x_gaussian">
+<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">p_x_gaussian</tt><big>(</big><em>__Pyx_memviewslice p_x</em>, <em>__Pyx_memviewslice x</em>, <em>__Pyx_memviewslice mu</em>, <em>__Pyx_memviewslice cov</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.p_x_gaussian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the Gaussian PDF of input locations <span class="math">\(x\)</span>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>p_x</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(n\)</span> output vector of probabilities</p>
+</div></blockquote>
+<p><strong>x</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(d\times n\)</span> input locations</p>
+</div></blockquote>
+<p><strong>mu</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(d\)</span> mean vector</p>
+</div></blockquote>
+<p><strong>cov</strong> : float64_t[::1, :]</p>
+<blockquote class="last">
+<div><p><span class="math">\(d\times d\)</span> covariance matrix</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="function">
-<dt id="bayesian_quadrature.bq_c.int_K1_dK2">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">int_K1_dK2</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.int_K1_dK2" title="Permalink to this definition">¶</a></dt>
-<dd><p>Computes integrals of the form:</p>
-<p>int K1(x1, x&#8217;) dK2(x&#8217;, x2)/dw2 N(x&#8217; | mu, cov) dx&#8217;</p>
-<p>where K1 is a Gaussian kernel parameterized by <tt class="xref py py-obj docutils literal"><span class="pre">h1</span></tt> and <tt class="xref py py-obj docutils literal"><span class="pre">w1</span></tt>, and
-K2 is a Gaussian kernel parameterized by <tt class="xref py py-obj docutils literal"><span class="pre">h2</span></tt> and <tt class="xref py py-obj docutils literal"><span class="pre">w2</span></tt>.</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="bayesian_quadrature.bq_c.int_dK">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">int_dK</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.int_dK" title="Permalink to this definition">¶</a></dt>
-<dd><p>Computes integrals of the form:</p>
-<p>int dK(x&#8217;, x)/dw N(x&#8217; | mu, cov) dx&#8217;</p>
-<p>where K is a Gaussian kernel matrix parameterized by <tt class="xref py py-obj docutils literal"><span class="pre">h</span></tt> and <tt class="xref py py-obj docutils literal"><span class="pre">w</span></tt>.</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="bayesian_quadrature.bq_c.int_exp_norm">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">int_exp_norm</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.int_exp_norm" title="Permalink to this definition">¶</a></dt>
-<dd><p>Computes integrals of the form:</p>
-<p>int exp(cx) N(x | m, S) = exp(cm + (1/2) c^2 S)</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="bayesian_quadrature.bq_c.int_int_K">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">int_int_K</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.int_int_K" title="Permalink to this definition">¶</a></dt>
-<dd><p>Computes integrals of the form:</p>
-<p>int int K(x1&#8217;, x2&#8217;) N(x1&#8217; | mu, cov) N(x2&#8217; | mu, cov) dx1&#8217; dx2&#8217;</p>
-<p>where K is a Gaussian kernel parameterized by <tt class="xref py py-obj docutils literal"><span class="pre">h</span></tt> and <tt class="xref py py-obj docutils literal"><span class="pre">w</span></tt>.</p>
-<p>The result is:</p>
-<p>out = h^2 N(0 | 0, W + 2*cov)</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="bayesian_quadrature.bq_c.int_int_K1_K2">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">int_int_K1_K2</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.int_int_K1_K2" title="Permalink to this definition">¶</a></dt>
-<dd><p>Computes integrals of the form:</p>
-<p>int int K_1(x2&#8217;, x1&#8217;) K_2(x1&#8217;, x) N(x1&#8217; | mu, cov) N(x2&#8217; | mu, cov) dx1&#8217; dx2&#8217;</p>
-<p>where K_1 is a Gaussian kernel matrix parameterized by <tt class="xref py py-obj docutils literal"><span class="pre">h1</span></tt> and
-<tt class="xref py py-obj docutils literal"><span class="pre">w1</span></tt>, and K_2 is a Gaussian kernel matrix parameterized by <tt class="xref py py-obj docutils literal"><span class="pre">h2</span></tt>
-and <tt class="xref py py-obj docutils literal"><span class="pre">w2</span></tt>.</p>
-<p>The result is:</p>
-<p>out[i] = h1^2 h2^2 N(0 | 0, W1 + 2*cov) N(x_i | mu, W2 + cov - cov*(W1 + 2*cov)^-1*cov)</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="bayesian_quadrature.bq_c.int_int_K1_K2_K1">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">int_int_K1_K2_K1</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.int_int_K1_K2_K1" title="Permalink to this definition">¶</a></dt>
-<dd><p>Computes integrals of the form:</p>
-<p>int int K_1(x, x1&#8217;) K_2(x1&#8217;, x2&#8217;) K_1(x2&#8217;, x) N(x1&#8217; | mu, cov) N(x2&#8217; | mu, cov) dx1&#8217; dx2&#8217;</p>
-<p>where K_1 is a Gaussian kernel matrix parameterized by <tt class="xref py py-obj docutils literal"><span class="pre">h1</span></tt> and
-<tt class="xref py py-obj docutils literal"><span class="pre">w1</span></tt>, and K_2 is a Gaussian kernel matrix parameterized by <tt class="xref py py-obj docutils literal"><span class="pre">h2</span></tt>
-and <tt class="xref py py-obj docutils literal"><span class="pre">w2</span></tt>.</p>
-<p>The result is:</p>
-<p>out[i, j] = h1^4 h2^2 <a href="#id1"><span class="problematic" id="id2">|</span></a>G|^-1 N(x_i | mu, W1 + cov) N(x_j | mu, W1 + cov) N(x_i | x_j, G^-1 (W2 + 2*cov - 2*G*cov) G^-1)</p>
-<p>where G = cov(W1 + cov)^-1</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="bayesian_quadrature.bq_c.mvn_logpdf">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">mvn_logpdf</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.mvn_logpdf" title="Permalink to this definition">¶</a></dt>
-<dd><p>Computes the logpdf for a multivariate normal distribution:</p>
-<dl class="docutils">
-<dt>out[i] = N(x_i | m, C)</dt>
-<dd>= -0.5*log(2*pi)*d - 0.5*(x_i-m)*C^-1*(x_i-m) - 0.5*log(<a href="#id3"><span class="problematic" id="id4">|C|</span></a>)</dd>
-</dl>
+<dt id="bayesian_quadrature.bq_c.p_x_vonmises">
+<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">p_x_vonmises</tt><big>(</big><em>__Pyx_memviewslice p_x</em>, <em>__Pyx_memviewslice x</em>, <em>float64_t mu</em>, <em>float64_t kappa</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.p_x_vonmises" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the Von Mises PDF of input locations <span class="math">\(x\)</span>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>p_x</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p><span class="math">\(n\)</span> output vector of probabilities</p>
+</div></blockquote>
+<p><strong>x</strong> : float64_t[::1, :]</p>
+<blockquote>
+<div><p><span class="math">\(n\)</span> input vector of locations</p>
+</div></blockquote>
+<p><strong>mu</strong> : float64_t[::1]</p>
+<blockquote>
+<div><p>mean parameter</p>
+</div></blockquote>
+<p><strong>kappa</strong> : float64_t[::1, :]</p>
+<blockquote class="last">
+<div><p>spread parameter</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="function">
 <dt id="bayesian_quadrature.bq_c.remove_jitter">
-<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">remove_jitter</tt><big>(</big><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.remove_jitter" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">remove_jitter</tt><big>(</big><em>__Pyx_memviewslice M</em>, <em>__Pyx_memviewslice jitters</em>, <em>__Pyx_memviewslice idx</em><big>)</big><a class="headerlink" href="#bayesian_quadrature.bq_c.remove_jitter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove noise from the indices <tt class="xref py py-obj docutils literal"><span class="pre">idx</span></tt> along the diagonal of <tt class="xref py py-obj docutils literal"><span class="pre">M</span></tt>. Set
+the corresponding locations in the <tt class="xref py py-obj docutils literal"><span class="pre">jitters</span></tt> vector to zero.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="bayesian_quadrature.bq_c.vonmises_logpdf">
+<tt class="descclassname">bayesian_quadrature.bq_c.</tt><tt class="descname">vonmises_logpdf</tt><big>(</big><em>float64_t x</em>, <em>float64_t mu</em>, <em>float64_t kappa</em><big>)</big> &rarr; float64_t<a class="headerlink" href="#bayesian_quadrature.bq_c.vonmises_logpdf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the log-PDF for the Von Mises distribution at location
+<span class="math">\(x\)</span>:</p>
+<div class="math">
+\[p(x | \mu, \kappa) = \frac{\exp(\kappa\cos(x-\mu))}{2\pi I_0(\kappa)}\]</div>
+<p>Where <span class="math">\(I_0\)</span> is the Bessel function of order 0.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>x</strong> : float64_t</p>
+<blockquote>
+<div><p>Input angle (radians)</p>
+</div></blockquote>
+<p><strong>mu</strong> : float64_t</p>
+<blockquote>
+<div><p>Mean angle (radians)</p>
+</div></blockquote>
+<p><strong>kappa</strong> : float64_t</p>
+<blockquote>
+<div><p>Spread parameter</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first last"><strong>out</strong> : value of the log-PDF</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 </div>
 
@@ -232,8 +497,8 @@ and <tt class="xref py py-obj docutils literal"><span class="pre">w2</span></tt>
   <p class="topless"><a href="bayesian_quadrature.util.html"
                         title="previous chapter">Utilities</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="bayesian_quadrature.util_c.html"
-                        title="next chapter">Cython module: <tt class="docutils literal"><span class="pre">util_c</span></tt></a></p>
+  <p class="topless"><a href="bayesian_quadrature.gauss_c.html"
+                        title="next chapter">Cython module: <tt class="docutils literal"><span class="pre">gauss_c</span></tt></a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/bayesian_quadrature.bq_c.txt"
@@ -269,12 +534,12 @@ and <tt class="xref py py-obj docutils literal"><span class="pre">w2</span></tt>
           <a href="np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="bayesian_quadrature.util_c.html" title="Cython module: util_c"
+          <a href="bayesian_quadrature.gauss_c.html" title="Cython module: gauss_c"
              >next</a> |</li>
         <li class="right" >
           <a href="bayesian_quadrature.util.html" title="Utilities"
              >previous</a> |</li>
-        <li><a href="index.html">bayesian_quadrature 0.1.0 documentation</a> &raquo;</li> 
+        <li><a href="index.html">bayesian_quadrature 0.2.0 documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">
