@@ -4,6 +4,7 @@ from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
 import numpy as np
+import os
 from numpy.distutils.system_info import get_info
 
 # try to find LAPACK and BLAS
@@ -11,6 +12,11 @@ blas_info = get_info('blas_opt')
 try:
     # OS X
     blas_include = blas_info['extra_compile_args'][1][2:]
+    if not os.path.exists(blas_include):
+        # for yosemite
+        blas_include = '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/Headers'
+        if not os.path.exists(blas_include):
+            raise RuntimeError("Could not locate blas libraries")
 except KeyError:
     # Linux
     blas_include = "/usr/include/atlas/"
