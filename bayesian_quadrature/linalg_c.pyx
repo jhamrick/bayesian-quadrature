@@ -13,14 +13,14 @@ from libc.math cimport log, sqrt, fabs
 
 cdef extern from "cblas.h":
     float64_t cblas_ddot(int32_t N, float64_t *X, int32_t incX, float64_t *Y, int32_t incY)
-    
-cdef extern enum CBLAS_ORDER:
-    CblasRowMajor = 101
-    CblasColMajor = 102
 
-cdef extern enum CBLAS_UPLO:
-    CblasUpper = 121
-    CblasLower = 122
+    enum CBLAS_ORDER:
+        CblasRowMajor = 101
+        CblasColMajor = 102
+
+    enum CBLAS_UPLO:
+        CblasUpper = 121
+        CblasLower = 122
 
 IF UNAME_SYSNAME == "Darwin":
     cdef extern from "clapack.h":
